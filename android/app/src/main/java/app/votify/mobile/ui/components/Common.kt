@@ -244,6 +244,9 @@ fun PillChip(
     }
 }
 
+/** Global CustomPrefs for reactive UI styling (Settings -> Interface). */
+val LocalCustomPrefs = androidx.compose.runtime.compositionLocalOf { app.votify.mobile.data.CustomPrefs() }
+
 /** Global toggle for Liquid Glass mode (Settings -> Interface). */
 val LocalLiquidGlass = androidx.compose.runtime.compositionLocalOf { false }
 
@@ -277,7 +280,7 @@ fun Modifier.liquidGlass(
         shape = shape,
     )
 
-/** Level-2 card: solid #1E1E1E surface by default; frosted liquid glass when enabled in settings. */
+/** Level-2 card: solid surface by default; frosted blur and alpha when enabled in settings matching the nav bar 1-to-1. */
 @Composable
 fun VotifyCard(
     modifier: Modifier = Modifier,
@@ -289,24 +292,40 @@ fun VotifyCard(
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
     val context = androidx.compose.ui.platform.LocalContext.current
+    val cp = LocalCustomPrefs.current
     val isGlass = LocalLiquidGlass.current
-    val base = if (isGlass) {
+
+    val isTransparent = cp.transparentCards || isGlass
+    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 1f
+    val blurDp = if (isTransparent) cp.cardsBlur.coerceIn(0, 60) else 0
+
+    val baseModifier = if (isGlass) {
         modifier.liquidGlass(
             shape = shape,
-            backgroundColor = if (color == VotifyColors.SurfaceContainer) Color.White.copy(alpha = 0.12f) else color,
-            borderColor = Color.White.copy(alpha = 0.32f),
+            backgroundColor = if (color == VotifyColors.SurfaceContainer) Color.White.copy(alpha = (0.12f * alphaFraction).coerceIn(0.04f, 0.25f)) else color.copy(alpha = alphaFraction),
+            borderColor = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.35f)),
         )
     } else {
+        val borderModifier = if (alphaFraction < 1f || isTransparent) {
+            Modifier.border(
+                width = 0.5.dp,
+                color = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f)),
+                shape = shape,
+            )
+        } else {
+            Modifier.border(1.dp, VotifyColors.BorderSubtle, shape)
+        }
+        val effectiveColor = if (isTransparent) color.copy(alpha = alphaFraction) else color
         modifier
             .clip(shape)
-            .background(color)
-            .border(1.dp, VotifyColors.BorderSubtle, shape)
+            .background(effectiveColor)
+            .then(borderModifier)
     }
     Box(
-        (if (onClick != null) base.clickable {
+        (if (onClick != null) baseModifier.clickable {
             VotifyHaptics.click(view, context)
             onClick()
-        } else base).padding(contentPadding),
+        } else baseModifier).padding(contentPadding),
     ) { content() }
 }
 
@@ -326,19 +345,27 @@ fun CircleIconButton(
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
     val context = androidx.compose.ui.platform.LocalContext.current
+    val cp = LocalCustomPrefs.current
     val isGlass = LocalLiquidGlass.current
+    val isTransparent = cp.transparentCards || isGlass
+    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 1f
+
+    val baseSurfaceColor = if (isGlass) Color.White.copy(alpha = (0.12f * alphaFraction).coerceIn(0.04f, 0.25f)) else if (isTransparent) VotifyColors.SurfaceContainer.copy(alpha = alphaFraction) else VotifyColors.SurfaceContainer
     Surface(
         onClick = {
             VotifyHaptics.click(view, context)
             onClick()
         },
         shape = CircleShape,
-        color = fillColor ?: if (filled) VotifyColors.Primary else if (isGlass) Color.White.copy(alpha = 0.12f) else VotifyColors.SurfaceContainer,
+        color = fillColor ?: if (filled) VotifyColors.Primary else baseSurfaceColor,
         contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary,
-        border = if (filled || !isGlass) null else BorderStroke(
-            1.dp,
+        border = if (filled) null else if (isGlass) BorderStroke(
+            0.5.dp,
             Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.35f), Color.White.copy(alpha = 0.08f)))
-        ),
+        ) else if (isTransparent && alphaFraction < 1f) BorderStroke(
+            0.5.dp,
+            Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f))
+        ) else null,
         modifier = modifier.size(size),
     ) {
         Box(contentAlignment = Alignment.Center) { icon() }

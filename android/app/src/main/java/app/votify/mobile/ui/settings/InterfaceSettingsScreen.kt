@@ -160,10 +160,33 @@ fun InterfaceSettingsScreen(
             SettingsSectionLabel(stringResource(R.string.settings_transparency))
             SettingsCard {
                 SettingsToggleRow(
-                    title = stringResource(R.string.settings_transparency),
-                    subtitle = stringResource(R.string.settings_transparency_sub),
+                    title = "Прозрачность объектов",
+                    subtitle = "Включить прозрачность для всех карточек и панелей",
                     checked = prefs.transparentCards,
                     onChange = { v -> viewModel.updatePrefs { it.copy(transparentCards = v) } },
+                )
+                SettingsDivider()
+                SettingsSliderRow(
+                    title = "Прозрачность фона",
+                    value = prefs.cardsAlpha.toFloat(),
+                    range = 0f..100f,
+                    unit = "%",
+                    onValueChange = { v -> viewModel.updatePrefs { it.copy(cardsAlpha = v.toInt()) } },
+                )
+                SettingsDivider()
+                SettingsSliderRow(
+                    title = "Размытие фона (блюр)",
+                    value = prefs.cardsBlur.toFloat(),
+                    range = 0f..60f,
+                    unit = " dp",
+                    onValueChange = { v ->
+                        viewModel.updatePrefs {
+                            it.copy(
+                                cardsBlur = v.toInt(),
+                                liquidGlass = v > 0,
+                            )
+                        }
+                    },
                 )
                 SettingsDivider()
                 SettingsToggleRow(

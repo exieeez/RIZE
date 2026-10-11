@@ -103,6 +103,23 @@ fun MiniPlayer(
         offsetY.snapTo(0f)
     }
 
+    val cp = LocalCustomPrefs.current
+    val isGlass = LocalLiquidGlass.current
+    val isTransparent = cp.transparentCards || isGlass
+    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 0.92f
+
+    val baseBg = tint ?: VotifyColors.SurfaceContainer
+    val effectiveBg = baseBg.copy(alpha = alphaFraction)
+    val borderModifier = if (isTransparent || alphaFraction < 1f) {
+        Modifier.border(
+            width = 0.5.dp,
+            color = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f)),
+            shape = shape,
+        )
+    } else {
+        Modifier.border(1.dp, VotifyColors.SurfaceContainerHighest, shape)
+    }
+
     Box(
         modifier
             .padding(horizontal = 8.dp)
@@ -113,8 +130,8 @@ fun MiniPlayer(
                 alpha = (1f - (offsetY.value / 180f)).coerceIn(0.1f, 1f)
             }
             .clip(shape)
-            .background(tint?.copy(alpha = 0.92f) ?: VotifyColors.SurfaceContainer.copy(alpha = 0.92f))
-            .border(1.dp, VotifyColors.SurfaceContainerHighest, shape)
+            .background(effectiveBg)
+            .then(borderModifier)
             .clickable(onClick = onClick)
             .pointerInput(onSwipeLeft, onSwipeRight, onDismiss) {
                 var totalX = 0f

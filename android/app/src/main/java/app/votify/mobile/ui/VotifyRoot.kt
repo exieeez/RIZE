@@ -130,6 +130,7 @@ import app.votify.mobile.ui.settings.PlayerSettingsScreen
 import app.votify.mobile.ui.settings.PresetsScreen
 import app.votify.mobile.ui.settings.ProxySettingsScreen
 import androidx.compose.runtime.CompositionLocalProvider
+import app.votify.mobile.ui.components.LocalCustomPrefs
 import app.votify.mobile.ui.components.LocalLiquidGlass
 import app.votify.mobile.ui.components.VotifyHaptics
 import app.votify.mobile.ui.settings.StorageSettingsScreen
@@ -431,7 +432,8 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
         }
         val hazeState = remember { HazeState() }
         CompositionLocalProvider(
-            LocalLiquidGlass provides bgPrefs.liquidGlass
+            LocalCustomPrefs provides bgPrefs,
+            LocalLiquidGlass provides bgPrefs.liquidGlass,
         ) {
             Scaffold(
                 containerColor = Color.Transparent,

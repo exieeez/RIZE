@@ -103,14 +103,18 @@ fun VotifyTheme(
         AppTheme.System -> if (isSystemInDarkTheme()) OledBlackPalette else LightPalette
         AppTheme.Workshop -> parseWorkshopSpec(customThemeJson).toPalette()
     }
-    // Interface settings: translucent cards over a background image.
-    val effectivePalette = if (prefs.transparentCards) palette.copy(
-        surfaceContainerLowest = palette.surfaceContainerLowest.copy(alpha = 0.78f),
-        surfaceContainerLow = palette.surfaceContainerLow.copy(alpha = 0.80f),
-        surfaceContainer = palette.surfaceContainer.copy(alpha = 0.82f),
-        surfaceContainerHigh = palette.surfaceContainerHigh.copy(alpha = 0.86f),
-        surfaceContainerHighest = palette.surfaceContainerHighest.copy(alpha = 0.90f),
-    ) else palette
+    // Interface settings: translucent cards over a background image (matching navBarAlpha logic).
+    val cardsAlphaFraction = (prefs.cardsAlpha.coerceIn(0, 100)) / 100f
+    val effectivePalette = if (prefs.transparentCards || prefs.liquidGlass) {
+        val targetAlpha = if (prefs.transparentCards) cardsAlphaFraction else 0.85f
+        palette.copy(
+            surfaceContainerLowest = palette.surfaceContainerLowest.copy(alpha = (targetAlpha * 0.95f).coerceIn(0f, 1f)),
+            surfaceContainerLow = palette.surfaceContainerLow.copy(alpha = (targetAlpha * 0.97f).coerceIn(0f, 1f)),
+            surfaceContainer = palette.surfaceContainer.copy(alpha = targetAlpha),
+            surfaceContainerHigh = palette.surfaceContainerHigh.copy(alpha = (targetAlpha + (1f - targetAlpha) * 0.2f).coerceIn(0f, 1f)),
+            surfaceContainerHighest = palette.surfaceContainerHighest.copy(alpha = (targetAlpha + (1f - targetAlpha) * 0.4f).coerceIn(0f, 1f)),
+        )
+    } else palette
 
     val family = when (prefs.fontFamily) {
         "serif" -> androidx.compose.ui.text.font.FontFamily.Serif

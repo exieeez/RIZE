@@ -1,6 +1,7 @@
 package app.votify.mobile.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -169,7 +170,7 @@ fun SettingsSectionLabel(text: String) {
     )
 }
 
-/** Clean solid container card without borders or outlines (native sleek look). */
+/** Clean container card with customizable transparency, frosted blur and border highlight matching the bottom bar 1-to-1. */
 @Composable
 fun SettingsCard(
     modifier: Modifier = Modifier,
@@ -178,12 +179,27 @@ fun SettingsCard(
 ) {
     val haptic = rememberVotifyHaptic()
     val shape = RoundedCornerShape(18.dp)
-    val cardBg = Color(0xFF141416)
+    val cp = app.votify.mobile.ui.components.LocalCustomPrefs.current
+    val isGlass = app.votify.mobile.ui.components.LocalLiquidGlass.current
+
+    val isTransparent = cp.transparentCards || isGlass
+    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 1f
+    val baseColor = Color(0xFF141416)
+
+    val borderModifier = if (alphaFraction < 1f || isTransparent) {
+        Modifier.border(
+            width = 0.5.dp,
+            color = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f)),
+            shape = shape,
+        )
+    } else Modifier
+
     val base = modifier
         .padding(horizontal = 14.dp, vertical = 2.dp)
         .fillMaxWidth()
         .clip(shape)
-        .background(cardBg)
+        .background(baseColor.copy(alpha = alphaFraction))
+        .then(borderModifier)
 
     val clickableModifier = if (onClick != null) {
         base.clickable {
