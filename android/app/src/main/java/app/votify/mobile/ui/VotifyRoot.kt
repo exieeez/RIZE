@@ -378,12 +378,12 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
 
     val statusBar = WindowInsets.statusBars.asPaddingValues()
     val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
-    // Content must clear: nav bar (height + island) + mini-player (64 + 8 gap) + gesture inset.
+    // Content can scroll freely under the translucent nav bar and mini-player.
+    // We add standard clearance so the last element isn't permanently obscured, but cards scroll all the way underneath.
     val hasMini = playerState.current != null
     val navHeightDp = cp.navBarHeight.coerceIn(48, 80).dp
     val islandExtra = if (cp.navBarIsland) 12.dp else 0.dp
-    val bottomClearance = navHeightDp + islandExtra + (if (hasMini) 72.dp else 0.dp) + navBarInset
+    val bottomClearance = navHeightDp + islandExtra + (if (hasMini) 72.dp else 0.dp) + navBarInset + 24.dp
     val contentPadding = PaddingValues(top = statusBar.calculateTopPadding(), bottom = bottomClearance)
 
     val play: (List<Track>, Int) -> Unit = { tracks, i -> player.play(tracks, i) }
@@ -959,7 +959,7 @@ private fun VotifyNavBar(
             state = hazeState,
             shape = shape,
             style = HazeStyle(
-                tint = baseColor.copy(alpha = alphaFraction),
+                tint = baseColor.copy(alpha = alphaFraction * 0.40f),
                 blurRadius = effectiveBlurDp.dp,
             ),
         )
