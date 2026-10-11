@@ -189,7 +189,7 @@ fun SettingsCard(
     val borderModifier = if (alphaFraction < 1f || isTransparent) {
         Modifier.border(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f)),
+            color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
             shape = shape,
         )
     } else Modifier

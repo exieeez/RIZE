@@ -256,16 +256,16 @@ val LocalLiquidGlass = androidx.compose.runtime.compositionLocalOf { false }
  */
 fun Modifier.liquidGlass(
     shape: Shape = RoundedCornerShape(16.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.12f),
-    borderColor: Color = Color.White.copy(alpha = 0.35f),
-    borderWidth: Dp = 1.dp,
+    backgroundColor: Color = Color.White.copy(alpha = 0.08f),
+    borderColor: Color = Color.White.copy(alpha = 0.12f),
+    borderWidth: Dp = 0.5.dp,
 ): Modifier = this
     .clip(shape)
     .background(
         Brush.verticalGradient(
             colors = listOf(
-                backgroundColor.copy(alpha = (backgroundColor.alpha * 1.5f).coerceAtMost(1f)),
-                backgroundColor.copy(alpha = (backgroundColor.alpha * 0.4f).coerceAtMost(1f)),
+                backgroundColor.copy(alpha = (backgroundColor.alpha * 1.3f).coerceAtMost(1f)),
+                backgroundColor.copy(alpha = (backgroundColor.alpha * 0.5f).coerceAtMost(1f)),
             )
         )
     )
@@ -274,7 +274,7 @@ fun Modifier.liquidGlass(
         brush = Brush.verticalGradient(
             colors = listOf(
                 borderColor,
-                borderColor.copy(alpha = (borderColor.alpha * 0.15f).coerceAtMost(1f)),
+                borderColor.copy(alpha = (borderColor.alpha * 0.2f).coerceAtMost(1f)),
             )
         ),
         shape = shape,
@@ -302,18 +302,18 @@ fun VotifyCard(
     val baseModifier = if (isGlass) {
         modifier.liquidGlass(
             shape = shape,
-            backgroundColor = if (color == VotifyColors.SurfaceContainer) Color.White.copy(alpha = (0.12f * alphaFraction).coerceIn(0.04f, 0.25f)) else color.copy(alpha = alphaFraction),
-            borderColor = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.35f)),
+            backgroundColor = if (color == VotifyColors.SurfaceContainer) Color.White.copy(alpha = (0.08f * alphaFraction).coerceIn(0.03f, 0.18f)) else color.copy(alpha = alphaFraction),
+            borderColor = Color.White.copy(alpha = (0.10f * (1f - alphaFraction * 0.4f)).coerceIn(0.04f, 0.12f)),
         )
     } else {
         val borderModifier = if (alphaFraction < 1f || isTransparent) {
             Modifier.border(
                 width = 0.5.dp,
-                color = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f)),
+                color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
                 shape = shape,
             )
         } else {
-            Modifier.border(1.dp, VotifyColors.BorderSubtle, shape)
+            Modifier.border(0.5.dp, VotifyColors.BorderSubtle.copy(alpha = 0.4f), shape)
         }
         val effectiveColor = if (isTransparent) color.copy(alpha = alphaFraction) else color
         modifier
@@ -361,10 +361,10 @@ fun CircleIconButton(
         contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary,
         border = if (filled) null else if (isGlass) BorderStroke(
             0.5.dp,
-            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.35f), Color.White.copy(alpha = 0.08f)))
+            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.04f)))
         ) else if (isTransparent && alphaFraction < 1f) BorderStroke(
             0.5.dp,
-            Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f))
+            Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f))
         ) else null,
         modifier = modifier.size(size),
     ) {

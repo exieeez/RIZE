@@ -116,7 +116,6 @@ fun InterfaceSettingsScreen(
                         viewModel.updatePrefs {
                             it.copy(
                                 navBarBlur = v.toInt(),
-                                navBarLiquidGlass = v > 0,
                             )
                         }
                     },
@@ -183,17 +182,9 @@ fun InterfaceSettingsScreen(
                         viewModel.updatePrefs {
                             it.copy(
                                 cardsBlur = v.toInt(),
-                                liquidGlass = v > 0,
                             )
                         }
                     },
-                )
-                SettingsDivider()
-                SettingsToggleRow(
-                    title = "Жидкое стекло (Liquid Glass)",
-                    subtitle = "Сильно размытый фон карточек с зеркальным бликом",
-                    checked = prefs.liquidGlass,
-                    onChange = { v -> viewModel.updatePrefs { it.copy(liquidGlass = v) } },
                 )
             }
 

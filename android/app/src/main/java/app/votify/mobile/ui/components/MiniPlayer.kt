@@ -113,11 +113,11 @@ fun MiniPlayer(
     val borderModifier = if (isTransparent || alphaFraction < 1f) {
         Modifier.border(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = (0.20f * (1f - alphaFraction * 0.5f)).coerceIn(0.06f, 0.20f)),
+            color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
             shape = shape,
         )
     } else {
-        Modifier.border(1.dp, VotifyColors.SurfaceContainerHighest, shape)
+        Modifier.border(0.5.dp, VotifyColors.SurfaceContainerHighest.copy(alpha = 0.4f), shape)
     }
 
     Box(
