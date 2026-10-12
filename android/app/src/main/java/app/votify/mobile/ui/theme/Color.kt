@@ -320,13 +320,13 @@ object VotifyColors {
 
     /**
      * Заливка крупной круглой кнопки-акцента. Монохромные темы (OLED/графит/светлая) дают
-     * белый или тёмный диск, как в исходном дизайне; цветной акцент — приглушённую подложку
-     * вместо плашки чистым цветом, которая на OLED выглядит инородным пятном.
+     * белый или тёмный диск, как в исходном дизайне. Цветной акцент раньше сильно
+     * приглушался (30 %) и выглядел грязным — теперь берём более чистый его оттенок.
      */
     val AccentFill: Color
         @Composable @ReadOnlyComposable get() {
             val primary = p.primary
-            return if (primary.chroma < 0.06f) p.textPrimary else mixOf(p.surfaceBase, primary, 0.30f)
+            return if (primary.chroma < 0.06f) p.textPrimary else mixOf(p.surfaceBase, primary, 0.55f)
         }
 
     /** Иконка внутри [AccentFill]: сам акцент, осветлённый, если он слишком тёмный. */

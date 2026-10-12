@@ -149,13 +149,13 @@ fun InterfaceSettingsScreen(
                                 onClick = {
                                     // Помечаем тему как «мастерскую», иначе следующий апдейт
                                     // настроек откатил бы цвет обратно к одноцветной теме.
-                                    // themeApplyBackground=false — чтобы фон пары не перекрывался
-                                    // собственной картинкой пользователя.
+                                    // themeApplyBackground оставляем включённым: обои пользователя
+                                    // остаются на месте, а меняются только цвета интерфейса.
                                     viewModel.updatePrefs {
                                         it.copy(
                                             themeMode = "dark",
                                             themeName = "workshop",
-                                            themeApplyBackground = false,
+                                            themeApplyBackground = true,
                                         )
                                     }
                                     viewModel.setCustomColors(pair.toSlotMap())

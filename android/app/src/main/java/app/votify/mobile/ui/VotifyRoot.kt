@@ -1009,6 +1009,9 @@ private fun VotifyNavBar(
             style = HazeStyle(
                 tint = baseColor.copy(alpha = tintAlpha),
                 blurRadius = effectiveBlurDp.dp,
+                // 0f — без зерна: по умолчанию haze добавляет шум 0.15, и на панели
+                // была видна зернистость.
+                noiseFactor = 0f,
             ),
         )
     } else {
@@ -1066,18 +1069,8 @@ private fun VotifyNavBar(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Активная вкладка получает мягкую акцентную подложку — так выбор
-                    // читается сразу, как в обычных приложениях, а не только по цвету иконки.
-                    // Подложка прозрачна для нажатий: клики ловит весь Box выше.
-                    Box(
-                        modifier = Modifier
-                            .width(44.dp)
-                            .height(30.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(
-                                if (isSelected) VotifyColors.IconAccent.copy(alpha = 0.16f) else Color.Transparent,
-                            ),
-                    )
+                    // Без акцентной подложки: она дёргалась при смене цвета и выглядела чужеродно.
+                    // Активная вкладка выделяется только цветом и размером иконки.
                     Icon(
                         painter = painterResource(if (isSelected) tab.iconSelected else tab.icon),
                         contentDescription = stringResource(tab.label),

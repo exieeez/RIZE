@@ -412,38 +412,44 @@ private fun HomeHeader(
             }
         }
         Spacer(Modifier.weight(1f))
-        CircleIconButton(onClick = onOpenAccount, size = 36.dp, showBorder = false, contentDescription = stringResource(R.string.settings_section_account)) {
-            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(19.dp))
-        }
-        Spacer(Modifier.width(8.dp))
-        CircleIconButton(onClick = onOpenSearch, size = 36.dp, showBorder = false, contentDescription = stringResource(R.string.nav_search)) {
-            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.width(8.dp))
+        // Кнопки шапки — без своей подложки: голые иконки на фоне, как в обычных
+        // приложениях. Стеклянные диски 36 dp шли вплотную и наезжали друг на друга.
+        Icon(
+            Icons.Outlined.AccountCircle,
+            contentDescription = stringResource(R.string.settings_section_account),
+            tint = VotifyColors.TextSecondary,
+            modifier = Modifier
+                .size(28.dp)
+                .clickable { onOpenAccount() },
+        )
+        Spacer(Modifier.width(14.dp))
+        Icon(
+            Icons.Outlined.Search,
+            contentDescription = stringResource(R.string.nav_search),
+            tint = VotifyColors.TextSecondary,
+            modifier = Modifier
+                .size(26.dp)
+                .clickable { onOpenSearch() },
+        )
+        Spacer(Modifier.width(14.dp))
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val animatedRotation by androidx.compose.animation.core.animateFloatAsState(
             targetValue = settingsAngle,
             animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "settingsSpin",
         )
-        CircleIconButton(
-            onClick = {
-                settingsAngle += 360f
-                onOpenSettings()
-            },
-            size = 36.dp,
-            showBorder = false,
+        Icon(
+            Icons.Outlined.Settings,
             contentDescription = stringResource(R.string.nav_settings),
-        ) {
-            Icon(
-                Icons.Outlined.Settings,
-                null,
-                tint = VotifyColors.TextSecondary,
-                modifier = Modifier
-                    .size(18.dp)
-                    .graphicsLayer { rotationZ = animatedRotation },
-            )
-        }
+            tint = VotifyColors.TextSecondary,
+            modifier = Modifier
+                .size(26.dp)
+                .graphicsLayer { rotationZ = animatedRotation }
+                .clickable {
+                    settingsAngle += 360f
+                    onOpenSettings()
+                },
+        )
     }
 }
 
@@ -508,8 +514,23 @@ private fun WaveOrbit(
             }
         }
 
-        val heroFill by animateColorAsState(VotifyColors.AccentFill, tween(160), label = "heroFill")
-        val heroContent by animateColorAsState(VotifyColors.AccentContent, tween(160), label = "heroContent")
+        // Плавная смена акцента: раньше было 160 мс — рывок при переключении темы.
+        val heroFill by animateColorAsState(
+            VotifyColors.AccentFill,
+            androidx.compose.animation.core.tween(
+                durationMillis = 600,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing,
+            ),
+            label = "heroFill",
+        )
+        val heroContent by animateColorAsState(
+            VotifyColors.AccentContent,
+            androidx.compose.animation.core.tween(
+                durationMillis = 600,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing,
+            ),
+            label = "heroContent",
+        )
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(
