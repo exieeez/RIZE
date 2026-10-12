@@ -76,7 +76,6 @@ import app.votify.mobile.ui.components.CircleIconButton
 import app.votify.mobile.ui.components.LocalLiquidGlass
 import app.votify.mobile.ui.components.PillChip
 import app.votify.mobile.ui.components.VotifyCard
-import app.votify.mobile.ui.components.liquidGlass
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp

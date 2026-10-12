@@ -131,7 +131,10 @@ import app.votify.mobile.ui.settings.PresetsScreen
 import app.votify.mobile.ui.settings.ProxySettingsScreen
 import androidx.compose.runtime.CompositionLocalProvider
 import app.votify.mobile.ui.components.LocalCustomPrefs
+import app.votify.mobile.ui.components.LocalHazeState
 import app.votify.mobile.ui.components.LocalLiquidGlass
+import app.votify.mobile.ui.components.rememberGlassSpec
+import app.votify.mobile.ui.components.toGlassSpec
 import app.votify.mobile.ui.components.VotifyHaptics
 import app.votify.mobile.ui.settings.StorageSettingsScreen
 import app.votify.mobile.ui.settings.SwipeSettingsScreen
@@ -408,15 +411,27 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
     // Fine-tuning: Настройки → Фон («затемнение»/«размытие», prefs.bgDim/bgBlur).
     // Defaults (dim 35, blur 0) match the previous hard-coded look; the workshop
     // spec sliders were the only tuning before and are now overridden here.
-    val bgBlurDp = if (bgPrefs.liquidGlass) bgPrefs.bgBlur.coerceAtLeast(40) else bgPrefs.bgBlur.coerceIn(0, 60)
+    val bgBlurDp = if (bgPrefs.glassEnabled) bgPrefs.bgBlur.coerceAtLeast(40) else bgPrefs.bgBlur.coerceIn(0, 60)
     val bgDimAlpha = bgPrefs.bgDim.coerceIn(0, 92) / 100f
+    // Единое стекло: тумблер Liquid Glass и два ползунка управляют и панелью, и интерфейсом.
+    // Настройки известны напрямую — считаем без CompositionLocal, иначе взялись бы дефолты.
+    val glassSpec = bgPrefs.toGlassSpec()
     // imePadding: with edge-to-edge the keyboard would cover the bottom nav — on the search
     // screen that made it impossible to return to Home without the system back gesture.
     Box(Modifier.fillMaxSize().imePadding().background(VotifyColors.SurfaceBase)) {
-        val hazeState = remember { HazeState() }
+        // ДВА независимых состояния размытия, потому что в haze 0.7.x на одно состояние
+        // допускается только один узел-источник, а источникам нужно разное содержимое:
+        //  • contentHazeState — фон + содержимое; на него смотрят панель и мини-плеер,
+        //    чтобы прокрутка, ушедшая под панель, была видна через стекло размытой;
+        //  • bgHazeState — только фон; на него смотрят карточки внутри содержимого.
+        // Иначе карточка оказалась бы потомком своего источника и размылась бы сама
+        // (вместе со своим текстом), а не фон под ней.
+        val contentHazeState = remember { HazeState() }
+        val bgHazeState = remember { HazeState() }
         CompositionLocalProvider(
             LocalCustomPrefs provides bgPrefs,
-            LocalLiquidGlass provides bgPrefs.liquidGlass,
+            LocalLiquidGlass provides glassSpec.enabled,
+            LocalHazeState provides bgHazeState,
         ) {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -424,34 +439,39 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 snackbarHost = { SnackbarHost(snackbar) },
             ) { _ ->
                 Box(Modifier.fillMaxSize()) {
-                    // Источник размытия для нижней панели: обои + содержимое экранов.
-                    // Haze 0.7.x размывает только то, что нарисовано внутри его узла,
-                    // поэтому фон обязан лежать здесь же — иначе панели нечего размывать
-                    // и она выглядит плоской заливкой цвета. Панель (hazeChild) — сосед этого Box.
+                    // СОСТОЯНИЕ 1 (contentHazeState) — источник для панели и мини-плеера:
+                    // фон вместе с содержимым, чтобы под стеклом читалась прокрутка.
+                    // Карточки лежат внутри NavHost, но они НЕ потомки вложенного источника ниже.
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .haze(hazeState),
+                            .haze(contentHazeState),
                     ) {
-                        // Базовая подложка внутри источника: даже без обоев и при непрокрученном
-                        // контенте панели есть что размывать, а не просто «дырка» в экране.
-                        Box(Modifier.fillMaxSize().background(VotifyColors.SurfaceBase))
-                        if (workshopBgUrl.isNotBlank()) {
-                            coil.compose.AsyncImage(
-                                model = workshopBgUrl,
-                                contentDescription = null,
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                alignment = androidx.compose.ui.Alignment.Center,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .blur(bgBlurDp.dp),
-                            )
-                            // Dim the background so text on cards stays readable (Настройки → Фон → Затемнение).
-                            Box(
-                                Modifier.fillMaxSize().background(
-                                    androidx.compose.ui.graphics.Color.Black.copy(alpha = bgDimAlpha),
-                                ),
-                            )
+                        // СОСТОЯНИЕ 2 (bgHazeState) — источник для карточек: только фон.
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .haze(bgHazeState),
+                        ) {
+                            // Базовая подложка: даже без обоев есть что размывать.
+                            Box(Modifier.fillMaxSize().background(VotifyColors.SurfaceBase))
+                            if (workshopBgUrl.isNotBlank()) {
+                                coil.compose.AsyncImage(
+                                    model = workshopBgUrl,
+                                    contentDescription = null,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    alignment = androidx.compose.ui.Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .blur(bgBlurDp.dp),
+                                )
+                                // Dim the background so text on cards stays readable (Настройки → Фон → Затемнение).
+                                Box(
+                                    Modifier.fillMaxSize().background(
+                                        androidx.compose.ui.graphics.Color.Black.copy(alpha = bgDimAlpha),
+                                    ),
+                                )
+                            }
                         }
                         NavHost(
                             navController,
@@ -707,8 +727,8 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 onBack = { navController.popBackStack() },
                             )
                         }
+                        }
                     }
-                }
 
             Column(
                 modifier = Modifier
@@ -743,6 +763,8 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                         onDismiss = {
                             player.dismiss()
                         },
+                        // Как у панели: размываем контент, уехавший под мини-плеер.
+                        hazeState = contentHazeState,
                         style = MiniStyle(
                             pillShape = cp.miniCorners == "pill",
                             cornerRadiusDp = when (cp.miniCorners) {
@@ -771,7 +793,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                         }
                     },
                     cp = cp,
-                    hazeState = hazeState,
+                    hazeState = contentHazeState,
                 )
             }
         }
@@ -940,23 +962,12 @@ private fun VotifyNavBar(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val heightDp = cp.navBarHeight.coerceIn(48, 80).dp
-    // Ползунок «Прозрачность фона»: 0 % — самое плотное стекло, 100 % — максимально
-    // прозрачная панель. Раньше значение работало наоборот, поэтому сдвиг вправо
-    // делал панель только плотнее — настоящей прозрачности не получалось.
-    val transparencyFraction = (cp.navBarAlpha.coerceIn(0, 100)) / 100f
     val isIsland = cp.navBarIsland
-    val blurDp = cp.navBarBlur.coerceIn(0, 60)
-    // Полупрозрачная панель без блюра вырождается в плоскую заливку цветом —
-    // именно так это и выглядело. Поэтому при любой прозрачности оставляем
-    // минимальный блюр, а ползунок задаёт силу сверх него.
-    val effectiveBlurDp = when {
-        blurDp > 0 -> blurDp
-        transparencyFraction > 0f -> 20
-        else -> 0
-    }
-    // Тон «матового стекла» поверх размытого фона: нижняя граница держит читаемость
-    // иконок, верхняя — чтобы размытие оставалось заметным.
-    val tintAlpha = ((1f - transparencyFraction) * 0.45f).coerceIn(0.10f, 0.50f)
+    // Одна формула стекла с интерфейсом: панель больше не имеет собственных ползунков,
+    // поэтому её плотность и размытие совпадают с карточками один-в-один.
+    val spec = rememberGlassSpec()
+    val effectiveBlurDp = spec.effectiveBlurDp
+    val tintAlpha = spec.tintAlpha
 
     val shape = if (isIsland) RoundedCornerShape(32.dp) else RoundedCornerShape(0.dp)
     val outerModifier = if (isIsland) {
@@ -970,10 +981,10 @@ private fun VotifyNavBar(
 
     val baseColor = if (isIsland) Color(0xFF141416) else Color(0xFF101012)
 
-    val borderModifier = if (isIsland || transparencyFraction > 0f) {
+    val borderModifier = if (isIsland || spec.enabled) {
         Modifier.border(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = (0.05f + transparencyFraction * 0.07f).coerceIn(0.04f, 0.12f)),
+            color = Color.White.copy(alpha = spec.borderAlpha),
             shape = shape,
         )
     } else Modifier
@@ -988,7 +999,7 @@ private fun VotifyNavBar(
             ),
         )
     } else {
-        Modifier.background(baseColor.copy(alpha = tintAlpha))
+        Modifier.background(baseColor.copy(alpha = if (spec.enabled) spec.alphaFraction else 1f))
     }
 
     Box(

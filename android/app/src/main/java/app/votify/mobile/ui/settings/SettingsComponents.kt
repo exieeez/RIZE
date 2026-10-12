@@ -78,7 +78,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.votify.mobile.R
+import app.votify.mobile.ui.components.rememberGlassSpec
 import app.votify.mobile.ui.components.rememberVotifyHaptic
+import app.votify.mobile.ui.components.votifyGlass
 import app.votify.mobile.ui.theme.VotifyColors
 
 /**
@@ -179,17 +181,14 @@ fun SettingsCard(
 ) {
     val haptic = rememberVotifyHaptic()
     val shape = RoundedCornerShape(18.dp)
-    val cp = app.votify.mobile.ui.components.LocalCustomPrefs.current
-    val isGlass = app.votify.mobile.ui.components.LocalLiquidGlass.current
-
-    val isTransparent = cp.transparentCards || isGlass
-    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 1f
+    // Единое стекло: та же формула, что у нижней панели.
+    val spec = app.votify.mobile.ui.components.rememberGlassSpec()
     val baseColor = Color(0xFF141416)
 
-    val borderModifier = if (alphaFraction < 1f || isTransparent) {
+    val borderModifier = if (spec.enabled) {
         Modifier.border(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
+            color = Color.White.copy(alpha = spec.borderAlpha),
             shape = shape,
         )
     } else Modifier
@@ -197,8 +196,7 @@ fun SettingsCard(
     val base = modifier
         .padding(horizontal = 14.dp, vertical = 2.dp)
         .fillMaxWidth()
-        .clip(shape)
-        .background(baseColor.copy(alpha = alphaFraction))
+        .votifyGlass(shape = shape, baseColor = baseColor, spec = spec)
         .then(borderModifier)
 
     val clickableModifier = if (onClick != null) {

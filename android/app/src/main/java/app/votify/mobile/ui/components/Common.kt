@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -245,40 +244,21 @@ fun PillChip(
 }
 
 /** Global CustomPrefs for reactive UI styling (Settings -> Interface). */
+/**
+ * ВНИМАНИЕ: настоящее размытие haze работает только на Android 12L+ (API 32+);
+ * ниже система рисует полупрозрачную заливку вместо блюра.
+ */
 val LocalCustomPrefs = androidx.compose.runtime.compositionLocalOf { app.votify.mobile.data.CustomPrefs() }
 
 /** Global toggle for Liquid Glass mode (Settings -> Interface). */
 val LocalLiquidGlass = androidx.compose.runtime.compositionLocalOf { false }
 
 /**
- * Liquid Glass modifier: strongly frosted glass with specular highlight border,
- * gradient reflection and glassy shine.
+ * ВНИМАНИЕ: настоящее размытие haze работает только на Android 12L+ (API 32+);
+ * ниже система рисует полупрозрачную заливку вместо блюра (см. ScrimImpl в haze).
+ * На таких устройствах ползунок «Размытие» визуально ничего не меняет — это
+ * ограничение платформы, а не настроек.
  */
-fun Modifier.liquidGlass(
-    shape: Shape = RoundedCornerShape(16.dp),
-    backgroundColor: Color = Color.White.copy(alpha = 0.08f),
-    borderColor: Color = Color.White.copy(alpha = 0.12f),
-    borderWidth: Dp = 0.5.dp,
-): Modifier = this
-    .clip(shape)
-    .background(
-        Brush.verticalGradient(
-            colors = listOf(
-                backgroundColor.copy(alpha = (backgroundColor.alpha * 1.3f).coerceAtMost(1f)),
-                backgroundColor.copy(alpha = (backgroundColor.alpha * 0.5f).coerceAtMost(1f)),
-            )
-        )
-    )
-    .border(
-        width = borderWidth,
-        brush = Brush.verticalGradient(
-            colors = listOf(
-                borderColor,
-                borderColor.copy(alpha = (borderColor.alpha * 0.2f).coerceAtMost(1f)),
-            )
-        ),
-        shape = shape,
-    )
 
 /** Level-2 card: solid surface by default; frosted blur and alpha when enabled in settings matching the nav bar 1-to-1. */
 @Composable
@@ -292,34 +272,22 @@ fun VotifyCard(
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    val cp = LocalCustomPrefs.current
-    val isGlass = LocalLiquidGlass.current
+    // Единое стекло: та же формула, что у нижней панели — карточки и панель совпадают.
+    val spec = rememberGlassSpec()
 
-    val isTransparent = cp.transparentCards || isGlass
-    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 1f
-    val blurDp = if (isTransparent) cp.cardsBlur.coerceIn(0, 60) else 0
-
-    val baseModifier = if (isGlass) {
-        modifier.liquidGlass(
-            shape = shape,
-            backgroundColor = if (color == VotifyColors.SurfaceContainer) Color.White.copy(alpha = (0.08f * alphaFraction).coerceIn(0.03f, 0.18f)) else color.copy(alpha = alphaFraction),
-            borderColor = Color.White.copy(alpha = (0.10f * (1f - alphaFraction * 0.4f)).coerceIn(0.04f, 0.12f)),
-        )
-    } else {
-        val borderModifier = if (alphaFraction < 1f || isTransparent) {
-            Modifier.border(
+    val baseModifier = if (spec.enabled) {
+        modifier
+            .votifyGlass(shape = shape, baseColor = color, spec = spec)
+            .border(
                 width = 0.5.dp,
-                color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
+                color = Color.White.copy(alpha = spec.borderAlpha),
                 shape = shape,
             )
-        } else {
-            Modifier.border(0.5.dp, VotifyColors.BorderSubtle.copy(alpha = 0.4f), shape)
-        }
-        val effectiveColor = if (isTransparent) color.copy(alpha = alphaFraction) else color
+    } else {
         modifier
             .clip(shape)
-            .background(effectiveColor)
-            .then(borderModifier)
+            .background(color)
+            .border(0.5.dp, VotifyColors.BorderSubtle.copy(alpha = 0.4f), shape)
     }
     Box(
         (if (onClick != null) baseModifier.clickable {
@@ -345,12 +313,9 @@ fun CircleIconButton(
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    val cp = LocalCustomPrefs.current
-    val isGlass = LocalLiquidGlass.current
-    val isTransparent = cp.transparentCards || isGlass
-    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 1f
+    val spec = rememberGlassSpec()
 
-    val baseSurfaceColor = if (isGlass) Color.White.copy(alpha = (0.12f * alphaFraction).coerceIn(0.04f, 0.25f)) else if (isTransparent) VotifyColors.SurfaceContainer.copy(alpha = alphaFraction) else VotifyColors.SurfaceContainer
+    val baseSurfaceColor = if (spec.enabled) Color.White.copy(alpha = (0.12f * spec.alphaFraction).coerceIn(0.04f, 0.25f)) else VotifyColors.SurfaceContainer
     Surface(
         onClick = {
             VotifyHaptics.click(view, context)
@@ -359,12 +324,9 @@ fun CircleIconButton(
         shape = CircleShape,
         color = fillColor ?: if (filled) VotifyColors.Primary else baseSurfaceColor,
         contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary,
-        border = if (filled) null else if (isGlass) BorderStroke(
+        border = if (filled) null else if (spec.enabled) BorderStroke(
             0.5.dp,
-            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.04f)))
-        ) else if (isTransparent && alphaFraction < 1f) BorderStroke(
-            0.5.dp,
-            Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f))
+            Color.White.copy(alpha = spec.borderAlpha)
         ) else null,
         modifier = modifier.size(size),
     ) {
@@ -419,14 +381,15 @@ fun VotifyTextField(
     label: String,
     modifier: Modifier = Modifier,
     singleLine: Boolean = true,
-    password: Boolean = false,
+    /** Скрывать вводимый текст (флаг для секретных полей вроде пароля). */
+    masked: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = singleLine,
         label = { Text(label) },
-        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        visualTransformation = if (masked) PasswordVisualTransformation() else VisualTransformation.None,
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = VotifyColors.TextPrimary,
             unfocusedTextColor = VotifyColors.TextPrimary,

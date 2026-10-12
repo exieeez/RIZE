@@ -146,7 +146,7 @@ fun AccountScreen(
                     AccountMode.Login -> {
                         VotifyTextField(email, { email = it }, stringResource(R.string.account_email))
                         Spacer(Modifier.height(12.dp))
-                        VotifyTextField(password, { password = it }, stringResource(R.string.account_password), password = true)
+                        VotifyTextField(password, { password = it }, stringResource(R.string.account_password), masked = true)
                         Spacer(Modifier.height(16.dp))
                         PrimaryButton(
                             text = stringResource(R.string.account_login_btn),
@@ -165,7 +165,7 @@ fun AccountScreen(
                         Spacer(Modifier.height(12.dp))
                         VotifyTextField(username, { username = it }, stringResource(R.string.account_username))
                         Spacer(Modifier.height(12.dp))
-                        VotifyTextField(password, { password = it }, stringResource(R.string.account_password), password = true)
+                        VotifyTextField(password, { password = it }, stringResource(R.string.account_password), masked = true)
                         Spacer(Modifier.height(16.dp))
                         PrimaryButton(
                             text = stringResource(R.string.account_register_btn),
@@ -220,7 +220,7 @@ fun AccountScreen(
                         Spacer(Modifier.height(12.dp))
                         VotifyTextField(code, { code = it }, stringResource(R.string.account_code))
                         Spacer(Modifier.height(12.dp))
-                        VotifyTextField(newPassword, { newPassword = it }, stringResource(R.string.account_new_password), password = true)
+                        VotifyTextField(newPassword, { newPassword = it }, stringResource(R.string.account_new_password), masked = true)
                         Spacer(Modifier.height(16.dp))
                         PrimaryButton(
                             text = stringResource(R.string.account_reset_btn),

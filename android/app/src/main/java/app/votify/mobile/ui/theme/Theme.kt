@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import app.votify.mobile.data.AppTheme
+import app.votify.mobile.ui.components.toGlassSpec
 
 private fun VotifyPalette.toColorScheme(): ColorScheme {
     val base = if (isDark) darkColorScheme() else lightColorScheme()
@@ -103,10 +104,12 @@ fun VotifyTheme(
         AppTheme.System -> if (isSystemInDarkTheme()) OledBlackPalette else LightPalette
         AppTheme.Workshop -> parseWorkshopSpec(customThemeJson).toPalette()
     }
-    // Interface settings: translucent cards over a background image (matching navBarAlpha logic).
-    val cardsAlphaFraction = (prefs.cardsAlpha.coerceIn(0, 100)) / 100f
-    val effectivePalette = if (prefs.transparentCards || prefs.liquidGlass) {
-        val targetAlpha = if (prefs.transparentCards) cardsAlphaFraction else 0.85f
+    // Единое стекло: та же формула, что у нижней панели — плотность и размытие совпадают.
+    // Здесь настройки известны напрямую, поэтому считаем без чтения CompositionLocal
+    // (внутри VotifyTheme они ещё не переданы и дали бы значения по умолчанию).
+    val glassSpec = if (prefs.glassEnabled) prefs.toGlassSpec() else null
+    val effectivePalette = if (glassSpec != null) {
+        val targetAlpha = glassSpec.alphaFraction
         palette.copy(
             surfaceContainerLowest = palette.surfaceContainerLowest.copy(alpha = (targetAlpha * 0.95f).coerceIn(0f, 1f)),
             surfaceContainerLow = palette.surfaceContainerLow.copy(alpha = (targetAlpha * 0.97f).coerceIn(0f, 1f)),

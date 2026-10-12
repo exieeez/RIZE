@@ -98,28 +98,6 @@ fun InterfaceSettingsScreen(
                     unit = " dp",
                     onValueChange = { v -> viewModel.updatePrefs { it.copy(navBarHeight = v.toInt()) } },
                 )
-                SettingsDivider()
-                SettingsSliderRow(
-                    title = "Прозрачность фона",
-                    value = prefs.navBarAlpha.toFloat(),
-                    range = 0f..100f,
-                    unit = "%",
-                    onValueChange = { v -> viewModel.updatePrefs { it.copy(navBarAlpha = v.toInt()) } },
-                )
-                SettingsDivider()
-                SettingsSliderRow(
-                    title = "Размытие фона (блюр)",
-                    value = prefs.navBarBlur.toFloat(),
-                    range = 0f..60f,
-                    unit = " dp",
-                    onValueChange = { v ->
-                        viewModel.updatePrefs {
-                            it.copy(
-                                navBarBlur = v.toInt(),
-                            )
-                        }
-                    },
-                )
             }
 
             SettingsSectionLabel(stringResource(R.string.settings_accent))
@@ -159,32 +137,26 @@ fun InterfaceSettingsScreen(
             SettingsSectionLabel(stringResource(R.string.settings_transparency))
             SettingsCard {
                 SettingsToggleRow(
-                    title = "Прозрачность объектов",
-                    subtitle = "Включить прозрачность для всех карточек и панелей",
-                    checked = prefs.transparentCards,
-                    onChange = { v -> viewModel.updatePrefs { it.copy(transparentCards = v) } },
+                    title = "Liquid Glass",
+                    subtitle = "Одно стекло на весь интерфейс: карточки, панели и нижняя панель",
+                    checked = prefs.glassEnabled,
+                    onChange = { v -> viewModel.updatePrefs { it.copy(glassEnabled = v) } },
                 )
                 SettingsDivider()
                 SettingsSliderRow(
-                    title = "Прозрачность фона",
-                    value = prefs.cardsAlpha.toFloat(),
+                    title = "Прозрачность",
+                    value = prefs.glassAlpha.toFloat(),
                     range = 0f..100f,
                     unit = "%",
-                    onValueChange = { v -> viewModel.updatePrefs { it.copy(cardsAlpha = v.toInt()) } },
+                    onValueChange = { v -> viewModel.updatePrefs { it.copy(glassAlpha = v.toInt()) } },
                 )
                 SettingsDivider()
                 SettingsSliderRow(
-                    title = "Размытие фона (блюр)",
-                    value = prefs.cardsBlur.toFloat(),
+                    title = "Размытие",
+                    value = prefs.glassBlur.toFloat(),
                     range = 0f..60f,
                     unit = " dp",
-                    onValueChange = { v ->
-                        viewModel.updatePrefs {
-                            it.copy(
-                                cardsBlur = v.toInt(),
-                            )
-                        }
-                    },
+                    onValueChange = { v -> viewModel.updatePrefs { it.copy(glassBlur = v.toInt()) } },
                 )
             }
 

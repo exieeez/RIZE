@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.votify.mobile.R
 import app.votify.mobile.player.PlayerUiState
+import app.votify.mobile.ui.components.rememberGlassSpec
+import app.votify.mobile.ui.components.votifyGlass
 import app.votify.mobile.ui.theme.VotifyColors
 
 /** Visual style of the mini-player (Плеер → Мини-плеер settings). */
@@ -88,6 +90,8 @@ fun MiniPlayer(
     onSwipeRight: () -> Unit = {},
     onDismiss: () -> Unit = {},
     style: MiniStyle = MiniStyle(),
+    /** Источник размытия: по умолчанию фон; передаётся состояние контента, как у панели. */
+    hazeState: dev.chrisbanes.haze.HazeState? = null,
     modifier: Modifier = Modifier,
 ) {
     val track = state.current ?: return
@@ -103,17 +107,17 @@ fun MiniPlayer(
         offsetY.snapTo(0f)
     }
 
-    val cp = LocalCustomPrefs.current
-    val isGlass = LocalLiquidGlass.current
-    val isTransparent = cp.transparentCards || isGlass
-    val alphaFraction = if (isTransparent) (cp.cardsAlpha.coerceIn(0, 100)) / 100f else 0.92f
+    // Единая формула стекла: та же, что у нижней панели.
+    val spec = rememberGlassSpec()
+    val isGlass = spec.enabled
+    val isTransparent = isGlass
+    val alphaFraction = if (isTransparent) spec.alphaFraction else 0.92f
 
     val baseBg = tint ?: VotifyColors.SurfaceContainer
-    val effectiveBg = baseBg.copy(alpha = alphaFraction)
     val borderModifier = if (isTransparent || alphaFraction < 1f) {
         Modifier.border(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
+            color = Color.White.copy(alpha = spec.borderAlpha),
             shape = shape,
         )
     } else {
@@ -130,7 +134,13 @@ fun MiniPlayer(
                 alpha = (1f - (offsetY.value / 180f)).coerceIn(0.1f, 1f)
             }
             .clip(shape)
-            .background(effectiveBg)
+            // Настоящее матовое стекло — та же формула, что у нижней панели.
+            .votifyGlass(
+                shape = shape,
+                baseColor = baseBg,
+                spec = spec,
+                hazeState = hazeState ?: LocalHazeState.current,
+            )
             .then(borderModifier)
             .clickable(onClick = onClick)
             .pointerInput(onSwipeLeft, onSwipeRight, onDismiss) {

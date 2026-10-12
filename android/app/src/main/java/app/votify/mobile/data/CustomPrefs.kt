@@ -43,16 +43,34 @@ data class CustomPrefs(
     val appIcon: String = "current",
     val tabStyle: String = "standard", // standard | compact
     val accentFromArt: Boolean = false,
+    /**
+     * Мастер-тумблер «Liquid Glass»: одно стекло и для нижней панели, и для всего
+     * интерфейса. Выключен — все поверхности плотные, как обычные карточки.
+     */
+    val glassEnabled: Boolean = true,
+    /** Прозрачность стекла, 0..100 %. 100 — самое прозрачное стекло, 0 — плотное. */
+    val glassAlpha: Int = 60,
+    /** Сила размытия под стеклом, 0..60 dp. Работает и у панели, и у интерфейса. */
+    val glassBlur: Int = 20,
+    /** Служебный флаг: старые поля прозрачности уже перенесены в glass*. */
+    val glassMigrated: Boolean = false,
+    @Deprecated("Заменено на glassEnabled/glassAlpha/glassBlur — одно стекло на всю тему")
     val transparentCards: Boolean = false,
+    @Deprecated("Заменено на glassAlpha")
     val cardsAlpha: Int = 100, // 0..100 (%)
+    @Deprecated("Заменено на glassBlur")
     val cardsBlur: Int = 20, // 0..60 (dp)
+    @Deprecated("Заменено на glassEnabled")
     val liquidGlass: Boolean = false,
     val fontFamily: String = "system", // system | serif | mono | rounded
     val fontScale: String = "normal", // small | normal | large
 
-    // ---- Нижняя панель навигации ----
+    // ---- Нижняя панель навигации (геометрия; стекло — общее, см. glass*) ----
+    @Deprecated("Заменено на glassAlpha")
     val navBarAlpha: Int = 100, // 0..100 (%)
+    @Deprecated("Заменено на glassBlur")
     val navBarBlur: Int = 20, // 0..60 (dp)
+    @Deprecated("Заменено на glassEnabled")
     val navBarLiquidGlass: Boolean = false,
     val navBarHeight: Int = 64, // 48..80 (dp)
     val navBarIsland: Boolean = false,
@@ -127,7 +145,34 @@ fun CustomPrefs.toJson(): String = json.encodeToString(CustomPrefs.serializer(),
 
 fun parseCustomPrefs(raw: String): CustomPrefs =
     if (raw.isBlank()) CustomPrefs()
-    else runCatching { json.decodeFromString<CustomPrefs>(raw) }.getOrDefault(CustomPrefs())
+    else runCatching { json.decodeFromString<CustomPrefs>(raw) }
+        .getOrDefault(CustomPrefs())
+        .migrateGlassPrefs()
+
+/**
+ * Переносит старые раздельные настройки прозрачности (карточки / нижняя панель)
+ * в единые glass* один раз, чтобы у пользователя не сбросились подобранные значения.
+ *
+ * Учитывается то, что старое поле transparentCards означало «включить прозрачность»,
+ * а alpha была ПРОЗРАЧНОСТЬЮ (100 — прозрачно, 0 — плотно) — совпадает с трактовкой glassAlpha.
+ */
+private fun CustomPrefs.migrateGlassPrefs(): CustomPrefs {
+    if (glassMigrated) return this
+
+    // Следы старых настроек: тумблер включали или уводили прозрачность от 100 %.
+    val legacyGlassOn = transparentCards || liquidGlass || navBarLiquidGlass
+    val legacyAlpha = listOf(cardsAlpha, navBarAlpha).filter { it in 0..100 && it != 100 }.minOrNull()
+    val legacyBlur = listOf(cardsBlur, navBarBlur).filter { it in 0..60 }.maxOrNull()
+
+    return copy(
+        // По умолчанию стекло оставляем включённым: пользователь и так просил прозрачность,
+        // а «выключено» переносим только при отсутствии любых следов настройки.
+        glassEnabled = if (legacyGlassOn || legacyAlpha != null) true else glassEnabled,
+        glassAlpha = legacyAlpha ?: glassAlpha,
+        glassBlur = legacyBlur ?: glassBlur,
+        glassMigrated = true,
+    )
+}
 
 /** themeMode + themeName → the AppTheme enum actually applied. */
 fun CustomPrefs.toAppTheme(): AppTheme = when (themeMode) {
