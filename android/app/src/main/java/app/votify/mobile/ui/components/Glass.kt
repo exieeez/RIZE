@@ -29,6 +29,12 @@ import dev.chrisbanes.haze.hazeChild
 val LocalHazeState = compositionLocalOf<HazeState?> { null }
 
 /**
+ * Единый базовый тон стекла — тот же, что у нижней панели.
+ * Благодаря этому кнопки, пилюли и панели выглядят одним материалом.
+ */
+val GlassBaseColor: Color = Color(0xFF101012)
+
+/**
  * ЕДИНАЯ формула стекла — одна и та же для нижней панели и для интерфейса.
  *
  * @param enabled включён ли режим Liquid Glass

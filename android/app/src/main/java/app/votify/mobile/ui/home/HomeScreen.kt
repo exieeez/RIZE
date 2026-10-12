@@ -73,9 +73,12 @@ import app.votify.mobile.R
 import app.votify.mobile.data.Track
 import app.votify.mobile.ui.components.Artwork
 import app.votify.mobile.ui.components.CircleIconButton
+import app.votify.mobile.ui.components.GlassBaseColor
 import app.votify.mobile.ui.components.LocalLiquidGlass
 import app.votify.mobile.ui.components.PillChip
 import app.votify.mobile.ui.components.VotifyCard
+import app.votify.mobile.ui.components.rememberGlassSpec
+import app.votify.mobile.ui.components.votifyGlass
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -381,6 +384,7 @@ private fun HomeHeader(
     onOpenSite: () -> Unit,
 ) {
     val isGlass = LocalLiquidGlass.current
+    val spec = rememberGlassSpec()
     Row(
         Modifier
             .fillMaxWidth()
@@ -390,12 +394,16 @@ private fun HomeHeader(
         Surface(
             onClick = onOpenSite,
             shape = CircleShape,
-            color = if (isGlass) Color.White.copy(alpha = 0.08f) else VotifyColors.SurfaceContainer,
+            color = Color.Transparent,
             border = BorderStroke(
-                1.dp,
-                if (isGlass) Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.05f))
-                ) else SolidColor(VotifyColors.BorderSubtle),
+                0.5.dp,
+                // Обе ветки — кисть: иначе if возвращал бы Color и Brush, и конструктор не находился.
+                if (isGlass) SolidColor(Color.White.copy(alpha = spec.borderAlpha)) else SolidColor(VotifyColors.BorderSubtle),
+            ),
+            modifier = Modifier.votifyGlass(
+                shape = CircleShape,
+                baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
+                spec = spec,
             ),
         ) {
             Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

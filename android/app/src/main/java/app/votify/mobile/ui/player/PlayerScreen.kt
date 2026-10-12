@@ -109,9 +109,15 @@ import app.votify.mobile.data.ArtworkStyle
 import app.votify.mobile.data.Lyrics as LyricsModel
 import app.votify.mobile.data.PlayerBackground
 import app.votify.mobile.player.PlayerUiState
+import androidx.compose.foundation.BorderStroke
 import app.votify.mobile.ui.components.Artwork
+import app.votify.mobile.ui.components.GlassBaseColor
+import app.votify.mobile.ui.components.GlassSpec
 import app.votify.mobile.ui.components.formatDuration
+import app.votify.mobile.ui.components.votifyGlass
 import app.votify.mobile.ui.theme.VotifyColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
 import coil.imageLoader
@@ -151,6 +157,11 @@ fun PlayerScreen(
     artworkStyle: ArtworkStyle,
     background: PlayerBackground,
     visuals: PlayerVisuals = PlayerVisuals(),
+    /**
+     * Параметры стекла для панелей с кнопками. Передаются явно, потому что экран
+     * плеера вызывается вне провайдера настроек и не видит CompositionLocal.
+     */
+    glassSpec: GlassSpec = GlassSpec(enabled = false, alphaFraction = 0.6f, blurDp = 20),
     isFavorite: Boolean,
     lyricsVisible: Boolean,
     lyrics: LyricsState,
@@ -203,7 +214,6 @@ fun PlayerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(topColor, bottomColor)))
             .let { m ->
                 if (visuals.swipeNavigation) m.pointerInput(Unit) {
                     var total = 0f
@@ -219,6 +229,21 @@ fun PlayerScreen(
                 } else m
             },
     ) {
+        // Собственный источник размытия плеера: панели с кнопками лежат СНАРУЖИ этого узла,
+        // поэтому они размывают именно фон плеера (градиент и обложку), а не экран под ним.
+        val playerHazeState = remember { HazeState() }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .haze(playerHazeState),
+        ) {
+        // Градиент лежит ВНУТРИ источника: иначе размывать было бы нечего в тех местах,
+        // где нет ни лавы, ни размытой обложки, и панели показывали бы только тон.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(topColor, bottomColor))),
+        )
         if (background == PlayerBackground.Lava) {
             LavaBackground(
                 top = palette?.top ?: VotifyColors.SurfaceBase,
@@ -240,6 +265,7 @@ fun PlayerScreen(
                     Brush.verticalGradient(listOf(Color.Transparent, bottomColor.copy(alpha = 0.7f), bottomColor)),
                 ),
             )
+        }
         }
 
         Column(
@@ -372,11 +398,19 @@ fun PlayerScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // Transport panel
+            // Transport panel — стекло Liquid Glass, как у нижней панели.
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = VotifyColors.SurfaceContainerLow.copy(alpha = 0.9f),
-                modifier = Modifier.fillMaxWidth(),
+                color = Color.Transparent,
+                border = if (glassSpec.enabled) BorderStroke(0.5.dp, Color.White.copy(alpha = glassSpec.borderAlpha)) else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .votifyGlass(
+                        shape = RoundedCornerShape(24.dp),
+                        baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.9f),
+                        spec = glassSpec,
+                        hazeState = playerHazeState,
+                    ),
             ) {
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -420,11 +454,19 @@ fun PlayerScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // Secondary row: lyrics / queue
+            // Secondary row: lyrics / queue — тот же стеклянный материал.
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = VotifyColors.SurfaceContainer.copy(alpha = 0.7f),
-                modifier = Modifier.fillMaxWidth(),
+                color = Color.Transparent,
+                border = if (glassSpec.enabled) BorderStroke(0.5.dp, Color.White.copy(alpha = glassSpec.borderAlpha)) else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .votifyGlass(
+                        shape = RoundedCornerShape(16.dp),
+                        baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainer.copy(alpha = 0.7f),
+                        spec = glassSpec,
+                        hazeState = playerHazeState,
+                    ),
             ) {
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 4.dp),

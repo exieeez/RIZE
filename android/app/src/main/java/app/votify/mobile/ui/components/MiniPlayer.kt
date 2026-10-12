@@ -256,6 +256,8 @@ fun MiniPlayer(
                 // Та же приглушённая акцентная пара, что у большой кнопки «Плей» на главной.
                 fillColor = if (style.filledPlay) VotifyColors.AccentFill else null,
                 tintColor = if (style.filledPlay) VotifyColors.AccentContent else null,
+                // Кнопка лежит на стеклянном мини-плеере — своё стекло здесь не нужно.
+                useGlass = false,
                 contentDescription = stringResource(if (state.isPlaying) R.string.player_pause else R.string.player_play),
             ) {
                 if (state.isBuffering && !state.isPlaying) {

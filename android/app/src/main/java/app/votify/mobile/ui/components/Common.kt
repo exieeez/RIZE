@@ -309,26 +309,43 @@ fun CircleIconButton(
     fillColor: Color? = null,
     /** Переопределить цвет содержимого диска. */
     tintColor: Color? = null,
+    /**
+     * Рисовать ли матовое стекло. Выключается там, где кнопка лежит НА стекле
+     * (например в мини-плеере) — иначе размытие накладывалось бы само на себя.
+     */
+    useGlass: Boolean = true,
     icon: @Composable () -> Unit,
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val spec = rememberGlassSpec()
+    val hazeState = LocalHazeState.current
 
-    val baseSurfaceColor = if (spec.enabled) Color.White.copy(alpha = (0.12f * spec.alphaFraction).coerceIn(0.04f, 0.25f)) else VotifyColors.SurfaceContainer
+    // Раньше при включённом стекле кнопки получали просто белёсую плёнку без размытия —
+    // рядом с матовыми карточками это выглядело как другой материал. Теперь тот же
+    // материал, что у нижней панели.
+    val glassModifier = if (!filled && useGlass) {
+        Modifier.votifyGlass(
+            shape = CircleShape,
+            baseColor = if (spec.enabled) GlassBaseColor else VotifyColors.SurfaceContainer,
+            spec = spec,
+            hazeState = hazeState,
+        )
+    } else Modifier
+
     Surface(
         onClick = {
             VotifyHaptics.click(view, context)
             onClick()
         },
         shape = CircleShape,
-        color = fillColor ?: if (filled) VotifyColors.Primary else baseSurfaceColor,
+        color = fillColor ?: if (filled) VotifyColors.Primary else Color.Transparent,
         contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary,
         border = if (filled) null else if (spec.enabled) BorderStroke(
             0.5.dp,
             Color.White.copy(alpha = spec.borderAlpha)
         ) else null,
-        modifier = modifier.size(size),
+        modifier = modifier.size(size).then(glassModifier),
     ) {
         Box(contentAlignment = Alignment.Center) { icon() }
     }

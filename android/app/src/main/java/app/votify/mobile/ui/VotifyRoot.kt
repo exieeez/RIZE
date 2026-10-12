@@ -409,9 +409,11 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
         settings.backgroundUrl
     }
     // Fine-tuning: Настройки → Фон («затемнение»/«размытие», prefs.bgDim/bgBlur).
-    // Defaults (dim 35, blur 0) match the previous hard-coded look; the workshop
-    // spec sliders were the only tuning before and are now overridden here.
-    val bgBlurDp = if (bgPrefs.glassEnabled) bgPrefs.bgBlur.coerceAtLeast(40) else bgPrefs.bgBlur.coerceIn(0, 60)
+    // Размытие обоев задаётся ТОЛЬКО ползунком «Размытие фона» в настройках фона.
+    // Раньше включённый Liquid Glass принудительно размывал обои минимум на 40 dp —
+    // из-за этого картинка фона становилась мутной и это выглядело странно.
+    // Стекло размывает только то, что лежит под поверхностью, а не сами обои.
+    val bgBlurDp = bgPrefs.bgBlur.coerceIn(0, 60)
     val bgDimAlpha = bgPrefs.bgDim.coerceIn(0, 92) / 100f
     // Единое стекло: тумблер Liquid Glass и два ползунка управляют и панелью, и интерфейсом.
     // Настройки известны напрямую — считаем без CompositionLocal, иначе взялись бы дефолты.
@@ -811,6 +813,11 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 state = playerState,
                 artworkStyle = settings.artworkStyle,
                 background = settings.playerBackground,
+                // Плеер вызывается вне провайдера настроек, поэтому стекло передаём явно —
+                // те же значения ползунков, что видит остальной интерфейс.
+                // Плеер закрывает весь экран, поэтому панели должны размывать его
+                // СОБСТВЕННЫЙ фон, а не содержимое под ним — источник выбирает сам плеер.
+                glassSpec = cp.toGlassSpec(),
                 visuals = PlayerVisuals(
                     titleLeft = cp.titleAlign == "left",
                     pillPlayButton = cp.playButtonStyle == "pill",
