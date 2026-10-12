@@ -105,7 +105,8 @@ class PlayerController(
     private var crossfadeEnabled: Boolean = false
     private var crossfadeSeconds: Int = 4
     private var fading = false
-    private var fadeJob: kotlinx.coroutines.Job? = null
+    /** Шаг фейда, живущий на главном потоке (обращения к плееру — только оттуда). */
+    private var fadeRunnable: Runnable? = null
 
     /**
      * Настройки плавного перехода между треками (Настройки → Аудио).
@@ -128,7 +129,7 @@ class PlayerController(
                 // Пауза/остановка посреди затухания не должна оставлять громкость на нуле —
                 // иначе после возобновления трек играл бы вслепую тихо.
                 if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && !player.isPlaying) {
-                    fadeJob?.cancel()
+                    cancelFade()
                     fading = false
                     volumeTo(1f)
                 }
@@ -184,37 +185,70 @@ class PlayerController(
     }
 
     private fun startFadeOut(durationMs: Long) {
-        fadeJob?.cancel()
+        val c = controller ?: return
+        if (!c.isConnected) return
+        cancelFade()
         fading = true
-        fadeJob = scope.launch {
-            val steps = (durationMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
-            for (i in steps downTo 0) {
+        val steps = (durationMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
+        var i = steps
+        val step = object : Runnable {
+            override fun run() {
                 volumeTo(i / steps.toFloat())
-                kotlinx.coroutines.delay(FADE_STEP_MS)
+                if (i <= 0) {
+                    fading = false
+                    fadeRunnable = null
+                    return
+                }
+                i--
+                handler.postDelayed(this, FADE_STEP_MS)
             }
-            fading = false
         }
+        fadeRunnable = step
+        handler.post(step)
     }
 
     private fun startFadeIn() {
-        fadeJob?.cancel()
-        fadeJob = scope.launch {
-            val durationMs = crossfadeSeconds * 1000L
-            val steps = (durationMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
-            for (i in 0..steps) {
+        val c = controller ?: return
+        if (!c.isConnected) return
+        cancelFade()
+        val steps = (crossfadeSeconds * 1000L / FADE_STEP_MS).toInt().coerceAtLeast(1)
+        var i = 0
+        val step = object : Runnable {
+            override fun run() {
                 volumeTo(i / steps.toFloat())
-                kotlinx.coroutines.delay(FADE_STEP_MS)
+                if (i >= steps) {
+                    volumeTo(1f)
+                    fadeRunnable = null
+                    return
+                }
+                i++
+                handler.postDelayed(this, FADE_STEP_MS)
             }
-            fading = false
-            volumeTo(1f)
         }
+        fadeRunnable = step
+        handler.post(step)
     }
 
+    /** Снять запланированные шаги фейда. */
+    private fun cancelFade() {
+        fadeRunnable?.let { handler.removeCallbacks(it) }
+        fadeRunnable = null
+    }
+
+    /**
+     * Громкость меняем ТОЛЬКО с главного потока: MediaController в Media3 бросает
+     * IllegalStateException при обращении из фонового потока ("method is called from
+     * a wrong thread"). Именно из-за этого приложение падало при включении трека,
+     * когда кроссфейд был включён.
+     */
     private fun volumeTo(value: Float) {
         val c = controller ?: return
         if (!c.isConnected) return
-        if (!c.availableCommands.contains(Player.COMMAND_SET_VOLUME)) return
-        runCatching { c.volume = value.coerceIn(0f, 1f) }
+        runCatching {
+            if (c.availableCommands.contains(Player.COMMAND_SET_VOLUME)) {
+                c.volume = value.coerceIn(0f, 1f)
+            }
+        }
     }
 
     fun connect(onConnected: ((MediaController) -> Unit)? = null) {
@@ -358,11 +392,16 @@ class PlayerController(
             unplayed.shuffled(DISJOINT_SHUFFLE)
         } else {
             // Круг закончен: очищаем историю, но не даём первому треку совпасть с последним.
+            // Текущий трек может отсутствовать в базовом списке (его добавили в очередь
+            // отдельно) — поэтому только firstOrNull, без исключения.
             val last = queueTracks.lastOrNull()?.id
             playedIds.clear()
             val pool = baseOrder.filterNot { it.id == last }
             val shuffled = pool.shuffled(DISJOINT_SHUFFLE)
-            if (last != null) (shuffled + baseOrder.first { it.id == last }) else shuffled
+            if (last != null) {
+                val tail = baseOrder.firstOrNull { it.id == last }
+                if (tail != null) shuffled + tail else shuffled
+            } else shuffled
         }
         if (next.isEmpty()) return emptyList()
         next.forEach { playedIds.add(it.id) }
@@ -542,7 +581,9 @@ class PlayerController(
                 isBuffering = p.playbackState == Player.STATE_BUFFERING,
                 positionMs = p.currentPosition.coerceAtLeast(0),
                 durationMs = p.duration.coerceAtLeast(0),
-                shuffle = p.shuffleModeEnabled,
+                // Не берём p.shuffleModeEnabled: встроенный режим мы держим выключенным,
+                // порядок задаём сами. Иначе индикатор перемешивания мигал бы.
+                shuffle = shuffleOn,
                 repeatMode = p.repeatMode,
                 speed = p.playbackParameters.speed,
                 pitch = p.playbackParameters.pitch,

@@ -412,27 +412,26 @@ private fun HomeHeader(
             }
         }
         Spacer(Modifier.weight(1f))
-        // Кнопки шапки: компактные круглые диски 34 dp с зазором 10 dp и иконкой 17-18 dp
-        // внутри. Раньше были диски 36 dp с зазором 8 dp и без фона — выглядело пусто,
-        // а иконки казались крупными. Здесь фон есть, но диск меньше, чем раньше.
+        // Кнопки шапки: диски 30 dp с зазором 8 dp и иконкой 16-17 dp.
+        // Сначала вернул фон при 34 dp — пользователь попросил сделать сам фон меньше.
         CircleIconButton(
             onClick = onOpenAccount,
-            size = 34.dp,
+            size = 30.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.settings_section_account),
         ) {
-            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         CircleIconButton(
             onClick = onOpenSearch,
-            size = 34.dp,
+            size = 30.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_search),
         ) {
-            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
+            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(16.dp))
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val animatedRotation by androidx.compose.animation.core.animateFloatAsState(
             targetValue = settingsAngle,
@@ -444,7 +443,7 @@ private fun HomeHeader(
                 settingsAngle += 360f
                 onOpenSettings()
             },
-            size = 34.dp,
+            size = 30.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_settings),
         ) {
@@ -453,7 +452,7 @@ private fun HomeHeader(
                 null,
                 tint = VotifyColors.TextSecondary,
                 modifier = Modifier
-                    .size(17.dp)
+                    .size(16.dp)
                     .graphicsLayer { rotationZ = animatedRotation },
             )
         }
