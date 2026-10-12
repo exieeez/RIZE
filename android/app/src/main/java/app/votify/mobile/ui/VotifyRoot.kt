@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBars
@@ -479,10 +480,15 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                             navController,
                             startDestination = Tab.Home.route,
                             modifier = Modifier.fillMaxSize(),
-                            enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) },
-                            exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(120)) },
-                            popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) },
-                            popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(120)) },
+                            // Переходы между экранами без плавного проявления: при перекрёстном
+                            // затухании Compose держит ОБА экрана сразу, их полупрозрачные карточки
+                            // накладываются, а размытие рисует отдельный слой-источник — из-за этого
+                            // стекло на мгновение выглядело как слой, который смещается относительно
+                            // экрана. Мгновенная смена экранов этот артефакт убирает полностью.
+                            enterTransition = { androidx.compose.animation.EnterTransition.None },
+                            exitTransition = { androidx.compose.animation.ExitTransition.None },
+                            popEnterTransition = { androidx.compose.animation.EnterTransition.None },
+                            popExitTransition = { androidx.compose.animation.ExitTransition.None },
                         ) {
                             composable(Tab.Home.route) {
                             HomeScreen(
@@ -1060,10 +1066,22 @@ private fun VotifyNavBar(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
+                    // Активная вкладка получает мягкую акцентную подложку — так выбор
+                    // читается сразу, как в обычных приложениях, а не только по цвету иконки.
+                    // Подложка прозрачна для нажатий: клики ловит весь Box выше.
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .height(30.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(
+                                if (isSelected) VotifyColors.IconAccent.copy(alpha = 0.16f) else Color.Transparent,
+                            ),
+                    )
                     Icon(
                         painter = painterResource(if (isSelected) tab.iconSelected else tab.icon),
                         contentDescription = stringResource(tab.label),
-                        tint = if (isSelected) VotifyColors.TextPrimary else VotifyColors.TextMuted,
+                        tint = if (isSelected) VotifyColors.IconAccent else VotifyColors.TextMuted,
                         modifier = Modifier.graphicsLayer {
                             scaleX = scale
                             scaleY = scale

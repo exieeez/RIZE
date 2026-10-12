@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.votify.mobile.R
 import app.votify.mobile.ui.components.VotifyTextField
@@ -41,6 +43,53 @@ import app.votify.mobile.ui.theme.VotifyColors
  * «Цвета интерфейса» controls (Настройки → Интерфейс): quick palette swatches, manual
  * per-slot colors and the HSV picker dialog. Shared by the Interface settings screen.
  */
+
+/**
+ * Плитка ГОТОВОЙ ЦВЕТОВОЙ ПАРЫ: слева фон, справа акцент, сверху название.
+ * Раньше выбор цвета был одной точкой, поэтому понять результат до нажатия было нельзя —
+ * теперь сразу видно и фон, и цвет кнопок и иконок.
+ */
+@Composable
+fun ColorPairTile(
+    pair: app.votify.mobile.ui.theme.ColorPair,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = pair.background,
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) pair.accent else VotifyColors.BorderSubtle,
+        ),
+        modifier = modifier.height(64.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Точка-акцент: тот цвет, которым станут кнопки, выделения и иконки.
+            Box(
+                Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(pair.accent),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                pair.titleRu,
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
 
 /** Round palette swatch for the quick-pick row. */
 @Composable

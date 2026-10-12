@@ -94,6 +94,125 @@ val EmeraldPalette = accentPalette(Color(0xFF4CD7A0), Color(0xFF06231A), Color(0
 val AmberPalette = accentPalette(Color(0xFFF5C044), Color(0xFF241B04), Color(0xFF3F3418))
 val RosePalette = accentPalette(Color(0xFFF9708B), Color(0xFF2A0912), Color(0xFF45242E))
 
+/** Читаемый цвет текста для фона: на светлом фоне — тёмный. */
+private fun textPrimaryFor(background: Color): Color =
+    if (background.red * 0.299f + background.green * 0.587f + background.blue * 0.114f > 0.55f) {
+        Color(0xFF101013)
+    } else {
+        Color(0xFFFFFFFF)
+    }
+
+/**
+ * Готовая ЦВЕТОВАЯ ПАРА: глубокий тёмный фон + яркий акцент.
+ * Оба цвета берутся из готового набора пар (см. [ColorPair]) — фон ложится на
+ * всю тёмную иерархию, акцент идёт в кнопки, выделения и иконки.
+ */
+private fun pairPalette(
+    background: Color,
+    accent: Color,
+    cards: Color = mixOf(background, Color.White, 0.06f),
+    focus: Color = mixOf(background, Color.White, 0.14f),
+    borders: Color = mixOf(background, Color.White, 0.12f),
+): VotifyPalette = OledBlackPalette.copy(
+    isDark = true,
+    pitchBlack = background,
+    surfaceBase = background,
+    surfaceContainerLowest = mixOf(background, Color.Black, 0.25f),
+    surfaceContainerLow = cards,
+    surfaceContainer = cards,
+    surfaceContainerHigh = focus,
+    surfaceContainerHighest = mixOf(focus, Color.White, 0.10f),
+    surfaceBright = mixOf(focus, Color.White, 0.16f),
+    borderSubtle = borders,
+    borderProminent = mixOf(accent, Color.White, 0.25f),
+    textPrimary = textPrimaryFor(background),
+    textSecondary = mixOf(textPrimaryFor(background), background, 0.22f),
+    textMuted = mixOf(textPrimaryFor(background), background, 0.52f),
+    primary = accent,
+    onPrimary = onColorFor(accent),
+    primaryContainer = mixOf(background, accent, 0.30f),
+    onPrimaryContainer = accent,
+    secondary = accent,
+    onSecondary = onColorFor(accent),
+    secondaryContainer = mixOf(background, accent, 0.24f),
+    onSecondaryContainer = accent,
+)
+
+/**
+ * Готовые цветовые пары «фон + акцент» (Настройки → Интерфейс).
+ * Порядок соответствует тому, как они показываются пользователю.
+ */
+enum class ColorPair(
+    val key: String,
+    val titleRu: String,
+    val backgroundHex: String,
+    val accentHex: String,
+) {
+    DeepPurple("pair_deep_purple", "Фиолетовый", "#32104F", "#FF3CAC"),
+    DarkIndigo("pair_dark_indigo", "Тёмный индиго", "#19152F", "#A5E7FF"),
+    // У этой пары цвета идут наоборот (сначала светлый): тёмный делаем фоном,
+    // иначе белый текст на кремовом не читался бы.
+    MilkCream("pair_milk_cream", "Молочный / бордо", "#701C32", "#F1E9D8"),
+    DeepBlack("pair_deep_black", "Чёрный", "#080808", "#BFC3C7"),
+    DarkForest("pair_dark_forest", "Тёмно-зелёный", "#123B2A", "#E5FF00"),
+    Graphite("pair_graphite", "Графитовый", "#292929", "#C88E9B"),
+    ElectricBlue("pair_electric_blue", "Электрический синий", "#101A46", "#245BFF"),
+    JetBlack("pair_jet_black", "Чёрный (алый)", "#080808", "#C1121F"),
+    Obsidian("pair_obsidian", "Обсидиан", "#0A0A0A", "#B6FF00"),
+    Espresso("pair_espresso", "Тёмный кофе", "#24150F", "#D96B27"),
+    ;
+
+    val background: Color get() = Color(android.graphics.Color.parseColor(backgroundHex))
+    val accent: Color get() = Color(android.graphics.Color.parseColor(accentHex))
+
+    /** Палитра этой пары. */
+    fun toPalette(): VotifyPalette = pairPalette(background = background, accent = accent)
+
+    /** Цвет текста, читаемый на фоне пары: на светлом фоне — тёмный. */
+    private val textHex: String
+        get() = if (background.red * 0.299f + background.green * 0.587f + background.blue * 0.114f > 0.55f) {
+            "#101013"
+        } else {
+            "#FFFFFF"
+        }
+
+    /** Свежая тема-спек этой пары (для ручного редактирования цветов). */
+    fun toSpec(): WorkshopThemeSpec = WorkshopThemeSpec(
+        primary = accentHex,
+        background = backgroundHex,
+        text = textHex,
+        cards = hexOf(mixOf(background, Color.White, 0.06f)),
+        borders = hexOf(mixOf(background, Color.White, 0.12f)),
+        focus = hexOf(mixOf(background, Color.White, 0.14f)),
+        mode = "dark",
+    )
+
+    /**
+     * Слоты для `setCustomColors`: только те ключи, которые он понимает.
+     * Благодаря этому пара применяется через уже существующий механизм цветов,
+     * а не требует отдельного API.
+     */
+    fun toSlotMap(): Map<String, String> = mapOf(
+        "primary" to accentHex,
+        "background" to backgroundHex,
+        "text" to textHex,
+        "cards" to hexOf(mixOf(background, Color.White, 0.06f)),
+        "borders" to hexOf(mixOf(background, Color.White, 0.12f)),
+    )
+
+    companion object {
+        fun fromKey(key: String?): ColorPair? = entries.firstOrNull { it.key == key }
+    }
+}
+
+/** Цвет → строка #RRGGBB (для спеков и превью). */
+internal fun hexOf(c: Color): String =
+    "#%02X%02X%02X".format(
+        (c.red * 255f).toInt().coerceIn(0, 255),
+        (c.green * 255f).toInt().coerceIn(0, 255),
+        (c.blue * 255f).toInt().coerceIn(0, 255),
+    )
+
 /** "Графит" — same hierarchy, lifted one tonal step so nothing is pure black. */
 val GraphitePalette = OledBlackPalette.copy(
     pitchBlack = Color(0xFF0F0F10),
@@ -186,6 +305,17 @@ object VotifyColors {
     val TextSecondary: Color @Composable @ReadOnlyComposable get() = p.textSecondary
     val TextMuted: Color @Composable @ReadOnlyComposable get() = p.textMuted
     val Primary: Color @Composable @ReadOnlyComposable get() = p.primary
+
+    /**
+     * Акцент для ИКОНОК и активных элементов (выбранная вкладка, активный чип).
+     * На монохромных темах (OLED/графит) остаётся прежний белый, чтобы привычный
+     * вид не изменился, — а на цветных темах и цветовых парах берёт акцент.
+     */
+    val IconAccent: Color
+        @Composable @ReadOnlyComposable get() {
+            val primary = p.primary
+            return if (primary.chroma < 0.06f) p.textPrimary else primary
+        }
     val OnPrimary: Color @Composable @ReadOnlyComposable get() = p.onPrimary
 
     /**

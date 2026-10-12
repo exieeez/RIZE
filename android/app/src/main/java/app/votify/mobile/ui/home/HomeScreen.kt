@@ -395,11 +395,6 @@ private fun HomeHeader(
             onClick = onOpenSite,
             shape = CircleShape,
             color = Color.Transparent,
-            border = BorderStroke(
-                0.5.dp,
-                // Обе ветки — кисть: иначе if возвращал бы Color и Brush, и конструктор не находился.
-                if (isGlass) SolidColor(Color.White.copy(alpha = spec.borderAlpha)) else SolidColor(VotifyColors.BorderSubtle),
-            ),
             modifier = Modifier.votifyGlass(
                 shape = CircleShape,
                 baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
@@ -417,11 +412,11 @@ private fun HomeHeader(
             }
         }
         Spacer(Modifier.weight(1f))
-        CircleIconButton(onClick = onOpenAccount, size = 36.dp, contentDescription = stringResource(R.string.settings_section_account)) {
+        CircleIconButton(onClick = onOpenAccount, size = 36.dp, showBorder = false, contentDescription = stringResource(R.string.settings_section_account)) {
             Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(19.dp))
         }
         Spacer(Modifier.width(8.dp))
-        CircleIconButton(onClick = onOpenSearch, size = 36.dp, contentDescription = stringResource(R.string.nav_search)) {
+        CircleIconButton(onClick = onOpenSearch, size = 36.dp, showBorder = false, contentDescription = stringResource(R.string.nav_search)) {
             Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(8.dp))
@@ -437,6 +432,7 @@ private fun HomeHeader(
                 onOpenSettings()
             },
             size = 36.dp,
+            showBorder = false,
             contentDescription = stringResource(R.string.nav_settings),
         ) {
             Icon(

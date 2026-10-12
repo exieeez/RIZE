@@ -314,6 +314,8 @@ fun CircleIconButton(
      * (например в мини-плеере) — иначе размытие накладывалось бы само на себя.
      */
     useGlass: Boolean = true,
+    /** Рисовать ли светлую кромку вокруг диска. */
+    showBorder: Boolean = true,
     icon: @Composable () -> Unit,
 ) {
     val view = androidx.compose.ui.platform.LocalView.current
@@ -341,7 +343,7 @@ fun CircleIconButton(
         shape = CircleShape,
         color = fillColor ?: if (filled) VotifyColors.Primary else Color.Transparent,
         contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary,
-        border = if (filled) null else if (spec.enabled) BorderStroke(
+        border = if (filled || !showBorder) null else if (spec.enabled) BorderStroke(
             0.5.dp,
             Color.White.copy(alpha = spec.borderAlpha)
         ) else null,
