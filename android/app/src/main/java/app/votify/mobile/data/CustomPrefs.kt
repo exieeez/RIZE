@@ -25,6 +25,8 @@ data class CustomPrefs(
     val caching: Boolean = false,
     val gapless: Boolean = true,
     val crossfade: Boolean = false,
+    /** Длительность плавного перехода между треками, секунды (используется при crossfade). */
+    val crossfadeSeconds: Int = 4,
     val normalization: Boolean = false,
     val onNotification: String = "duck", // duck | pause | continue
     val autoplay: Boolean = false,

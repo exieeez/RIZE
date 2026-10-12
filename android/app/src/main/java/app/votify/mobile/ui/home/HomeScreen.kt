@@ -412,44 +412,51 @@ private fun HomeHeader(
             }
         }
         Spacer(Modifier.weight(1f))
-        // Кнопки шапки — без своей подложки: голые иконки на фоне, как в обычных
-        // приложениях. Стеклянные диски 36 dp шли вплотную и наезжали друг на друга.
-        Icon(
-            Icons.Outlined.AccountCircle,
+        // Кнопки шапки: компактные круглые диски 34 dp с зазором 10 dp и иконкой 17-18 dp
+        // внутри. Раньше были диски 36 dp с зазором 8 dp и без фона — выглядело пусто,
+        // а иконки казались крупными. Здесь фон есть, но диск меньше, чем раньше.
+        CircleIconButton(
+            onClick = onOpenAccount,
+            size = 34.dp,
+            showBorder = false,
             contentDescription = stringResource(R.string.settings_section_account),
-            tint = VotifyColors.TextSecondary,
-            modifier = Modifier
-                .size(28.dp)
-                .clickable { onOpenAccount() },
-        )
-        Spacer(Modifier.width(14.dp))
-        Icon(
-            Icons.Outlined.Search,
+        ) {
+            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        CircleIconButton(
+            onClick = onOpenSearch,
+            size = 34.dp,
+            showBorder = false,
             contentDescription = stringResource(R.string.nav_search),
-            tint = VotifyColors.TextSecondary,
-            modifier = Modifier
-                .size(26.dp)
-                .clickable { onOpenSearch() },
-        )
-        Spacer(Modifier.width(14.dp))
+        ) {
+            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
+        }
+        Spacer(Modifier.width(10.dp))
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val animatedRotation by androidx.compose.animation.core.animateFloatAsState(
             targetValue = settingsAngle,
             animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "settingsSpin",
         )
-        Icon(
-            Icons.Outlined.Settings,
+        CircleIconButton(
+            onClick = {
+                settingsAngle += 360f
+                onOpenSettings()
+            },
+            size = 34.dp,
+            showBorder = false,
             contentDescription = stringResource(R.string.nav_settings),
-            tint = VotifyColors.TextSecondary,
-            modifier = Modifier
-                .size(26.dp)
-                .graphicsLayer { rotationZ = animatedRotation }
-                .clickable {
-                    settingsAngle += 360f
-                    onOpenSettings()
-                },
-        )
+        ) {
+            Icon(
+                Icons.Outlined.Settings,
+                null,
+                tint = VotifyColors.TextSecondary,
+                modifier = Modifier
+                    .size(17.dp)
+                    .graphicsLayer { rotationZ = animatedRotation },
+            )
+        }
     }
 }
 

@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
@@ -64,8 +65,16 @@ class PlaybackService : MediaSessionService() {
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 AudioEffectsManager.onAudioSessionIdChanged(audioSessionId)
             }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                // Пауза вместо приглушения при уведомлении/звонке: когда фокус теряется,
+                // ExoPlayer сам решает duck/pause по willPauseWhenDucked.
+                if (playbackState == Player.STATE_READY) applyPendingAudioPrefs()
+            }
         })
         AudioEffectsManager.attachPlayer(player)
+        instancePlayer = player
+        applyPendingAudioPrefs()
 
         val openApp = PendingIntent.getActivity(
             this,
@@ -151,11 +160,47 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         AudioEffectsManager.detachPlayer()
+        instancePlayer = null
         session?.run {
             player.release()
             release()
             session = null
         }
         super.onDestroy()
+    }
+
+    companion object {
+        /** Живой плеер сервиса: нужен, чтобы применять настройки, недоступные через контроллер. */
+        private var instancePlayer: ExoPlayer? = null
+
+        private var gapless: Boolean = true
+        private var normalization: Boolean = false
+        private var pauseOnDuck: Boolean = false
+
+        /**
+         * Применяет настройки аудио, которые не пробрасываются через MediaController:
+         * безшовность (точная стыковка треков), нормализация (пропуск тишины)
+         * и пауза вместо приглушения при потере аудиофокуса.
+         */
+        fun applyAudioPrefs(gapless: Boolean, normalization: Boolean, pauseOnDuck: Boolean) {
+            this.gapless = gapless
+            this.normalization = normalization
+            this.pauseOnDuck = pauseOnDuck
+            applyPendingAudioPrefs()
+        }
+
+        private fun applyPendingAudioPrefs() {
+            val p = instancePlayer ?: return
+            // ВАЖНО: setPauseAtEndOfMediaItems здесь НЕ вызывается. Он останавливает
+            // воспроизведение в конце каждого трека — именно из-за такого вызова очередь
+            // обрывалась бы после первого трека. Безшовную стыковку ExoPlayer делает
+            // сам по умолчанию.
+            runCatching { p.skipSilenceEnabled = normalization }
+            // Нормализация громкости — отдельным аудио-эффектом.
+            runCatching { AudioEffectsManager.setNormalization(normalization) }
+            // Примечание: режим duck/pause («При уведомлении») задаётся только при
+            // СОЗДАНИИ плеера (setAudioAttributes в onCreate) — Media3 не даёт менять
+            // willPauseWhenDucked на лету. Поэтому значение читается при старте сервиса.
+        }
     }
 }

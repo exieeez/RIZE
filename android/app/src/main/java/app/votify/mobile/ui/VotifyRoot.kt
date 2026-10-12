@@ -366,6 +366,25 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
     // Apply saved playback remix preset when track changes or when preference changes.
     val cp = parseCustomPrefs(settings.customPrefs)
     LaunchedEffect(
+        cp.crossfade,
+        cp.crossfadeSeconds,
+    ) {
+        // Кроссфейд — реальный: плавное затухание текущего трека и нарастание следующего.
+        player.setCrossfade(cp.crossfade, cp.crossfadeSeconds)
+    }
+    LaunchedEffect(
+        cp.gapless,
+        cp.normalization,
+        cp.onNotification,
+    ) {
+        // Настройки звука, которые живут на самом плеере.
+        player.requestAudioPreferences(
+            gapless = cp.gapless,
+            normalization = cp.normalization,
+            pauseOnDuck = cp.onNotification == "pause",
+        )
+    }
+    LaunchedEffect(
         cp.playbackSpeed,
         cp.playbackPitch,
         cp.pitchShiftLinked,
@@ -391,6 +410,12 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
     val contentPadding = PaddingValues(top = statusBar.calculateTopPadding(), bottom = bottomClearance)
 
     val play: (List<Track>, Int) -> Unit = { tracks, i -> player.play(tracks, i) }
+    // «Перемешать»: включаем режим перемешивания и запускаем список целиком —
+    // плеер сам перемешает его без повторов.
+    val shufflePlay: (List<Track>) -> Unit = { tracks ->
+        player.setShuffle(true)
+        player.play(tracks, 0)
+    }
     val openArtist: (String) -> Unit = { name ->
         playerExpanded = false
         libraryVm.closeMenu()
@@ -539,6 +564,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 contentPadding = contentPadding,
                                 onBack = { navController.popBackStack() },
                                 onPlay = play,
+                                onShufflePlay = shufflePlay,
                             )
                         }
                         composable(Routes.HISTORY) {
@@ -561,6 +587,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 contentPadding = contentPadding,
                                 onBack = { navController.popBackStack() },
                                 onPlay = play,
+                                onShufflePlay = shufflePlay,
                             )
                         }
                         composable(Routes.ARTIST, arguments = listOf(navArgument("name") { type = NavType.StringType })) { entry ->

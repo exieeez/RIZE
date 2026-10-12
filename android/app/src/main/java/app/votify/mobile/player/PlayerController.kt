@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
 import app.votify.mobile.widget.WidgetUpdateHelper
+import kotlin.random.Random
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -50,6 +51,16 @@ data class PlayerUiState(
  */
 /** Media items use this scheme; the ResolvingDataSource swaps it for the real stream URL. */
 const val RESOLVE_URI_SCHEME = "votify://stream/"
+
+/** Шаг плавного изменения громкости при кроссфейде. */
+private const val FADE_STEP_MS = 60L
+
+/**
+ * Перемешивание без повторов: тасование Фишера-Йетса со своим Random.
+ * Не использует kotlin.collections.shuffled по умолчанию, чтобы порядок не зависел
+ * от общего источника случайности приложения.
+ */
+private val DISJOINT_SHUFFLE = Random(System.nanoTime())
 
 class PlayerController(
     context: Context,
@@ -83,16 +94,63 @@ class PlayerController(
     private var controller: MediaController? = null
     private var queueTracks: List<Track> = emptyList()
 
+    // ---- Перемешивание ----
+    // Порядок задаём сами, а не встроенным shuffleMode ExoPlayer: так мы точно знаем,
+    // какие треки уже играли, и не повторяем их, сколько бы раз ни нажимали кнопку.
+    private var baseOrder: List<Track> = emptyList()
+    private var shuffleOn: Boolean = false
+    private val playedIds = LinkedHashSet<String>()
+
+    // ---- Кроссфейд ----
+    private var crossfadeEnabled: Boolean = false
+    private var crossfadeSeconds: Int = 4
+    private var fading = false
+    private var fadeJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Настройки плавного перехода между треками (Настройки → Аудио).
+     * Передаётся из настроек при их изменении.
+     */
+    fun setCrossfade(enabled: Boolean, seconds: Int) {
+        crossfadeEnabled = enabled
+        crossfadeSeconds = seconds.coerceIn(1, 12)
+        if (!enabled) volumeTo(1f)
+    }
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             syncFromPlayer(player)
             if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_IS_PLAYING_CHANGED, Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
+                // Новый трек начинается с тишины и плавно нарастает — это вторая половина кроссфейда.
+                if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) && crossfadeEnabled) {
+                    startFadeIn()
+                }
+                // Пауза/остановка посреди затухания не должна оставлять громкость на нуле —
+                // иначе после возобновления трек играл бы вслепую тихо.
+                if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && !player.isPlaying) {
+                    fadeJob?.cancel()
+                    fading = false
+                    volumeTo(1f)
+                }
                 reportStartedIfNeeded(player)
                 WidgetUpdateHelper.updateAll(appContext)
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            // Один неоткрывшийся трек не должен обрывать всю очередь: переходим
+            // к следующему. Раньше здесь только записывалась ошибка, и воспроизведение
+            // останавливалось насмерть.
+            val p = controller
+            val canContinue = p != null && p.isConnected && p.hasNextMediaItem()
+            if (canContinue) {
+                _state.update { it.copy(error = null, isBuffering = true) }
+                runCatching {
+                    p!!.seekToNextMediaItem()
+                    if (!p.playWhenReady) p.play()
+                }
+                return
+            }
             _state.update { it.copy(error = error.localizedMessage ?: "Playback error", isBuffering = false) }
         }
     }
@@ -102,10 +160,61 @@ class PlayerController(
             controller?.let { p ->
                 if (p.isConnected && p.isPlaying) {
                     _state.update { it.copy(positionMs = p.currentPosition, durationMs = p.duration.coerceAtLeast(0)) }
+                    // Затухание перед концом трека: следующий включится с нарастанием (см. startFadeIn).
+                    maybeStartFadeOut(p)
                 }
             }
             handler.postDelayed(this, 500)
         }
+    }
+
+    /**
+     * Плавно гасит громкость за [crossfadeSeconds] до конца трека и поднимает её
+     * у следующего — настоящий слышимый переход без рывка. Общий аудиотракт один
+     * (ExoPlayer не умеет два одновременно), поэтому треки сменяются встык.
+     */
+    private fun maybeStartFadeOut(p: MediaController) {
+        if (!crossfadeEnabled || fading) return
+        val total = p.duration
+        if (total <= 0) return
+        val fadeMs = crossfadeSeconds * 1000L
+        val remaining = total - p.currentPosition
+        // Не запускаем затухание на коротких треках: иначе он замолчит почти сразу.
+        if (remaining in 1..fadeMs && total > fadeMs * 2) startFadeOut(fadeMs)
+    }
+
+    private fun startFadeOut(durationMs: Long) {
+        fadeJob?.cancel()
+        fading = true
+        fadeJob = scope.launch {
+            val steps = (durationMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
+            for (i in steps downTo 0) {
+                volumeTo(i / steps.toFloat())
+                kotlinx.coroutines.delay(FADE_STEP_MS)
+            }
+            fading = false
+        }
+    }
+
+    private fun startFadeIn() {
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            val durationMs = crossfadeSeconds * 1000L
+            val steps = (durationMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
+            for (i in 0..steps) {
+                volumeTo(i / steps.toFloat())
+                kotlinx.coroutines.delay(FADE_STEP_MS)
+            }
+            fading = false
+            volumeTo(1f)
+        }
+    }
+
+    private fun volumeTo(value: Float) {
+        val c = controller ?: return
+        if (!c.isConnected) return
+        if (!c.availableCommands.contains(Player.COMMAND_SET_VOLUME)) return
+        runCatching { c.volume = value.coerceIn(0f, 1f) }
     }
 
     fun connect(onConnected: ((MediaController) -> Unit)? = null) {
@@ -154,17 +263,32 @@ class PlayerController(
     /** Replace the queue with [tracks] and start from [startIndex]. */
     fun play(tracks: List<Track>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
-        queueTracks = tracks
+        baseOrder = tracks
+        // Новая очередь — история прослушанного начинается заново, иначе треки
+        // из другого списка считались бы «уже игравшими».
+        playedIds.clear()
+        val order = if (shuffleOn) {
+            // При перемешивании начинаем с того, что выбрал пользователь,
+            // а остальные идут в перемешанном порядке без повторов.
+            val start = tracks.getOrNull(startIndex)
+            val rest = (tracks - listOfNotNull(start)).shuffled(DISJOINT_SHUFFLE)
+            if (start != null) {
+                playedIds.add(start.id)
+                listOf(start) + rest
+            } else rest
+        } else tracks
+        queueTracks = order
+        val index = if (shuffleOn) 0 else startIndex
         lastReportedId = null // a fresh start always counts as a new listen
         _state.update { it.copy(error = null, isBuffering = true) }
         val c = controller
         if (c != null && c.isConnected) {
-            c.setMediaItems(tracks.map(::toMediaItem), startIndex.coerceIn(0, tracks.lastIndex), 0L)
+            c.setMediaItems(order.map(::toMediaItem), index.coerceIn(0, order.lastIndex), 0L)
             c.prepare()
             c.play()
         } else {
             connect { connected ->
-                connected.setMediaItems(tracks.map(::toMediaItem), startIndex.coerceIn(0, tracks.lastIndex), 0L)
+                connected.setMediaItems(order.map(::toMediaItem), index.coerceIn(0, order.lastIndex), 0L)
                 connected.prepare()
                 connected.play()
             }
@@ -209,7 +333,42 @@ class PlayerController(
     }
 
     fun next() {
-        controller?.takeIf { it.isConnected && it.hasNextMediaItem() }?.seekToNextMediaItem()
+        val c = controller?.takeIf { it.isConnected } ?: return
+        // Свой порядок: переходим к следующему треку очереди.
+        if (shuffleOn && c.currentMediaItemIndex >= c.mediaItemCount - 1) {
+            // Список дошёл до конца — продолжаем новым проходом без уже игравших треков.
+            val reshuffled = reshuffleQueue()
+            if (reshuffled.isNotEmpty()) {
+                c.setMediaItems(reshuffled.map(::toMediaItem), 0, 0L)
+                c.prepare()
+                c.play()
+            }
+            return
+        }
+        if (c.hasNextMediaItem()) c.seekToNextMediaItem()
+    }
+
+    /**
+     * Новый проход перемешивания без повторов: исключаем всё, что уже играло.
+     * Когда непроигранных не осталось — начинаем новый круг (без подряд идущего повтора).
+     */
+    private fun reshuffleQueue(): List<Track> {
+        val unplayed = baseOrder.filterNot { it.id in playedIds }
+        val next = if (unplayed.isNotEmpty()) {
+            unplayed.shuffled(DISJOINT_SHUFFLE)
+        } else {
+            // Круг закончен: очищаем историю, но не даём первому треку совпасть с последним.
+            val last = queueTracks.lastOrNull()?.id
+            playedIds.clear()
+            val pool = baseOrder.filterNot { it.id == last }
+            val shuffled = pool.shuffled(DISJOINT_SHUFFLE)
+            if (last != null) (shuffled + baseOrder.first { it.id == last }) else shuffled
+        }
+        if (next.isEmpty()) return emptyList()
+        next.forEach { playedIds.add(it.id) }
+        queueTracks = next
+        _state.update { it.copy(queue = next) }
+        return next
     }
 
     fun previous() {
@@ -231,7 +390,56 @@ class PlayerController(
     }
 
     fun toggleShuffle() {
-        controller?.takeIf { it.isConnected }?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
+        val c = controller?.takeIf { it.isConnected } ?: return
+        setShuffle(!shuffleOn)
+    }
+
+    /** Включить/выключить перемешивание без повторов (без необходимости в живом плеере). */
+    fun setShuffle(enabled: Boolean) {
+        if (shuffleOn == enabled) return
+        shuffleOn = enabled
+        _state.update { it.copy(shuffle = enabled) }
+        // Порядок задаём сами: встроенный режим ExoPlayer держим выключенным,
+        // иначе треки повторялись бы.
+        val c = controller?.takeIf { it.isConnected } ?: return
+        runCatching { c.shuffleModeEnabled = false }
+        if (enabled) {
+            // Перемешиваем оставшиеся треки, не трогая текущий и уже сыгранные.
+            val currentId = c.currentMediaItem?.mediaId
+            val head = queueTracks.take(c.currentMediaItemIndex + 1)
+            val tail = baseOrder
+                .filterNot { t -> t.id in playedIds || head.any { it.id == t.id } }
+                .shuffled(DISJOINT_SHUFFLE)
+            val newQueue = head + tail
+            if (newQueue.isNotEmpty()) {
+                queueTracks = newQueue
+                tail.forEach { playedIds.add(it.id) }
+                c.setMediaItems(
+
+                    newQueue.map(::toMediaItem),
+                    c.currentMediaItemIndex.coerceIn(0, newQueue.lastIndex),
+                    c.currentPosition,
+                )
+                c.prepare()
+                c.play()
+                _state.update { it.copy(queue = newQueue) }
+            }
+        } else {
+            // Возврат к исходному порядку с сохранением текущего трека.
+            val currentId = c.currentMediaItem?.mediaId
+            val current = queueTracks.firstOrNull { it.id == currentId }
+            val newQueue = if (current != null) {
+                listOf(current) + baseOrder.filterNot { it.id == currentId }
+            } else baseOrder
+            if (newQueue.isNotEmpty()) {
+                queueTracks = newQueue
+                val idx = newQueue.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+                c.setMediaItems(newQueue.map(::toMediaItem), idx, c.currentPosition)
+                c.prepare()
+                c.play()
+                _state.update { it.copy(queue = newQueue) }
+            }
+        }
     }
 
     fun cycleRepeat() {
@@ -258,6 +466,9 @@ class PlayerController(
         val fresh = tracks.filterNot { it.id in existing }
         if (fresh.isEmpty()) return
         queueTracks = queueTracks + fresh
+        // Базовый список тоже пополняем, иначе перемешивание про эти треки не знает
+        // и они выпадают из очереди при переключении.
+        baseOrder = baseOrder + fresh.filterNot { t -> baseOrder.any { it.id == t.id } }
         c.addMediaItems(fresh.map(::toMediaItem))
         _state.update { it.copy(queue = queueTracks) }
     }
@@ -273,6 +484,9 @@ class PlayerController(
         val mutable = queueTracks.toMutableList()
         mutable.add(at.coerceAtMost(mutable.size), track)
         queueTracks = mutable
+        // Порядок воспроизведения и базовый список держим согласованными.
+        val baseAt = baseOrder.indexOfFirst { it.id == c.currentMediaItem?.mediaId }.let { if (it < 0) baseOrder.size else it + 1 }
+        baseOrder = baseOrder.toMutableList().apply { add(baseAt.coerceAtMost(baseOrder.size), track) }
         c.addMediaItem(at, toMediaItem(track))
         _state.update { it.copy(queue = queueTracks) }
     }
@@ -335,6 +549,32 @@ class PlayerController(
             )
         }
     }
+
+    /**
+     * Настройки аудио: безшовность (только из сервиса), нормализация громкости,
+     * и поведение при уведомлении.
+     */
+    fun requestAudioPreferences(gapless: Boolean, normalization: Boolean, pauseOnDuck: Boolean) {
+        PlaybackService.applyAudioPrefs(
+            gapless = gapless,
+            normalization = normalization,
+            pauseOnDuck = pauseOnDuck,
+        )
+        // «При уведомлении» можно применить и на живом плеере: setAudioAttributes
+        // доступен через контроллер (Media3), в отличие от параметров Builder'а.
+        runCatching {
+            val c = controller?.takeIf { it.isConnected } ?: return@runCatching
+            val attrs = androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                .setFlags(pauseOnDuckFlag(pauseOnDuck))
+                .build()
+            c.setAudioAttributes(attrs, /* handleAudioFocus = */ true)
+        }
+    }
+
+    /** Флаг «на паузу вместо приглушения»: 4 = AudioAttributes.FLAG_PAUSE_WHEN_DUCKED. */
+    private fun pauseOnDuckFlag(pauseOnDuck: Boolean): Int = if (pauseOnDuck) 4 else 0
 
     fun setPlaybackRemix(speed: Float, pitch: Float? = null, pitchLinked: Boolean = _state.value.pitchLinked) {
         val s = (Math.round(speed * 100f) / 100f).coerceIn(0.25f, 2.5f)

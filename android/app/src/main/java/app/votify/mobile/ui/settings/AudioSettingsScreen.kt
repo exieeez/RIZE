@@ -70,6 +70,17 @@ fun AudioSettingsScreen(
                     checked = prefs.crossfade,
                     onChange = { v -> viewModel.updatePrefs { it.copy(crossfade = v) } },
                 )
+                // Длительность перехода видна только когда кроссфейд включён.
+                if (prefs.crossfade) {
+                    SettingsDivider()
+                    SettingsSliderRow(
+                        title = "Длительность перехода",
+                        value = prefs.crossfadeSeconds.toFloat(),
+                        range = 1f..12f,
+                        unit = " с",
+                        onValueChange = { v -> viewModel.updatePrefs { it.copy(crossfadeSeconds = v.toInt()) } },
+                    )
+                }
                 SettingsDivider()
                 SettingsToggleRow(
                     title = stringResource(R.string.settings_normalization),

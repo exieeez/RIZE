@@ -1,6 +1,7 @@
 package app.votify.mobile.player
 
 import android.media.audiofx.BassBoost
+import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.PresetReverb
 import android.util.Log
 import androidx.media3.common.AuxEffectInfo
@@ -22,6 +23,8 @@ object AudioEffectsManager {
     private var player: ExoPlayer? = null
     private var presetReverb: PresetReverb? = null
     private var bassBoost: BassBoost? = null
+    private var loudness: LoudnessEnhancer? = null
+    private var normalizationEnabled: Boolean = false
     private var currentAudioSessionId: Int = C.AUDIO_SESSION_ID_UNSET
 
     private val _reverbPreset = MutableStateFlow("none")
@@ -39,7 +42,9 @@ object AudioEffectsManager {
     fun onAudioSessionIdChanged(audioSessionId: Int) {
         currentAudioSessionId = audioSessionId
         releaseBass()
+        releaseLoudness()
         applyBassBoost()
+        applyNormalization()
     }
 
     fun detachPlayer() {
@@ -59,9 +64,37 @@ object AudioEffectsManager {
         applyBassBoost()
     }
 
+    /**
+     * Нормализация громкости (Настройки → Аудио). Реально усиливает тихие места:
+     * LoudnessEnhancer поднимает уровень на фиксированную величину в миллибелах.
+     */
+    fun setNormalization(enabled: Boolean) {
+        normalizationEnabled = enabled
+        applyNormalization()
+    }
+
+    private fun applyNormalization() {
+        val sessionId = currentAudioSessionId
+        if (!normalizationEnabled || sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId <= 0) {
+            runCatching { loudness?.enabled = false }
+            return
+        }
+        runCatching {
+            if (loudness == null) loudness = LoudnessEnhancer(sessionId)
+            loudness?.let { le ->
+                // 600 мБ ≈ заметная, но не искажающая прибавка громкости.
+                le.setTargetGain(600)
+                le.enabled = true
+            }
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to apply LoudnessEnhancer: ${e.message}")
+        }
+    }
+
     private fun applyEffects() {
         applyReverb()
         applyBassBoost()
+        applyNormalization()
     }
 
     private fun applyReverb() {
@@ -135,5 +168,13 @@ object AudioEffectsManager {
             bassBoost?.release()
         }
         bassBoost = null
+    }
+
+    private fun releaseLoudness() {
+        runCatching {
+            loudness?.enabled = false
+            loudness?.release()
+        }
+        loudness = null
     }
 }

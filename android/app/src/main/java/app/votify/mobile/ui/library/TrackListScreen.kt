@@ -102,6 +102,8 @@ fun CollectionHeader(
     tracks: List<Track>,
     onBack: () -> Unit,
     onPlay: (List<Track>, Int) -> Unit,
+    /** «Перемешать»: включает режим перемешивания без повторов и запускает список. */
+    onShufflePlay: (List<Track>) -> Unit = { list -> onPlay(list, 0) },
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
@@ -142,7 +144,8 @@ fun CollectionHeader(
             PillChip(
                 text = stringResource(R.string.action_shuffle_all),
                 selected = false,
-                onClick = { if (tracks.isNotEmpty()) onPlay(tracks.shuffled(), 0) },
+                // Перемешивает и запускает список сам плеер — без повторов уже игравших.
+                onClick = { if (tracks.isNotEmpty()) onShufflePlay(tracks) },
                 leading = { Icon(Icons.Filled.Shuffle, null, tint = VotifyColors.TextPrimary, modifier = Modifier.size(16.dp)) },
             )
         }
@@ -201,6 +204,7 @@ fun FavoritesScreen(
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onPlay: (List<Track>, Int) -> Unit,
+    onShufflePlay: (List<Track>) -> Unit = { list -> onPlay(list, 0) },
 ) {
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val downloadedIds by viewModel.downloadedIds.collectAsStateWithLifecycle()
@@ -223,6 +227,7 @@ fun FavoritesScreen(
                 tracks = favorites,
                 onBack = onBack,
                 onPlay = onPlay,
+                onShufflePlay = onShufflePlay,
             )
         },
     )
@@ -235,6 +240,7 @@ fun HistoryScreen(
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onPlay: (List<Track>, Int) -> Unit,
+    onShufflePlay: (List<Track>) -> Unit = { list -> onPlay(list, 0) },
 ) {
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val downloadedIds by viewModel.downloadedIds.collectAsStateWithLifecycle()
@@ -259,6 +265,7 @@ fun HistoryScreen(
                 tracks = recent,
                 onBack = onBack,
                 onPlay = onPlay,
+                onShufflePlay = onShufflePlay,
                 trailing = {
                     if (recent.isNotEmpty()) {
                         IconButton(onClick = { confirmClear = true }) {
@@ -547,6 +554,7 @@ fun PlaylistScreen(
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onPlay: (List<Track>, Int) -> Unit,
+    onShufflePlay: (List<Track>) -> Unit = { list -> onPlay(list, 0) },
 ) {
     LaunchedEffect(playlistId) { viewModel.openPlaylist(playlistId) }
 
@@ -647,7 +655,9 @@ fun PlaylistScreen(
                         }
                     },
                     onShuffle = {
-                        if (tracks.isNotEmpty()) onPlay(tracks.shuffled(), 0)
+                        // Перемешивание и запуск — на стороне плеера: он помнит игравшие
+                        // треки, поэтому повторов можно нажимать сколько угодно раз.
+                        if (tracks.isNotEmpty()) onShufflePlay(tracks)
                     },
                     onDownloadAll = {
                         if (tracks.isNotEmpty()) {

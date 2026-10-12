@@ -113,7 +113,7 @@ fun TrendingScreen(
                     color = VotifyColors.TextMuted,
                 )
             }
-            IconButton(onClick = { if (state.tracks.isNotEmpty()) onPlay(state.tracks.shuffled(), 0) }) {
+            IconButton(onClick = { if (state.tracks.isNotEmpty()) onPlay(state.tracks, 0) }) {
                 Icon(Icons.Filled.Shuffle, stringResource(R.string.action_shuffle_all), tint = VotifyColors.TextPrimary)
             }
         }
