@@ -413,23 +413,6 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
     // imePadding: with edge-to-edge the keyboard would cover the bottom nav — on the search
     // screen that made it impossible to return to Home without the system back gesture.
     Box(Modifier.fillMaxSize().imePadding().background(VotifyColors.SurfaceBase)) {
-        if (workshopBgUrl.isNotBlank()) {
-            coil.compose.AsyncImage(
-                model = workshopBgUrl,
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                alignment = androidx.compose.ui.Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(bgBlurDp.dp),
-            )
-            // Dim the background so text on cards stays readable (Настройки → Фон → Затемнение).
-            Box(
-                Modifier.fillMaxSize().background(
-                    androidx.compose.ui.graphics.Color.Black.copy(alpha = bgDimAlpha),
-                ),
-            )
-        }
         val hazeState = remember { HazeState() }
         CompositionLocalProvider(
             LocalCustomPrefs provides bgPrefs,
@@ -441,263 +424,291 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 snackbarHost = { SnackbarHost(snackbar) },
             ) { _ ->
                 Box(Modifier.fillMaxSize()) {
-                    NavHost(
-                        navController,
-                        startDestination = Tab.Home.route,
-                        modifier = Modifier
+                    // Источник размытия для нижней панели: обои + содержимое экранов.
+                    // Haze 0.7.x размывает только то, что нарисовано внутри его узла,
+                    // поэтому фон обязан лежать здесь же — иначе панели нечего размывать
+                    // и она выглядит плоской заливкой цвета. Панель (hazeChild) — сосед этого Box.
+                    Box(
+                        Modifier
                             .fillMaxSize()
                             .haze(hazeState),
-                enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) },
-                exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(120)) },
-                popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) },
-                popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(120)) },
-            ) {
-                composable(Tab.Home.route) {
-                    HomeScreen(
-                        viewModel = homeVm,
-                        contentPadding = contentPadding,
-                        onPlay = play,
-                        playerState = playerState,
-                        onSeek = player::seekTo,
-                        iosSlider = parseCustomPrefs(settings.customPrefs).sliderStyle == "ios",
-                        onOpenSearch = { navController.navigate(Tab.Search.route) { launchSingleTop = true } },
-                        onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
-                        onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
-                        onOpenAccount = { navController.navigate(Routes.PROFILE) { launchSingleTop = true } },
-                        onOpenTrending = { navController.navigate(Routes.TRENDING) { launchSingleTop = true } },
-                        onOpenSite = { openSite(context) },
-                        onOpenPlaylist = { id -> navController.navigate("playlist/$id") { launchSingleTop = true } },
-                        onOpenArtist = { name -> navController.navigate("artist/${android.net.Uri.encode(name)}") { launchSingleTop = true } },
-                    )
-                }
-                composable(Tab.Search.route) {
-                    SearchScreen(
-                        viewModel = searchVm,
-                        currentTrackId = playerState.current?.id,
-                        contentPadding = contentPadding,
-                        onPlay = play,
-                        onMore = openMenu,
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
-                    )
-                }
-                composable(Tab.Library.route) {
-                    LibraryScreen(
-                        viewModel = libraryVm,
-                        currentTrackId = playerState.current?.id,
-                        contentPadding = contentPadding,
-                        onPlay = play,
-                        onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
-                        onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
-                        onOpenPlaylist = { id -> navController.navigate(Routes.playlist(id)) { launchSingleTop = true } },
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
-                        onImport = { navController.navigate(Routes.IMPORT) { launchSingleTop = true } },
-                    )
-                }
-                composable(Routes.FAVORITES) {
-                    FavoritesScreen(
-                        viewModel = libraryVm,
-                        currentTrackId = playerState.current?.id,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPlay = play,
-                    )
-                }
-                composable(Routes.HISTORY) {
-                    HistoryScreen(
-                        viewModel = libraryVm,
-                        currentTrackId = playerState.current?.id,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPlay = play,
-                    )
-                }
-                composable(Routes.PLAYLIST, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
-                    val id = entry.arguments?.getLong("id") ?: return@composable
-                    PlaylistScreen(
-                        viewModel = libraryVm,
-                        playlistId = id,
-                        currentTrackId = playerState.current?.id,
-                        isPlaying = playerState.isPlaying,
-                        onTogglePlay = { player.togglePlayPause() },
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPlay = play,
-                    )
-                }
-                composable(Routes.ARTIST, arguments = listOf(navArgument("name") { type = NavType.StringType })) { entry ->
-                    val name = entry.arguments?.getString("name").orEmpty()
-                    ArtistScreen(
-                        viewModel = artistVm,
-                        name = name,
-                        currentTrackId = playerState.current?.id,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPlay = play,
-                        onMore = openMenu,
-                    )
-                }
-                composable(Routes.SETTINGS) {
-                    SettingsScreen(
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onOpenGeneral = { navController.navigate(Routes.GENERAL) { launchSingleTop = true } },
-                        onOpenAudio = { navController.navigate(Routes.AUDIO) { launchSingleTop = true } },
-                        onOpenStorage = { navController.navigate(Routes.STORAGE) { launchSingleTop = true } },
-                        onOpenInterface = { navController.navigate(Routes.INTERFACE) { launchSingleTop = true } },
-                        onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
-                        onOpenArtwork = { navController.navigate(Routes.ARTWORK) { launchSingleTop = true } },
-                        onOpenBackgrounds = { navController.navigate(Routes.BACKGROUNDS) { launchSingleTop = true } },
-                        onOpenPresets = { navController.navigate(Routes.PRESETS) { launchSingleTop = true } },
-                        onOpenWorkshop = { navController.navigate(Routes.WORKSHOP) { launchSingleTop = true } },
-                        onOpenProxy = { navController.navigate(Routes.PROXY) { launchSingleTop = true } },
-                    )
-                }
-                composable(Routes.GENERAL) {
-                    GeneralSettingsScreen(
-                        viewModel = settingsVm,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onOpenAccount = { navController.navigate(Routes.PROFILE) { launchSingleTop = true } },
-                    )
-                }
-                composable(Routes.AUDIO) {
-                    AudioSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.STORAGE) {
-                    StorageSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.INTERFACE) {
-                    InterfaceSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.PLAYER) {
-                    PlayerSettingsScreen(
-                        settingsVm,
-                        contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onOpenPresets = { navController.navigate(Routes.PRESETS) { launchSingleTop = true } },
-                    )
-                }
-                composable(Routes.ARTWORK) {
-                    ArtworkSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.BACKGROUNDS) {
-                    BackgroundsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.PRESETS) {
-                    PresetsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.PROXY) {
-                    ProxySettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
-                }
-                composable(Routes.TRENDING) {
-                    TrendingScreen(
-                        viewModel = trendingVm,
-                        currentTrackId = playerState.current?.id,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPlay = play,
-                        onMore = openMenu,
-                    )
-                }
-                composable(Routes.WORKSHOP) {
-                    WorkshopScreen(
-                        viewModel = workshopVm,
-                        currentTheme = settings.theme,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPickBuiltIn = { theme ->
-                            settingsVm.setTheme(theme)
-                            if (theme != AppTheme.Workshop) settingsVm.clearCustomTheme()
-                        },
-                    )
-                }
-                composable(Routes.ACCOUNT) {
-                    val acct by accountVm.account.collectAsStateWithLifecycle()
-                    if (acct != null) {
-                        ProfileScreen(
-                            viewModel = profileVm,
-                            contentPadding = contentPadding,
-                            onBack = { navController.popBackStack() },
-                            onOpenFriends = { navController.navigate(Routes.FRIENDS) },
-                            onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
-                            onToast = { snackbarScope.launch { snackbar.showSnackbar(it) } },
-                            onPlayFav = { fav ->
-                                val id = Regex("[?&]v=([a-zA-Z0-9_-]{11})")
-                                    .find(fav.id)?.groupValues?.get(1)
-                                    ?: Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
+                    ) {
+                        // Базовая подложка внутри источника: даже без обоев и при непрокрученном
+                        // контенте панели есть что размывать, а не просто «дырка» в экране.
+                        Box(Modifier.fillMaxSize().background(VotifyColors.SurfaceBase))
+                        if (workshopBgUrl.isNotBlank()) {
+                            coil.compose.AsyncImage(
+                                model = workshopBgUrl,
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                alignment = androidx.compose.ui.Alignment.Center,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .blur(bgBlurDp.dp),
+                            )
+                            // Dim the background so text on cards stays readable (Настройки → Фон → Затемнение).
+                            Box(
+                                Modifier.fillMaxSize().background(
+                                    androidx.compose.ui.graphics.Color.Black.copy(alpha = bgDimAlpha),
+                                ),
+                            )
+                        }
+                        NavHost(
+                            navController,
+                            startDestination = Tab.Home.route,
+                            modifier = Modifier.fillMaxSize(),
+                            enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) },
+                            exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(120)) },
+                            popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) },
+                            popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(120)) },
+                        ) {
+                            composable(Tab.Home.route) {
+                            HomeScreen(
+                                viewModel = homeVm,
+                                contentPadding = contentPadding,
+                                onPlay = play,
+                                playerState = playerState,
+                                onSeek = player::seekTo,
+                                iosSlider = parseCustomPrefs(settings.customPrefs).sliderStyle == "ios",
+                                onOpenSearch = { navController.navigate(Tab.Search.route) { launchSingleTop = true } },
+                                onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                                onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                                onOpenAccount = { navController.navigate(Routes.PROFILE) { launchSingleTop = true } },
+                                onOpenTrending = { navController.navigate(Routes.TRENDING) { launchSingleTop = true } },
+                                onOpenSite = { openSite(context) },
+                                onOpenPlaylist = { id -> navController.navigate("playlist/$id") { launchSingleTop = true } },
+                                onOpenArtist = { name -> navController.navigate("artist/${android.net.Uri.encode(name)}") { launchSingleTop = true } },
+                            )
+                        }
+                        composable(Tab.Search.route) {
+                            SearchScreen(
+                                viewModel = searchVm,
+                                currentTrackId = playerState.current?.id,
+                                contentPadding = contentPadding,
+                                onPlay = play,
+                                onMore = openMenu,
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                            )
+                        }
+                        composable(Tab.Library.route) {
+                            LibraryScreen(
+                                viewModel = libraryVm,
+                                currentTrackId = playerState.current?.id,
+                                contentPadding = contentPadding,
+                                onPlay = play,
+                                onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
+                                onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                                onOpenPlaylist = { id -> navController.navigate(Routes.playlist(id)) { launchSingleTop = true } },
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                                onImport = { navController.navigate(Routes.IMPORT) { launchSingleTop = true } },
+                            )
+                        }
+                        composable(Routes.FAVORITES) {
+                            FavoritesScreen(
+                                viewModel = libraryVm,
+                                currentTrackId = playerState.current?.id,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPlay = play,
+                            )
+                        }
+                        composable(Routes.HISTORY) {
+                            HistoryScreen(
+                                viewModel = libraryVm,
+                                currentTrackId = playerState.current?.id,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPlay = play,
+                            )
+                        }
+                        composable(Routes.PLAYLIST, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                            val id = entry.arguments?.getLong("id") ?: return@composable
+                            PlaylistScreen(
+                                viewModel = libraryVm,
+                                playlistId = id,
+                                currentTrackId = playerState.current?.id,
+                                isPlaying = playerState.isPlaying,
+                                onTogglePlay = { player.togglePlayPause() },
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPlay = play,
+                            )
+                        }
+                        composable(Routes.ARTIST, arguments = listOf(navArgument("name") { type = NavType.StringType })) { entry ->
+                            val name = entry.arguments?.getString("name").orEmpty()
+                            ArtistScreen(
+                                viewModel = artistVm,
+                                name = name,
+                                currentTrackId = playerState.current?.id,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPlay = play,
+                                onMore = openMenu,
+                            )
+                        }
+                        composable(Routes.SETTINGS) {
+                            SettingsScreen(
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onOpenGeneral = { navController.navigate(Routes.GENERAL) { launchSingleTop = true } },
+                                onOpenAudio = { navController.navigate(Routes.AUDIO) { launchSingleTop = true } },
+                                onOpenStorage = { navController.navigate(Routes.STORAGE) { launchSingleTop = true } },
+                                onOpenInterface = { navController.navigate(Routes.INTERFACE) { launchSingleTop = true } },
+                                onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
+                                onOpenArtwork = { navController.navigate(Routes.ARTWORK) { launchSingleTop = true } },
+                                onOpenBackgrounds = { navController.navigate(Routes.BACKGROUNDS) { launchSingleTop = true } },
+                                onOpenPresets = { navController.navigate(Routes.PRESETS) { launchSingleTop = true } },
+                                onOpenWorkshop = { navController.navigate(Routes.WORKSHOP) { launchSingleTop = true } },
+                                onOpenProxy = { navController.navigate(Routes.PROXY) { launchSingleTop = true } },
+                            )
+                        }
+                        composable(Routes.GENERAL) {
+                            GeneralSettingsScreen(
+                                viewModel = settingsVm,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onOpenAccount = { navController.navigate(Routes.PROFILE) { launchSingleTop = true } },
+                            )
+                        }
+                        composable(Routes.AUDIO) {
+                            AudioSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.STORAGE) {
+                            StorageSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.INTERFACE) {
+                            InterfaceSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.PLAYER) {
+                            PlayerSettingsScreen(
+                                settingsVm,
+                                contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onOpenPresets = { navController.navigate(Routes.PRESETS) { launchSingleTop = true } },
+                            )
+                        }
+                        composable(Routes.ARTWORK) {
+                            ArtworkSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.BACKGROUNDS) {
+                            BackgroundsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.PRESETS) {
+                            PresetsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.PROXY) {
+                            ProxySettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.TRENDING) {
+                            TrendingScreen(
+                                viewModel = trendingVm,
+                                currentTrackId = playerState.current?.id,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPlay = play,
+                                onMore = openMenu,
+                            )
+                        }
+                        composable(Routes.WORKSHOP) {
+                            WorkshopScreen(
+                                viewModel = workshopVm,
+                                currentTheme = settings.theme,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPickBuiltIn = { theme ->
+                                    settingsVm.setTheme(theme)
+                                    if (theme != AppTheme.Workshop) settingsVm.clearCustomTheme()
+                                },
+                            )
+                        }
+                        composable(Routes.ACCOUNT) {
+                            val acct by accountVm.account.collectAsStateWithLifecycle()
+                            if (acct != null) {
+                                ProfileScreen(
+                                    viewModel = profileVm,
+                                    contentPadding = contentPadding,
+                                    onBack = { navController.popBackStack() },
+                                    onOpenFriends = { navController.navigate(Routes.FRIENDS) },
+                                    onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                                    onToast = { snackbarScope.launch { snackbar.showSnackbar(it) } },
+                                    onPlayFav = { fav ->
+                                        val id = Regex("[?&]v=([a-zA-Z0-9_-]{11})")
+                                            .find(fav.id)?.groupValues?.get(1)
+                                            ?: Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
+                                                .find(fav.id)?.groupValues?.get(1)
+                                                ?: fav.id
+                                        if (id.length == 11) {
+                                            player.playTrack(Track(id, fav.title, fav.artist, fav.cover, "", fav.duration))
+                                        }
+                                    },
+                                    onOpenLogin = { navController.navigate(Routes.ACCOUNT) },
+                                    onLogout = { accountVm.logout() },
+                                )
+                            } else {
+                                AccountScreen(
+                                    viewModel = accountVm,
+                                    contentPadding = contentPadding,
+                                    onBack = { navController.popBackStack() },
+                                )
+                            }
+                        }
+                        composable(Routes.PROFILE) {
+                            ProfileScreen(
+                                viewModel = profileVm,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onOpenFriends = { navController.navigate(Routes.FRIENDS) },
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                                onToast = { snackbarScope.launch { snackbar.showSnackbar(it) } },
+                                onPlayFav = { fav ->
+                                    val id = Regex("[?&]v=([a-zA-Z0-9_-]{11})")
+                                        .find(fav.id)?.groupValues?.get(1)
+                                        ?: Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
+                                            .find(fav.id)?.groupValues?.get(1)
+                                            ?: fav.id
+                                    if (id.length == 11) {
+                                        player.playTrack(Track(id, fav.title, fav.artist, fav.cover, "", fav.duration))
+                                    }
+                                },
+                                onOpenLogin = { navController.navigate(Routes.ACCOUNT) },
+                                onLogout = { accountVm.logout() },
+                            )
+                        }
+                        composable(Routes.FRIENDS) {
+                            FriendsScreen(
+                                viewModel = friendsVm,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onOpenUser = { uid -> navController.navigate("user/$uid") },
+                            )
+                        }
+                        composable(Routes.USER_PROFILE, arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
+                            val uid = entry.arguments?.getString("uid").orEmpty()
+                            UserScreen(
+                                viewModel = friendsVm,
+                                uid = uid,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                                onPlayFav = { fav ->
+                                    val id = Regex("[?&]v=([a-zA-Z0-9_-]{11})")
                                         .find(fav.id)?.groupValues?.get(1)
                                         ?: fav.id
-                                if (id.length == 11) {
-                                    player.playTrack(Track(id, fav.title, fav.artist, fav.cover, "", fav.duration))
-                                }
-                            },
-                            onOpenLogin = { navController.navigate(Routes.ACCOUNT) },
-                            onLogout = { accountVm.logout() },
-                        )
-                    } else {
-                        AccountScreen(
-                            viewModel = accountVm,
-                            contentPadding = contentPadding,
-                            onBack = { navController.popBackStack() },
-                        )
+                                    if (id.length == 11) {
+                                        player.playTrack(Track(id, fav.title, fav.artist, fav.cover, "", fav.duration))
+                                    }
+                                },
+                            )
+                        }
+                        composable(Routes.IMPORT) {
+                            ImportScreen(
+                                viewModel = importVm,
+                                contentPadding = contentPadding,
+                                onBack = { navController.popBackStack() },
+                            )
+                        }
                     }
                 }
-                composable(Routes.PROFILE) {
-                    ProfileScreen(
-                        viewModel = profileVm,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onOpenFriends = { navController.navigate(Routes.FRIENDS) },
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
-                        onToast = { snackbarScope.launch { snackbar.showSnackbar(it) } },
-                        onPlayFav = { fav ->
-                            val id = Regex("[?&]v=([a-zA-Z0-9_-]{11})")
-                                .find(fav.id)?.groupValues?.get(1)
-                                ?: Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
-                                    .find(fav.id)?.groupValues?.get(1)
-                                    ?: fav.id
-                            if (id.length == 11) {
-                                player.playTrack(Track(id, fav.title, fav.artist, fav.cover, "", fav.duration))
-                            }
-                        },
-                        onOpenLogin = { navController.navigate(Routes.ACCOUNT) },
-                        onLogout = { accountVm.logout() },
-                    )
-                }
-                composable(Routes.FRIENDS) {
-                    FriendsScreen(
-                        viewModel = friendsVm,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onOpenUser = { uid -> navController.navigate("user/$uid") },
-                    )
-                }
-                composable(Routes.USER_PROFILE, arguments = listOf(navArgument("uid") { type = NavType.StringType })) { entry ->
-                    val uid = entry.arguments?.getString("uid").orEmpty()
-                    UserScreen(
-                        viewModel = friendsVm,
-                        uid = uid,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                        onPlayFav = { fav ->
-                            val id = Regex("[?&]v=([a-zA-Z0-9_-]{11})")
-                                .find(fav.id)?.groupValues?.get(1)
-                                ?: fav.id
-                            if (id.length == 11) {
-                                player.playTrack(Track(id, fav.title, fav.artist, fav.cover, "", fav.duration))
-                            }
-                        },
-                    )
-                }
-                composable(Routes.IMPORT) {
-                    ImportScreen(
-                        viewModel = importVm,
-                        contentPadding = contentPadding,
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-            }
 
             Column(
                 modifier = Modifier
@@ -929,10 +940,23 @@ private fun VotifyNavBar(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val heightDp = cp.navBarHeight.coerceIn(48, 80).dp
-    val alphaFraction = (cp.navBarAlpha.coerceIn(0, 100)) / 100f
+    // Ползунок «Прозрачность фона»: 0 % — самое плотное стекло, 100 % — максимально
+    // прозрачная панель. Раньше значение работало наоборот, поэтому сдвиг вправо
+    // делал панель только плотнее — настоящей прозрачности не получалось.
+    val transparencyFraction = (cp.navBarAlpha.coerceIn(0, 100)) / 100f
     val isIsland = cp.navBarIsland
     val blurDp = cp.navBarBlur.coerceIn(0, 60)
-    val effectiveBlurDp = if (blurDp > 0) blurDp else 0
+    // Полупрозрачная панель без блюра вырождается в плоскую заливку цветом —
+    // именно так это и выглядело. Поэтому при любой прозрачности оставляем
+    // минимальный блюр, а ползунок задаёт силу сверх него.
+    val effectiveBlurDp = when {
+        blurDp > 0 -> blurDp
+        transparencyFraction > 0f -> 20
+        else -> 0
+    }
+    // Тон «матового стекла» поверх размытого фона: нижняя граница держит читаемость
+    // иконок, верхняя — чтобы размытие оставалось заметным.
+    val tintAlpha = ((1f - transparencyFraction) * 0.45f).coerceIn(0.10f, 0.50f)
 
     val shape = if (isIsland) RoundedCornerShape(32.dp) else RoundedCornerShape(0.dp)
     val outerModifier = if (isIsland) {
@@ -946,10 +970,10 @@ private fun VotifyNavBar(
 
     val baseColor = if (isIsland) Color(0xFF141416) else Color(0xFF101012)
 
-    val borderModifier = if (isIsland || alphaFraction < 1f) {
+    val borderModifier = if (isIsland || transparencyFraction > 0f) {
         Modifier.border(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = (0.07f * (1f - alphaFraction * 0.4f)).coerceIn(0.03f, 0.08f)),
+            color = Color.White.copy(alpha = (0.05f + transparencyFraction * 0.07f).coerceIn(0.04f, 0.12f)),
             shape = shape,
         )
     } else Modifier
@@ -959,12 +983,12 @@ private fun VotifyNavBar(
             state = hazeState,
             shape = shape,
             style = HazeStyle(
-                tint = baseColor.copy(alpha = alphaFraction * 0.40f),
+                tint = baseColor.copy(alpha = tintAlpha),
                 blurRadius = effectiveBlurDp.dp,
             ),
         )
     } else {
-        Modifier.background(baseColor.copy(alpha = alphaFraction))
+        Modifier.background(baseColor.copy(alpha = tintAlpha))
     }
 
     Box(
