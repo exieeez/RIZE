@@ -441,9 +441,7 @@
 /* старые блоки главной */
 #my-wave-card,
 #home-recent-artists-section,
-#home-continue-section,
-#tile-history,
-.tile-history {
+#home-continue-section {
   display: none !important;
 }
 

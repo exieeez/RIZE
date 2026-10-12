@@ -1809,6 +1809,8 @@ function applyAllCoverPlaceholders(trackOrCover) {
   setCoverState('album-screen-cover', 'album-screen-cover-fallback', cover, '.album-screen-cover-wrap');
   const heroImg = document.getElementById('dotify-hero-cover-img');
   if (heroImg && cover) heroImg.src = cover;
+  const waveHeroImg = document.getElementById('wave-hero-cover-img');
+  if (waveHeroImg && cover) waveHeroImg.src = cover;
   // lib detail uses separate logic but we ensure fallback class
   const libWrap = document.querySelector('.lib-detail-cover');
   const libImg = document.getElementById('lib-detail-cover-img');
@@ -4667,6 +4669,8 @@ const closeSettings = () => {
     overlay.style.display = 'none';
     overlay.classList.add('hidden');
   }
+  const modal = document.querySelector('.m3-settings-modal');
+  if (modal) modal.classList.remove('detail-active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById(previousActiveBtnId);
   if (btn) btn.classList.add('active');
@@ -4800,25 +4804,59 @@ safeClick('btn-lyrics-offset-plus', () => {
   showToast(`Смещение: ${appSettings.lyricsOffset > 0 ? '+' : ''}${appSettings.lyricsOffset} мс`);
 });
 
-// Settings section switching
+// Material Design 3 / Phone-style Settings section switching
+const M3_SECTION_TITLES = {
+  'gen-main': { title: 'Основные', icon: 'tune' },
+  'gen-audio': { title: 'Аудио', icon: 'volume_up' },
+  'app-ui': { title: 'Интерфейс', icon: 'palette' },
+  'app-player': { title: 'Плеер', icon: 'play_circle_filled' },
+  'app-bg': { title: 'Фоны', icon: 'wallpaper' },
+  'app-custom': { title: 'Кастом', icon: 'brush' },
+  'app-tabs': { title: 'Вкладки', icon: 'tab' },
+  'gen-hotkeys': { title: 'Бинды', icon: 'keyboard' },
+};
+
 function switchSettingsSection(sectionName) {
-  document.querySelectorAll('.settings-menu-item, .dotify-pill-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.settings-menu-item, .dotify-pill-tab, .m3-settings-nav-item').forEach(b => {
+    const isTarget = b.getAttribute('data-settings-section') === sectionName;
+    b.classList.toggle('active', isTarget);
+  });
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
-  const menuBtn = document.querySelector(
-    `.settings-menu-item[data-settings-section="${sectionName}"], .dotify-pill-tab[data-settings-section="${sectionName}"]`
-  );
   const panel = document.getElementById(`settings-panel-${sectionName}`);
-  if (menuBtn) menuBtn.classList.add('active');
   if (panel) panel.classList.add('active');
+
+  const titleEl = document.getElementById('m3-active-category-title');
+  const iconEl = document.querySelector('#m3-category-icon-pill i');
+  const info = M3_SECTION_TITLES[sectionName] || { title: 'Настройки', icon: 'settings' };
+  if (titleEl) titleEl.textContent = info.title;
+  if (iconEl) iconEl.textContent = info.icon;
+
+  const modal = document.querySelector('.m3-settings-modal');
+  if (modal) modal.classList.add('detail-active');
+
   if (sectionName === 'app-bg' && typeof renderWallpaperHistory === 'function') {
     renderWallpaperHistory();
   }
 }
 
-document.querySelectorAll('.settings-menu-item, .dotify-pill-tab').forEach(btn => {
+document.querySelectorAll('.settings-menu-item, .dotify-pill-tab, .m3-settings-nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
-    switchSettingsSection(btn.getAttribute('data-settings-section'));
+    const sec = btn.getAttribute('data-settings-section');
+    if (sec) switchSettingsSection(sec);
   });
+});
+
+document.getElementById('m3-settings-back-btn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const modal = document.querySelector('.m3-settings-modal');
+  if (modal) modal.classList.remove('detail-active');
+});
+
+document.getElementById('m3-nav-update-item')?.addEventListener('click', () => {
+  if (window.electronAPI?.checkForUpdates) {
+    window.electronAPI.checkForUpdates();
+  }
+  showToast('Проверка обновлений... Вы используете актуальную версию Votify 2.3.6');
 });
 
 // Dotify 2.3.6 Segmented Controls & Cards Event Handlers
@@ -8995,6 +9033,81 @@ if (tbSearchInput) {
   });
 }
 
+// Platform switch pills (YouTube / SoundCloud) & Search clear button
+const ytBtn = document.getElementById('platform-yt');
+const scBtn = document.getElementById('platform-sc');
+if (ytBtn && scBtn) {
+  ytBtn.addEventListener('click', () => {
+    ytBtn.classList.add('active');
+    scBtn.classList.remove('active');
+    if (tbSearchInput && tbSearchInput.value.trim().length >= 2) {
+      doSearch();
+    }
+  });
+  scBtn.addEventListener('click', () => {
+    scBtn.classList.add('active');
+    ytBtn.classList.remove('active');
+    if (tbSearchInput && tbSearchInput.value.trim().length >= 2) {
+      doSearch();
+    }
+  });
+}
+
+const searchClearBtn = document.getElementById('search-clear-btn');
+if (searchClearBtn) {
+  searchClearBtn.addEventListener('click', () => {
+    if (tbSearchInput) {
+      tbSearchInput.value = '';
+      searchClearBtn.classList.add('hidden');
+    }
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    if (searchSuggestions) searchSuggestions.style.display = 'none';
+    if (resultsContainer) resultsContainer.innerHTML = '';
+  });
+}
+if (tbSearchInput && searchClearBtn) {
+  tbSearchInput.addEventListener('input', () => {
+    searchClearBtn.classList.toggle('hidden', !tbSearchInput.value.trim());
+  });
+}
+
+const tbAvatarBtn = document.getElementById('tb-avatar-btn');
+if (tbAvatarBtn) {
+  tbAvatarBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.VotifyCloud && typeof window.VotifyCloud.openProfile === 'function') {
+      window.VotifyCloud.openProfile();
+    } else if (typeof window.openProfile === 'function') {
+      window.openProfile();
+    } else {
+      switchScreen('profile-screen', 'nav-profile-btn');
+    }
+  });
+}
+
+function syncTopNavProfileInfo() {
+  const profileNameEl = document.getElementById('tb-profile-name');
+  const avatarImgEl = document.getElementById('tb-avatar-img');
+  try {
+    const raw = localStorage.getItem('votify_user_profile') || localStorage.getItem('votify_profile');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed) {
+        if (profileNameEl && (parsed.displayName || parsed.name)) {
+          profileNameEl.textContent = parsed.displayName || parsed.name;
+        }
+        if (avatarImgEl && parsed.avatar) {
+          avatarImgEl.src = parsed.avatar;
+        }
+      }
+    }
+  } catch (_) {}
+}
+syncTopNavProfileInfo();
+
 // Search autocomplete & live search
 if (searchInput) {
   searchInput.addEventListener('input', () => {
@@ -10027,6 +10140,291 @@ safeClick('for-you-next', () => scrollForYou(1));
   );
 })();
 
+// --- Phone Carousels (Playlists, Popular Artists, Releases, Trending) ---
+function makeHorizontalCarouselInteractive(containerId, prevBtnId, nextBtnId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  function scroll(dir) {
+    const distance = Math.max(300, Math.round(container.clientWidth * 0.8));
+    container.scrollBy({ left: distance * dir, behavior: 'smooth' });
+  }
+
+  if (prevBtnId) safeClick(prevBtnId, () => scroll(-1));
+  if (nextBtnId) safeClick(nextBtnId, () => scroll(1));
+
+  container.addEventListener(
+    'wheel',
+    e => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        container.scrollLeft += e.deltaY;
+      }
+    },
+    { passive: false }
+  );
+
+  let isDown = false;
+  let startX = 0;
+  let scrollStart = 0;
+  let hasMoved = false;
+
+  container.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    isDown = true;
+    hasMoved = false;
+    startX = e.pageX - container.offsetLeft;
+    scrollStart = container.scrollLeft;
+    container.style.cursor = 'grabbing';
+    container.style.scrollBehavior = 'auto';
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    const x = e.pageX - container.offsetLeft;
+    const walk = x - startX;
+    if (Math.abs(walk) > 5) hasMoved = true;
+    container.scrollLeft = scrollStart - walk;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!isDown) return;
+    isDown = false;
+    container.style.cursor = '';
+    container.style.scrollBehavior = 'smooth';
+  });
+
+  container.addEventListener(
+    'click',
+    e => {
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+        hasMoved = false;
+      }
+    },
+    true
+  );
+}
+
+function formatPluralTracks(count) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  let word = 'треков';
+  if (mod100 < 11 || mod100 > 19) {
+    if (mod10 === 1) word = 'трек';
+    else if (mod10 >= 2 && mod10 <= 4) word = 'трека';
+  }
+  return `${count} ${word}`;
+}
+
+async function loadHomePhonePlaylists() {
+  const container = document.getElementById('home-playlists-results');
+  if (!container) return;
+
+  try {
+    const items = [];
+    if (typeof playlists === 'object' && playlists) {
+      for (const [name, trackList] of Object.entries(playlists)) {
+        if (!Array.isArray(trackList) || trackList.length === 0) continue;
+        items.push({
+          id: name,
+          name: name,
+          subtitle: formatPluralTracks(trackList.length),
+          cover: (trackList[0] && trackList[0].cover) || '',
+          isLocal: true,
+          tracks: trackList,
+        });
+      }
+    }
+
+    try {
+      const res = await fetch('/api/playlists?limit=10');
+      if (res.ok) {
+        const data = await res.json();
+        const pub = data.playlists || [];
+        for (const pl of pub) {
+          if (!items.some(i => i.id === pl.id || i.name === (pl.title || pl.name))) {
+            items.push({
+              id: pl.id,
+              name: pl.title || pl.name,
+              subtitle: pl.author ? `Автор: ${pl.author}` : formatPluralTracks((pl.tracks && pl.tracks.length) || 0),
+              cover: pl.cover || '',
+              isLocal: false,
+              tracks: pl.tracks || [],
+            });
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (!items.length) {
+      container.innerHTML = '<div class="empty-state">Создайте или добавьте плейлисты, чтобы они появились здесь</div>';
+      return;
+    }
+
+    container.innerHTML = items
+      .map(
+        (pl, idx) => `
+      <div class="rec-tile playlist-tile" data-pl-idx="${idx}">
+        <div class="dotify-card-cover-wrap">
+          ${pl.cover ? `<img class="rec-tile-cover" src="${escapeHtml(pl.cover)}" alt="${escapeHtml(pl.name)}" onerror="this.style.display='none'">` : ''}
+          <div class="playlist-cover-placeholder"><i class="material-icons">queue_music</i></div>
+        </div>
+        <div class="rec-tile-title">${escapeHtml(pl.name)}</div>
+        <div class="rec-tile-artist">${escapeHtml(pl.subtitle)}</div>
+        <div class="rec-tile-play"><i class="material-icons">play_arrow</i></div>
+      </div>
+    `
+      )
+      .join('');
+
+    container.querySelectorAll('.playlist-tile').forEach(tile => {
+      tile.addEventListener('click', () => {
+        const idx = Number(tile.getAttribute('data-pl-idx'));
+        const pl = items[idx];
+        if (!pl) return;
+        if (pl.isLocal) {
+          openPlaylist(pl.id);
+        } else {
+          openPlaylist(pl.name, pl.tracks, pl.author, pl.cover);
+        }
+      });
+    });
+  } catch (err) {
+    console.warn('Error loading home playlists:', err);
+  }
+}
+
+async function loadHomePhoneArtists() {
+  const container = document.getElementById('home-artists-results');
+  if (!container) return;
+
+  const curated = [
+    { name: 'ONDA ANDAR', followers: '59.8K подписчиков', cover: 'https://i.scdn.co/image/ab6761610000e5ebc1fbf0465a3c1a851bb8d929' },
+    { name: 'zhanulka', followers: '48.1K подписчиков', cover: 'https://i.scdn.co/image/ab6761610000e5eb1d279cfbb6e300170a75d506' },
+    { name: 'The Weeknd', followers: '112M подписчиков', cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop' },
+    { name: 'Billie Eilish', followers: '94M подписчиков', cover: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop' },
+    { name: 'Кино', followers: 'Легенда русского рока', cover: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop' },
+    { name: 'JONY', followers: 'Популярный артист', cover: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&h=300&fit=crop' },
+    { name: 'MACAN', followers: 'В топе чартов', cover: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=300&fit=crop' },
+  ];
+
+  const list = [];
+  const history = JSON.parse(localStorage.getItem('listeningHistory') || '[]');
+  const seen = new Set();
+
+  for (const t of history) {
+    if (t.artist && t.artist !== '—' && !seen.has(t.artist.toLowerCase())) {
+      seen.add(t.artist.toLowerCase());
+      list.push({
+        name: t.artist,
+        followers: 'В вашей медиатеке',
+        cover: t.cover || '',
+      });
+      if (list.length >= 6) break;
+    }
+  }
+
+  for (const c of curated) {
+    if (!seen.has(c.name.toLowerCase())) {
+      seen.add(c.name.toLowerCase());
+      list.push(c);
+    }
+  }
+
+  container.innerHTML = list
+    .map(
+      (a, idx) => `
+    <div class="artist-card-item" data-art-idx="${idx}">
+      <div class="artist-avatar-wrap">
+        ${a.cover ? `<img class="artist-avatar-img" src="${escapeHtml(a.cover)}" alt="${escapeHtml(a.name)}" onerror="this.style.display='none'">` : ''}
+        <div class="artist-avatar-fallback"><i class="material-icons">person</i></div>
+      </div>
+      <div class="artist-card-name">${escapeHtml(a.name)}</div>
+      <div class="artist-card-role">${escapeHtml(a.followers)}</div>
+    </div>
+  `
+    )
+    .join('');
+
+  container.querySelectorAll('.artist-card-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const idx = Number(item.getAttribute('data-art-idx'));
+      const a = list[idx];
+      if (a && typeof openArtistPage === 'function') {
+        openArtistPage(a.name);
+      }
+    });
+  });
+}
+
+async function loadHomePhoneReleases() {
+  const container = document.getElementById('home-releases-results');
+  if (!container) return;
+
+  try {
+    let tracks = [];
+    if (forYouTracks && forYouTracks.length > 6) {
+      tracks = forYouTracks.slice(6, 20);
+    } else {
+      const res = await fetch('/api/recommendations?limit=14');
+      if (res.ok) {
+        const data = await res.json();
+        tracks = data.tracks || [];
+      }
+    }
+
+    if (tracks.length > 0) {
+      renderRecTiles(container, tracks);
+    } else {
+      container.innerHTML = '<div class="empty-state">Свежие релизы загружаются...</div>';
+    }
+  } catch (err) {
+    console.warn('Error loading releases:', err);
+  }
+}
+
+async function loadHomePhoneTrending() {
+  const container = document.getElementById('home-trending-results');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/charts?region=ru&limit=20');
+    if (res.ok) {
+      const data = await res.json();
+      const tracks = data.tracks || [];
+      if (tracks.length > 0) {
+        renderRecTiles(container, tracks);
+        return;
+      }
+    }
+    const recRes = await fetch('/api/recommendations?limit=20');
+    if (recRes.ok) {
+      const recData = await recRes.json();
+      if (recData.tracks && recData.tracks.length > 0) {
+        renderRecTiles(container, recData.tracks);
+        return;
+      }
+    }
+    container.innerHTML = '<div class="empty-state">Чарты временно недоступны</div>';
+  } catch (err) {
+    console.warn('Error loading trending:', err);
+  }
+}
+
+function loadHomePhoneSections() {
+  loadHomePhonePlaylists();
+  loadHomePhoneArtists();
+  loadHomePhoneReleases();
+  loadHomePhoneTrending();
+}
+
+makeHorizontalCarouselInteractive('home-playlists-results', 'playlists-carousel-prev', 'playlists-carousel-next');
+makeHorizontalCarouselInteractive('home-artists-results', 'artists-carousel-prev', 'artists-carousel-next');
+makeHorizontalCarouselInteractive('home-releases-results', 'releases-carousel-prev', 'releases-carousel-next');
+makeHorizontalCarouselInteractive('home-trending-results', 'trending-carousel-prev', 'trending-carousel-next');
+
 async function loadRecommendations(forceReload = false, { showLoading = true } = {}) {
   if (!recommendationsContainer) return;
   if (recommendationsLoaded && !forceReload && recommendationsContainer.innerHTML.trim()) return;
@@ -10110,7 +10508,69 @@ async function loadHomeContent() {
     }
   }
 
+  // Update My Wave hero cover & floating thumbnails
+  try {
+    const waveHeroImg = document.getElementById('wave-hero-cover-img');
+    const thumbTop = document.getElementById('wave-thumb-top-img');
+    const thumbBottom = document.getElementById('wave-thumb-bottom-img');
+    const hist1 = document.getElementById('history-collage-1');
+    const hist2 = document.getElementById('history-collage-2');
+    const hist3 = document.getElementById('history-collage-3');
+    const likedBg = document.getElementById('liked-banner-bg-img');
+
+    const historyCovers = history.map(t => t.cover).filter(Boolean);
+    const favCovers = favTracks.map(t => t.cover).filter(Boolean);
+
+    const activeCover = (state.currentTrack && state.currentTrack.cover) || (favCovers.length > 0 ? favCovers[0] : (historyCovers.length > 0 ? historyCovers[0] : ''));
+    if (waveHeroImg && activeCover) {
+      waveHeroImg.src = activeCover;
+    }
+
+    if (thumbTop) {
+      const topCover = favCovers[1] || historyCovers[1] || (favCovers.length > 0 ? favCovers[0] : '');
+      if (topCover) {
+        thumbTop.src = topCover;
+        if (thumbTop.parentElement) thumbTop.parentElement.style.opacity = '1';
+      } else if (thumbTop.parentElement) {
+        thumbTop.parentElement.style.opacity = '0';
+      }
+    }
+
+    if (thumbBottom) {
+      const btmCover = favCovers[2] || historyCovers[2] || (historyCovers.length > 0 ? historyCovers[0] : '');
+      if (btmCover) {
+        thumbBottom.src = btmCover;
+        if (thumbBottom.parentElement) thumbBottom.parentElement.style.opacity = '1';
+      } else if (thumbBottom.parentElement) {
+        thumbBottom.parentElement.style.opacity = '0';
+      }
+    }
+
+    if (hist1) {
+      if (historyCovers[0]) { hist1.src = historyCovers[0]; hist1.style.display = 'block'; }
+      else hist1.style.display = 'none';
+    }
+    if (hist2) {
+      if (historyCovers[1]) { hist2.src = historyCovers[1]; hist2.style.display = 'block'; }
+      else hist2.style.display = 'none';
+    }
+    if (hist3) {
+      if (historyCovers[2]) { hist3.src = historyCovers[2]; hist3.style.display = 'block'; }
+      else hist3.style.display = 'none';
+    }
+
+    if (likedBg) {
+      if (favCovers[0]) { likedBg.src = favCovers[0]; likedBg.style.display = 'block'; }
+      else likedBg.style.display = 'none';
+    }
+  } catch (err) {
+    console.warn('Error populating home wave covers:', err);
+  }
+
   loadForYouContent();
+  if (typeof loadHomePhoneSections === 'function') {
+    loadHomePhoneSections();
+  }
   if (typeof publishLocalPlaylistsToPublic === 'function') {
     publishLocalPlaylistsToPublic();
   }
@@ -10177,7 +10637,11 @@ function skiper25Collapse() {
 }
 
 on('state:isPlaying', playing => {
-  if (heroToggle) heroToggle.classList.toggle('playing', playing);
+  if (heroToggle) {
+    heroToggle.classList.toggle('playing', playing);
+    const wavePlayIcon = heroToggle.querySelector('.wave-play-icon') || heroToggle.querySelector('.material-icons');
+    if (wavePlayIcon) wavePlayIcon.textContent = playing ? 'pause' : 'play_arrow';
+  }
   if (playing) {
     skiper25Interval = setInterval(skiper25RandomHeights, 100);
     skiper25RandomHeights();

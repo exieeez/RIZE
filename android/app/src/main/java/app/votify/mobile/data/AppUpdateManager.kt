@@ -72,32 +72,45 @@ class AppUpdateManager(
         }
     }
 
-    fun checkForUpdate(force: Boolean = false) {
-        if (!force && dismissed) return
-        if (_state.value is UpdateState.Downloading || _state.value is UpdateState.Ready) return
+    fun checkForUpdate(force: Boolean = false, onResult: ((Boolean) -> Unit)? = null) {
+        if (force) {
+            dismissed = false
+        } else if (dismissed) {
+            onResult?.invoke(false)
+            return
+        }
+        if (_state.value is UpdateState.Downloading || _state.value is UpdateState.Ready) {
+            onResult?.invoke(true)
+            return
+        }
 
         scope.launch {
             _state.value = UpdateState.Checking
             val info = withContext(Dispatchers.IO) { fetchUpdateInfo() }
             if (info == null) {
                 _state.value = UpdateState.Idle
+                withContext(Dispatchers.Main) { onResult?.invoke(false) }
                 return@launch
             }
 
             val curCode = BuildConfig.VERSION_CODE
             val curSha = BuildConfig.BUILD_SHA
             val isNewerCode = info.versionCode > curCode
-            val isNewerSha = info.sha.isNotBlank() && curSha != "dev" &&
-                    !curSha.startsWith(info.shortSha.ifBlank { info.sha.take(7) }) &&
-                    !info.sha.startsWith(curSha)
+            val isNewerSha = if (info.sha.isNotBlank()) {
+                if (curSha.isBlank() || curSha.equals("dev", ignoreCase = true)) {
+                    true
+                } else {
+                    !curSha.startsWith(info.shortSha.ifBlank { info.sha.take(7) }) && !info.sha.startsWith(curSha)
+                }
+            } else false
 
             // An update is considered newer if remote code > curCode,
             // or if codes match and remote commit sha is newer.
             val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode))
 
-            val dismissedSha = prefs.getString("dismissed_sha", null)
-            if (!force && (dismissed || (info.sha.isNotBlank() && info.sha == dismissedSha))) {
+            if (!force && dismissed) {
                 _state.value = UpdateState.Idle
+                withContext(Dispatchers.Main) { onResult?.invoke(false) }
                 return@launch
             }
 
@@ -113,13 +126,15 @@ class AppUpdateManager(
                     pkgInfo?.versionCode ?: 0
                 }
 
+                val isMatchingPackage = pkgInfo != null &&
+                    (pkgInfo.packageName == context.packageName || pkgInfo.packageName in setOf("com.hiby.music", "app.votify.mobile"))
+
                 val isCachedValid = cachedApk.exists() &&
                         cachedApk.length() > 5_000_000 &&
                         !cachedSha.isNullOrBlank() &&
                         cachedSha == info.sha &&
-                        pkgInfo != null &&
-                        pkgInfo.packageName == context.packageName &&
-                        (cachedVersionCode > curCode || (cachedVersionCode == curCode && isNewerSha))
+                        isMatchingPackage &&
+                        (cachedVersionCode > curCode || (cachedVersionCode == curCode && isNewerSha) || curSha.equals("dev", ignoreCase = true))
 
                 if (isCachedValid) {
                     _state.value = UpdateState.Ready(info, cachedApk)
@@ -128,6 +143,7 @@ class AppUpdateManager(
                     if (metaFile.exists()) metaFile.delete()
                     _state.value = UpdateState.Available(info)
                 }
+                withContext(Dispatchers.Main) { onResult?.invoke(true) }
             } else {
                 runCatching {
                     getUpdateApkFile().delete()
@@ -135,6 +151,7 @@ class AppUpdateManager(
                     File(context.cacheDir, "updates").deleteRecursively()
                 }
                 _state.value = UpdateState.Idle
+                withContext(Dispatchers.Main) { onResult?.invoke(false) }
             }
         }
     }
@@ -142,7 +159,9 @@ class AppUpdateManager(
     private fun fetchUpdateInfo(): UpdateInfo? {
         val urls = listOf(
             "https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=${System.currentTimeMillis()}",
-            "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json"
+            "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json",
+            "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json",
+            "https://raw.githack.com/exieeez/Votify/apk/version.json"
         )
         for (url in urls) {
             runCatching {
@@ -172,22 +191,25 @@ class AppUpdateManager(
 
             val curCode = BuildConfig.VERSION_CODE
             val curSha = BuildConfig.BUILD_SHA
-            val isNewerSha = info.sha.isNotBlank() && curSha != "dev" &&
-                    !curSha.startsWith(info.shortSha.ifBlank { info.sha.take(7) }) &&
-                    !info.sha.startsWith(curSha)
+            val isNewerSha = if (info.sha.isNotBlank()) {
+                if (curSha.isBlank() || curSha.equals("dev", ignoreCase = true)) {
+                    true
+                } else {
+                    !curSha.startsWith(info.shortSha.ifBlank { info.sha.take(7) }) && !info.sha.startsWith(curSha)
+                }
+            } else false
 
             val downloadUrls = listOfNotNull(
-                info.mirrorUrl.ifBlank { null },
-                info.releaseUrl.ifBlank { null },
                 info.downloadUrl.ifBlank { null },
                 "https://raw.githubusercontent.com/exieeez/Votify/apk/Votify-debug.apk?t=${System.currentTimeMillis()}",
-                info.cdnUrl.ifBlank { null }
+                info.releaseUrl.ifBlank { null },
+                "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/Votify-debug.apk",
+                info.cdnUrl.ifBlank { null },
+                info.mirrorUrl.ifBlank { null }
             )
 
             var success = false
-            var alreadyLatest = false
             for (url in downloadUrls) {
-                if (alreadyLatest) break
                 _state.value = UpdateState.Downloading(info, 0f, 0L, -1L)
                 val ok = withContext(Dispatchers.IO) {
                     runCatching {
@@ -205,7 +227,7 @@ class AppUpdateManager(
 
                             body.byteStream().use { input ->
                                 FileOutputStream(tempFile).use { output ->
-                                    val buffer = ByteArray(32 * 1024)
+                                    val buffer = ByteArray(64 * 1024)
                                     var read: Int
                                     var bytesCopied = 0L
                                     var lastReport = System.currentTimeMillis()
@@ -214,7 +236,7 @@ class AppUpdateManager(
                                         output.write(buffer, 0, read)
                                         bytesCopied += read
                                         val now = System.currentTimeMillis()
-                                        if (now - lastReport > 200 || bytesCopied == total) {
+                                        if (now - lastReport > 150 || bytesCopied == total) {
                                              lastReport = now
                                              val progress = if (total > 0) bytesCopied.toFloat() / total.toFloat() else 0f
                                              _state.value = UpdateState.Downloading(info, progress, bytesCopied, total)
@@ -232,10 +254,12 @@ class AppUpdateManager(
                                     pkgInfo?.versionCode ?: 0
                                 }
 
-                                val isLegitNewerApk = pkgInfo != null &&
-                                    pkgInfo.packageName == context.packageName &&
-                                    (apkVersionCode > curCode || (apkVersionCode == curCode && isNewerSha)) &&
-                                    (info.versionCode <= 0 || apkVersionCode >= info.versionCode)
+                                val isMatchingPackage = pkgInfo != null &&
+                                    (pkgInfo.packageName == context.packageName || pkgInfo.packageName in setOf("com.hiby.music", "app.votify.mobile"))
+
+                                val isLegitNewerApk = isMatchingPackage &&
+                                    (apkVersionCode > curCode || (apkVersionCode == curCode && isNewerSha) || curSha.equals("dev", ignoreCase = true)) &&
+                                    (info.versionCode <= 0 || apkVersionCode >= info.versionCode || curSha.equals("dev", ignoreCase = true))
 
                                 if (isLegitNewerApk) {
                                     if (apkFile.exists()) apkFile.delete()
@@ -243,11 +267,8 @@ class AppUpdateManager(
                                     runCatching { getUpdateMetaFile().writeText(info.sha) }
                                     true
                                 } else {
-                                    android.util.Log.w("AppUpdateManager", "Rejected stale/corrupted APK from $url: code=$apkVersionCode vs current=$curCode")
+                                    android.util.Log.w("AppUpdateManager", "Rejected stale/corrupted APK from $url: code=$apkVersionCode vs current=$curCode, pkg=${pkgInfo?.packageName}")
                                     tempFile.delete()
-                                    if (pkgInfo != null && pkgInfo.packageName == context.packageName && apkVersionCode <= curCode && !isNewerSha) {
-                                        alreadyLatest = true
-                                    }
                                     false
                                 }
                             } else {
@@ -258,11 +279,6 @@ class AppUpdateManager(
                     }.getOrDefault(false)
                 }
 
-                if (alreadyLatest) {
-                    _state.value = UpdateState.Idle
-                    return@launch
-                }
-
                 if (ok) {
                     success = true
                     _state.value = UpdateState.Ready(info, apkFile)
@@ -271,7 +287,7 @@ class AppUpdateManager(
             }
 
             if (!success && _state.value is UpdateState.Downloading) {
-                _state.value = UpdateState.Error("Не удалось скачать обновление", info)
+                _state.value = UpdateState.Error("Не удалось скачать обновление. Проверьте соединение с интернетом.", info)
             }
         }
     }
@@ -302,8 +318,8 @@ class AppUpdateManager(
     }
 
     fun installUpdate(apkFile: File) {
-        if (!apkFile.exists()) {
-            _state.value = UpdateState.Error("Файл обновления не найден")
+        if (!apkFile.exists() || apkFile.length() < 1_000_000) {
+            _state.value = UpdateState.Error("Файл обновления не найден или поврежден")
             return
         }
 
@@ -316,16 +332,21 @@ class AppUpdateManager(
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", apkFile)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
+                clipData = android.content.ClipData.newRawUri("Votify Update", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
-            dismissed = true
-            val info = (_state.value as? UpdateState.Ready)?.info
-            if (info != null && info.sha.isNotBlank()) {
-                prefs.edit().putString("dismissed_sha", info.sha).apply()
+
+            val resInfoList = context.packageManager.queryIntentActivities(
+                intent,
+                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+            )
+            for (resolveInfo in resInfoList) {
+                val pkg = resolveInfo.activityInfo.packageName
+                context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            _state.value = UpdateState.Idle
+
+            context.startActivity(intent)
         }.onFailure { e ->
             _state.value = UpdateState.Error("Ошибка запуска установщика: ${e.message}")
         }
@@ -335,21 +356,11 @@ class AppUpdateManager(
 
     fun dismiss() {
         dismissed = true
-        val info = when (val s = _state.value) {
-            is UpdateState.Available -> s.info
-            is UpdateState.Ready -> s.info
-            is UpdateState.Error -> s.info
-            is UpdateState.Downloading -> s.info
-            else -> null
-        }
-        if (info != null && info.sha.isNotBlank()) {
-            prefs.edit().putString("dismissed_sha", info.sha).apply()
-        }
         _state.value = UpdateState.Idle
     }
 
     private fun getUpdateDir(): File {
-        val base = context.getExternalFilesDir(null) ?: context.cacheDir
+        val base = context.getExternalFilesDir(null) ?: context.filesDir
         return File(base, "updates").apply { mkdirs() }
     }
 

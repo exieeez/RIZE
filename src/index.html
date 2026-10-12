@@ -37,7 +37,7 @@
     <meta name="application-name" content="Votify" />
     <link rel="stylesheet" href="fonts.css" />
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Cinzel:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Press+Start+2P&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Cinzel:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Press+Start+2P&family=Roboto:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=1.0.0" />
     <link rel="stylesheet" href="styles/spotify-phone-theme.css" />
     <link rel="stylesheet" href="custom-theme.css?v=1.0.0" />
@@ -453,46 +453,68 @@
     <!-- APP -->
     <div class="app-container">
       <!-- TITLEBAR -->
-      <header class="titlebar-strip">
-        <div class="titlebar-left">
-          <button class="tb-gear-btn" id="tb-gear-btn" title="Настройки" aria-label="Настройки">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          </button>
-          <div class="tb-navbtns">
-            <button class="tb-round-sm" id="tb-back-btn" title="Назад" aria-label="Назад">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"></path></svg>
+      <header class="titlebar-strip" id="titlebar">
+        <div class="titlebar-top-row">
+          <div class="app-logo">
+            <span class="logo-dot" id="titlebar-logo-dot"></span>
+            <span class="logo-text">Votify</span>
+          </div>
+          <div class="titlebar-drag-spacer"></div>
+          <div class="titlebar-controls titlebar-buttons">
+            <button class="titlebar-btn" id="tb-minimize" title="Свернуть" aria-label="Свернуть">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
-            <button class="tb-round-sm" id="tb-fwd-btn" title="Вперёд" aria-label="Вперёд" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"></path></svg>
+            <button class="titlebar-btn" id="tb-maximize" title="Развернуть" aria-label="Развернуть">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+            </button>
+            <button class="titlebar-btn titlebar-btn-close close-btn" id="tb-close" title="Закрыть" aria-label="Закрыть">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
         </div>
-        <div class="titlebar-center">
-          <div class="tb-search-wrap">
-            <div class="tb-search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              <input id="tb-search-input" type="text" placeholder="Что хочешь включить?" autocomplete="off" aria-label="Поиск" />
+
+        <div class="top-nav" id="top-nav">
+          <div class="search-box-wrapper">
+            <div class="search-box">
+              <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="21" y1="21" x2="16.5" y2="16.5"></line>
+              </svg>
+              <input id="tb-search-input" type="text" placeholder="Search tracks, artists, or albums..." autocomplete="off" aria-label="Search tracks, artists, or albums..." />
+              <button id="search-clear-btn" class="search-clear-btn hidden" title="Clear" aria-label="Clear">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
             </div>
           </div>
-          <span class="titlebar-page-title" id="page-title">Главная</span>
+
+          <div class="top-nav-profile-container">
+            <button class="top-nav-profile-btn" id="tb-avatar-btn" title="Профиль" type="button" aria-label="Профиль">
+              <div class="top-nav-avatar-wrap">
+                <img id="tb-avatar-img" class="top-nav-avatar-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'><rect width='128' height='128' rx='64' fill='%23262626'/><path d='M64 28a20 20 0 1 0 0 40 20 20 0 0 0 0-40zm0 48c-22.1 0-40 13.4-40 30v4h80v-4c0-16.6-17.9-30-40-30z' fill='%23888888'/></svg>" alt="Аватар" />
+              </div>
+              <span class="top-nav-profile-name" id="tb-profile-name">Гость</span>
+              <svg class="top-nav-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div class="titlebar-drag-area"></div>
-        <div class="tb-right-icons">
-          <button class="tb-icon-btn" id="tb-friends-btn" title="История прослушивания" aria-label="История прослушивания">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-          </button>
-          <button class="tb-avatar-btn" id="tb-avatar-btn" title="Профиль" aria-label="Профиль"><i class="material-icons">person</i></button>
-        </div>
-        <div class="titlebar-buttons">
-          <button class="titlebar-btn" id="tb-minimize" title="Minimize">
-            <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg>
-          </button>
-          <button class="titlebar-btn" id="tb-maximize" title="Maximize">
-            <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
-          </button>
-          <button class="titlebar-btn titlebar-btn-close" id="tb-close" title="Close">
-            <svg width="12" height="12" viewBox="0 0 12 12"><line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </button>
+
+        <!-- Hidden backward-compatibility elements for scripts and tests -->
+        <div class="tb-compat-elements" style="display:none;" aria-hidden="true">
+          <div class="platform-pill-switch">
+            <button class="platform-btn active" data-platform="youtube" id="platform-yt" title="YouTube" type="button">
+              <span>YouTube</span>
+            </button>
+            <button class="platform-btn" data-platform="soundcloud" id="platform-sc" title="SoundCloud" type="button">
+              <span>SoundCloud</span>
+            </button>
+          </div>
+          <button class="tb-gear-btn" id="tb-gear-btn" aria-label="Настройки"></button>
+          <button class="tb-round-sm" id="tb-back-btn" aria-label="Назад"></button>
+          <button class="tb-round-sm" id="tb-fwd-btn" aria-label="Вперёд"></button>
+          <span class="titlebar-page-title" id="page-title"></span>
+          <button class="tb-icon-btn" id="tb-friends-btn" aria-label="Друзья"></button>
         </div>
       </header>
 
@@ -682,35 +704,168 @@
       <!-- MAIN CONTENT -->
       <main class="main-content">
         <!-- HOME -->
+        <!-- HOME -->
         <section id="home-screen" class="screen">
-          <!-- FILTER CHIPS -->
-          <div class="rz-chips" id="rz-home-chips">
+          <!-- FILTER CHIPS (Hidden per user request) -->
+          <div class="rz-chips" id="rz-home-chips" style="display:none;" aria-hidden="true">
             <button class="rz-chip active" data-chip="all">Все</button>
             <button class="rz-chip" data-chip="music">Музыка</button>
           </div>
 
-          <!-- FAVORITES QUICK TILE (Mobile QuickTile design) -->
-          <div class="home-quick-tiles">
+          <!-- HERO: МОЯ ВОЛНА (Redesigned matching mobile screenshot) -->
+          <div class="my-wave-hero-card" id="my-wave-hero">
+            <!-- Dynamic Smoke Glow (Adapts to var(--accent)) -->
+            <div class="wave-smoke-glow" aria-hidden="true"></div>
+
+            <!-- Dynamic Looping Wave Stripe SVG (Adapts stroke to var(--accent)) -->
+            <svg class="wave-stripes-svg" viewBox="0 0 524 250" preserveAspectRatio="none" aria-hidden="true">
+              <path class="wave-stripe-accent-loop" d="M 495 44 C 440 48, 360 82, 320 104 C 308 112, 316 118, 338 114 C 375 108, 415 96, 442 88 M 438 94 C 388 120, 332 156, 290 180 C 278 188, 286 196, 314 188 C 368 174, 430 152, 488 136 M 408 160 C 362 180, 332 208, 362 250" />
+              <path class="wave-stripe-path" d="M 495 44 C 440 48, 360 82, 320 104 C 308 112, 316 118, 338 114 C 375 108, 415 96, 442 88 M 438 94 C 388 120, 332 156, 290 180 C 278 188, 286 196, 314 188 C 368 174, 430 152, 488 136 M 408 160 C 362 180, 332 208, 362 250" />
+            </svg>
+
+            <!-- Hero Left: Cover Artwork + Two-line Title + Mode Badge -->
+            <div class="my-wave-hero-left">
+              <div class="my-wave-hero-cover-wrap">
+                <img id="wave-hero-cover-img" class="my-wave-hero-cover" src="src/assets/player-icon.png" alt="Моя волна">
+              </div>
+              <div class="my-wave-hero-info">
+                <h1 class="my-wave-hero-title">Моя<br>волна</h1>
+                <div class="my-wave-hero-badge" id="my-wave-mode-badge" title="Режим: Обычная">
+                  <svg class="wave-eq-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 9h2v6H4zm4-4h2v14H8zm4 7h2v3h-2zm4-9h2v17h-2zm4 5h2v7h-2z"/>
+                  </svg>
+                  <span class="wave-mode-text">Обычная</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hero Right: Floating Thumbnails & Large Circular Play Button -->
+            <div class="my-wave-hero-right">
+              <div class="wave-floating-thumb thumb-top" id="wave-thumb-top" title="Трек в волне">
+                <img id="wave-thumb-top-img" src="" alt="" onerror="this.parentElement.style.opacity='0'">
+              </div>
+              <div class="wave-floating-thumb thumb-mid" id="wave-thumb-bottom" title="Трек в волне">
+                <img id="wave-thumb-bottom-img" src="" alt="" onerror="this.parentElement.style.opacity='0'">
+              </div>
+              <button class="my-wave-hero-play" id="home-play-wave-btn" type="button" aria-label="Включить Мою волну" title="Включить Мою волну">
+                <svg class="wave-play-svg" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                  <path d="M8 5.14v13.72a1.5 1.5 0 0 0 2.28 1.28l10.8-6.86a1.5 1.5 0 0 0 0-2.56l-10.8-6.86A1.5 1.5 0 0 0 8 5.14z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- MIDDLE ROW: ИСТОРИЯ & ЛЮБИМЫЕ ТРЕКИ (Wide Pill Cards) -->
+          <div class="home-quick-banner-row">
+            <!-- ИСТОРИЯ -->
+            <div class="home-quick-banner-card banner-history" id="tile-history" role="button" tabindex="0" title="История прослушиваний">
+              <div class="quick-banner-bg-collage" id="history-tile-preview">
+                <img class="banner-collage-img" id="history-collage-1" src="" alt="" onerror="this.style.display='none'">
+                <img class="banner-collage-img" id="history-collage-2" src="" alt="" onerror="this.style.display='none'">
+                <img class="banner-collage-img" id="history-collage-3" src="" alt="" onerror="this.style.display='none'">
+              </div>
+              <div class="quick-banner-overlay" aria-hidden="true"></div>
+              <div class="quick-banner-content">
+                <div class="quick-banner-icon-pill">
+                  <i class="material-icons">access_time</i>
+                </div>
+                <div class="quick-banner-texts">
+                  <div class="quick-banner-title">История</div>
+                  <div class="quick-banner-subtitle" id="history-subtitle">Ваши недавно прослушанные треки</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ЛЮБИМЫЕ ТРЕКИ (Retains test selectors) -->
             <div class="votify-quick-tile" id="tile-liked" role="button" tabindex="0" title="Любимые треки">
-              <svg class="votify-quick-tile-icon" width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-              </svg>
-              <div class="votify-quick-tile-content">
-                <div class="votify-quick-tile-title">Любимые треки</div>
-                <div class="votify-quick-tile-subtitle" id="fav-subtitle">Плейлист</div>
+              <div class="quick-banner-bg-collage" id="liked-tile-preview">
+                <img class="banner-collage-img banner-liked-cover" id="liked-banner-bg-img" src="" alt="" onerror="this.style.display='none'">
+              </div>
+              <div class="quick-banner-overlay" aria-hidden="true"></div>
+              <div class="votify-quick-tile-content quick-banner-content">
+                <div class="quick-banner-icon-pill">
+                  <svg class="votify-quick-tile-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                </div>
+                <div class="quick-banner-texts">
+                  <div class="votify-quick-tile-title">Любимые треки</div>
+                  <div class="votify-quick-tile-subtitle" id="fav-subtitle">Ваша коллекция любимой музыки</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- SECTION: Недавно прослушано -->
-          <div class="home-section">
+          <!-- SECTION: Для вас (Home Recommendations / Carousel) -->
+          <div class="home-section" id="home-for-you-section">
+            <div class="home-section-header home-for-you-header">
+              <h2 class="home-heading for-you-heading">Для вас</h2>
+              <div class="for-you-controls">
+                <button class="rz-nav-btn for-you-nav-btn" id="for-you-refresh" title="Обновить" aria-label="Обновить"><i class="material-icons">refresh</i></button>
+                <button class="rz-nav-btn for-you-nav-btn" id="for-you-prev" title="Назад" aria-label="Назад"><i class="material-icons">chevron_left</i></button>
+                <button class="rz-nav-btn for-you-nav-btn" id="for-you-next" title="Вперёд" aria-label="Вперёд"><i class="material-icons">chevron_right</i></button>
+              </div>
+            </div>
+            <div id="for-you-results" class="rec-grid for-you-carousel"></div>
+          </div>
+
+          <!-- SECTION: Плейлисты -->
+          <div class="home-section" id="home-playlists-section">
+            <div class="home-section-header">
+              <h2 class="home-heading">Плейлисты</h2>
+              <div class="home-carousel-actions" aria-label="Прокрутка плейлистов">
+                <button class="home-carousel-btn" id="playlists-carousel-prev" type="button" aria-label="Предыдущие плейлисты"><i class="material-icons">chevron_left</i></button>
+                <button class="home-carousel-btn" id="playlists-carousel-next" type="button" aria-label="Следующие плейлисты"><i class="material-icons">chevron_right</i></button>
+              </div>
+            </div>
+            <div class="rec-grid for-you-carousel home-playlists-carousel" id="home-playlists-results"></div>
+          </div>
+
+          <!-- SECTION: Популярные артисты -->
+          <div class="home-section" id="home-artists-section">
+            <div class="home-section-header">
+              <h2 class="home-heading">Популярные артисты</h2>
+              <div class="home-carousel-actions" aria-label="Прокрутка артистов">
+                <button class="home-carousel-btn" id="artists-carousel-prev" type="button" aria-label="Предыдущие артисты"><i class="material-icons">chevron_left</i></button>
+                <button class="home-carousel-btn" id="artists-carousel-next" type="button" aria-label="Следующие артисты"><i class="material-icons">chevron_right</i></button>
+              </div>
+            </div>
+            <div class="artists-grid artists-carousel" id="home-artists-results"></div>
+          </div>
+
+          <!-- SECTION: Новые релизы -->
+          <div class="home-section" id="home-releases-section">
+            <div class="home-section-header">
+              <h2 class="home-heading">Новые релизы</h2>
+              <div class="home-carousel-actions" aria-label="Прокрутка релизов">
+                <button class="home-carousel-btn" id="releases-carousel-prev" type="button" aria-label="Предыдущие релизы"><i class="material-icons">chevron_left</i></button>
+                <button class="home-carousel-btn" id="releases-carousel-next" type="button" aria-label="Следующие релизы"><i class="material-icons">chevron_right</i></button>
+              </div>
+            </div>
+            <div class="rec-grid for-you-carousel home-releases-carousel" id="home-releases-results"></div>
+          </div>
+
+          <!-- SECTION: В тренде -->
+          <div class="home-section" id="home-trending-section">
+            <div class="home-section-header">
+              <h2 class="home-heading">В тренде</h2>
+              <div class="home-carousel-actions" aria-label="Прокрутка тренда">
+                <button class="home-carousel-btn" id="trending-carousel-prev" type="button" aria-label="Предыдущие треки"><i class="material-icons">chevron_left</i></button>
+                <button class="home-carousel-btn" id="trending-carousel-next" type="button" aria-label="Следующие треки"><i class="material-icons">chevron_right</i></button>
+              </div>
+            </div>
+            <div class="rec-grid for-you-carousel home-trending-carousel" id="home-trending-results"></div>
+          </div>
+
+          <!-- SECTION: Недавно прослушано (Secondary) -->
+          <div class="home-section" id="home-recent-section" style="display: none;">
             <div class="home-section-header">
               <h2 class="home-heading">Недавно прослушано</h2>
             </div>
             <div id="home-continue" class="results-list"></div>
           </div>
 
-          <!-- SECTION: Недавно прослушанные авторы -->
+          <!-- SECTION: Недавно прослушанные авторы (Secondary) -->
           <div class="home-section" id="home-recent-artists-section">
             <div class="home-section-header">
               <h2 class="home-heading">Недавно прослушанные авторы</h2>
@@ -720,19 +875,6 @@
               </div>
             </div>
             <div class="artists-grid artists-carousel" id="home-recent-artists"></div>
-          </div>
-
-          <!-- SECTION: Рекомендации для тебя -->
-          <div class="home-section" id="home-for-you-section">
-            <div class="home-section-header" style="display: flex; align-items: center; justify-content: space-between;">
-              <h2 class="home-heading" style="margin: 0;">Рекомендации для тебя</h2>
-              <div class="for-you-controls" style="display: flex; align-items: center; gap: 8px;">
-                <button class="rz-nav-btn" id="for-you-refresh" title="Обновить" aria-label="Обновить" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s;"><i class="material-icons" style="font-size: 16px;">refresh</i></button>
-                <button class="rz-nav-btn" id="for-you-prev" title="Назад" aria-label="Назад" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s;"><i class="material-icons" style="font-size: 18px;">chevron_left</i></button>
-                <button class="rz-nav-btn" id="for-you-next" title="Вперёд" aria-label="Вперёд" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s;"><i class="material-icons" style="font-size: 18px;">chevron_right</i></button>
-              </div>
-            </div>
-            <div id="for-you-results" class="rec-grid for-you-carousel"></div>
           </div>
         </section>
 
@@ -1571,30 +1713,143 @@
     </div>
     </div>
 
-    <!-- SETTINGS OVERLAY (1:1 DOTIFY 2.3.6 DESIGN) -->
+    <!-- SETTINGS OVERLAY (MATERIAL DESIGN 3 / PHONE LAYOUT ADAPTED FOR PC) -->
     <div class="settings-overlay" id="settings-overlay" style="display:none">
-      <div class="settings-modal dotify-23-settings-modal">
+      <div class="settings-modal dotify-23-settings-modal m3-settings-modal">
         
-        <!-- TOP HEADER WITH PILL TABS AND CLOSE BUTTON -->
-        <div class="settings-modal-header dotify-settings-header">
-          <div class="dotify-settings-nav-container">
-            <div class="dotify-settings-pill-bar" id="dotify-settings-top-tabs">
-              <button class="dotify-pill-tab active" data-settings-section="gen-main"><i class="material-icons">tune</i> Основные</button>
-              <button class="dotify-pill-tab" data-settings-section="app-player"><i class="material-icons">play_circle_filled</i> Плеер</button>
-              <button class="dotify-pill-tab" data-settings-section="app-bg"><i class="material-icons">wallpaper</i> Фон</button>
-              <button class="dotify-pill-tab" data-settings-section="app-ui"><i class="material-icons">palette</i> Вид</button>
-              <button class="dotify-pill-tab" data-settings-section="gen-audio"><i class="material-icons">volume_up</i> Аудио</button>
-              <button class="dotify-pill-tab" data-settings-section="gen-hotkeys"><i class="material-icons">keyboard</i> Бинды</button>
-              <button class="dotify-pill-tab" data-settings-section="app-tabs"><i class="material-icons">tab</i> Вкладки</button>
-              <button class="dotify-pill-tab" data-settings-section="app-custom"><i class="material-icons">tune</i> Кастом</button>
+        <!-- LEFT MASTER NAVIGATION PANE (MATCHING PHONE SettingsScreen.kt) -->
+        <aside class="m3-settings-nav" id="m3-settings-nav">
+          <div class="m3-master-header">
+            <div class="m3-settings-circle-btn"><i class="material-icons">settings</i></div>
+            <div class="m3-settings-title-pill">Настройки</div>
+          </div>
+
+          <div class="m3-master-scroll">
+            <div class="m3-section-label">ОСНОВНЫЕ</div>
+            <div class="m3-nav-card">
+              <div class="m3-settings-nav-item active" data-settings-section="gen-main">
+                <i class="material-icons m3-nav-item-icon">tune</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Основные</div>
+                  <div class="m3-nav-item-sub">Язык, запуск, звуки</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+              <div class="m3-card-divider"></div>
+              <div class="m3-settings-nav-item" data-settings-section="gen-audio">
+                <i class="material-icons m3-nav-item-icon">volume_up</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Аудио</div>
+                  <div class="m3-nav-item-sub">Качество, кэш, автоплей</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+            </div>
+
+            <div class="m3-section-label">ВНЕШНИЙ ВИД</div>
+            <div class="m3-nav-card">
+              <div class="m3-settings-nav-item" data-settings-section="app-ui">
+                <i class="material-icons m3-nav-item-icon">palette</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Интерфейс</div>
+                  <div class="m3-nav-item-sub">Тема, прозрачность, размытие</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+              <div class="m3-card-divider"></div>
+              <div class="m3-settings-nav-item" data-settings-section="app-player">
+                <i class="material-icons m3-nav-item-icon">play_circle_filled</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Плеер</div>
+                  <div class="m3-nav-item-sub">Стиль, слайдер, обложка</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+            </div>
+
+            <div class="m3-section-label">КАСТОМИЗАЦИЯ</div>
+            <div class="m3-nav-card">
+              <div class="m3-settings-nav-item" data-settings-section="app-bg">
+                <i class="material-icons m3-nav-item-icon">wallpaper</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Фоны</div>
+                  <div class="m3-nav-item-sub">Обои, видео, эффекты</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+              <div class="m3-card-divider"></div>
+              <div class="m3-settings-nav-item" data-settings-section="app-custom">
+                <i class="material-icons m3-nav-item-icon">brush</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Кастом</div>
+                  <div class="m3-nav-item-sub">Цветовые схемы, стили</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+              <div class="m3-card-divider"></div>
+              <div class="m3-settings-nav-item" data-settings-section="app-tabs">
+                <i class="material-icons m3-nav-item-icon">tab</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Вкладки</div>
+                  <div class="m3-nav-item-sub">Видимость вкладок меню</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+            </div>
+
+            <div class="m3-section-label">ИНТЕГРАЦИИ</div>
+            <div class="m3-nav-card">
+              <div class="m3-settings-nav-item" data-settings-section="gen-hotkeys">
+                <i class="material-icons m3-nav-item-icon">keyboard</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Бинды</div>
+                  <div class="m3-nav-item-sub">Горячие клавиши управления</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
+            </div>
+
+            <div class="m3-section-label">ОБНОВЛЕНИЕ</div>
+            <div class="m3-nav-card">
+              <div class="m3-settings-nav-item" id="m3-nav-update-item">
+                <i class="material-icons m3-nav-item-icon">refresh</i>
+                <div class="m3-nav-item-text">
+                  <div class="m3-nav-item-title">Проверить обновления</div>
+                  <div class="m3-nav-item-sub">Версия 2.3.6 (Desktop)</div>
+                </div>
+                <i class="material-icons m3-nav-item-chevron">keyboard_arrow_right</i>
+              </div>
             </div>
           </div>
-          <button class="btn-icon-sm dotify-settings-close" id="settings-close-btn"><i class="material-icons">close</i></button>
-        </div>
+        </aside>
 
-        <!-- SETTINGS MODAL BODY -->
-        <div class="settings-modal-body dotify-settings-body">
-          <div class="settings-right-content dotify-full-content">
+        <!-- RIGHT DETAIL / SUB-SCREEN PANE (MATCHING SettingsScaffold) -->
+        <main class="m3-settings-detail" id="m3-settings-detail">
+          <!-- TOP HEADER WITH SCAFFOLD BUTTONS -->
+          <div class="settings-modal-header dotify-settings-header m3-detail-header">
+            <button class="m3-settings-circle-btn m3-back-btn" id="m3-settings-back-btn" title="Назад"><i class="material-icons">arrow_back</i></button>
+            <div class="m3-settings-circle-btn m3-category-icon-pill" id="m3-category-icon-pill"><i class="material-icons">tune</i></div>
+            <div class="m3-settings-title-pill" id="m3-active-category-title">Основные</div>
+            <button class="btn-icon-sm dotify-settings-close m3-settings-circle-btn m3-close-btn" id="settings-close-btn" title="Закрыть"><i class="material-icons">close</i></button>
+
+            <!-- HIDDEN PILL BAR TO PRESERVE COMPATIBILITY -->
+            <div class="dotify-settings-nav-container" style="display:none;" aria-hidden="true">
+              <div class="dotify-settings-pill-bar" id="dotify-settings-top-tabs">
+                <button class="dotify-pill-tab active" data-settings-section="gen-main"><i class="material-icons">tune</i> Основные</button>
+                <button class="dotify-pill-tab" data-settings-section="app-player"><i class="material-icons">play_circle_filled</i> Плеер</button>
+                <button class="dotify-pill-tab" data-settings-section="app-bg"><i class="material-icons">wallpaper</i> Фон</button>
+                <button class="dotify-pill-tab" data-settings-section="app-ui"><i class="material-icons">palette</i> Вид</button>
+                <button class="dotify-pill-tab" data-settings-section="gen-audio"><i class="material-icons">volume_up</i> Аудио</button>
+                <button class="dotify-pill-tab" data-settings-section="gen-hotkeys"><i class="material-icons">keyboard</i> Бинды</button>
+                <button class="dotify-pill-tab" data-settings-section="app-tabs"><i class="material-icons">tab</i> Вкладки</button>
+                <button class="dotify-pill-tab" data-settings-section="app-custom"><i class="material-icons">tune</i> Кастом</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SETTINGS MODAL BODY -->
+          <div class="settings-modal-body dotify-settings-body m3-detail-body">
+            <div class="settings-right-content dotify-full-content">
             
             <!-- SECTION 1: Основные (gen-main) -->
             <div class="settings-panel active" id="settings-panel-gen-main">

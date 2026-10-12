@@ -1426,6 +1426,15 @@
       pageAvatar.src = profile.avatar || DEFAULT_AVATAR;
     }
 
+    const tbAvatar = document.getElementById('tb-avatar-img');
+    if (tbAvatar) {
+      tbAvatar.src = profile.avatar || DEFAULT_AVATAR;
+    }
+    const tbName = document.getElementById('tb-profile-name');
+    if (tbName) {
+      tbName.textContent = nameText;
+    }
+
     // 1. Banner Rendering (smooth bottom fade overlay)
     const bannerBg = document.getElementById('profile-banner-bg');
     const pageBannerBg = document.getElementById('page-profile-banner-bg');

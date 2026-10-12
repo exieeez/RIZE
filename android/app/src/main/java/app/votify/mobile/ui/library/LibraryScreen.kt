@@ -30,7 +30,9 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -392,8 +394,16 @@ private fun FavoritesHero(favorites: List<Track>, onOpen: () -> Unit, onPlay: ()
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            CircleIconButton(onClick = onPlay, size = 48.dp, filled = true) {
-                Icon(Icons.Filled.PlayArrow, stringResource(R.string.player_play), modifier = Modifier.size(26.dp))
+            IconButton(
+                onClick = onPlay,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.player_play),
+                    tint = Color(0xFFAAAAAA),
+                    modifier = Modifier.size(40.dp),
+                )
             }
         }
     }

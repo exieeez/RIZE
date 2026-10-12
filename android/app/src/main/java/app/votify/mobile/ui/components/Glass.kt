@@ -100,17 +100,19 @@ fun Modifier.votifyGlass(
 ): Modifier {
     val blurDp = spec.effectiveBlurDp
     return if (spec.enabled && hazeState != null && blurDp > 0) {
-        this.hazeChild(
-            state = hazeState,
-            shape = shape,
-            style = HazeStyle(
-                tint = baseColor.copy(alpha = spec.tintAlpha),
-                blurRadius = blurDp.dp,
-                // Иначе haze берёт значение по умолчанию 0.15 и поверх стекла появляется
-                // заметное зерно — те самые «шумы». 0f убирает зернистость полностью.
-                noiseFactor = 0f,
-            ),
-        )
+        this
+            .clip(shape)
+            .hazeChild(
+                state = hazeState,
+                shape = shape,
+                style = HazeStyle(
+                    tint = baseColor.copy(alpha = spec.tintAlpha),
+                    blurRadius = blurDp.dp,
+                    // Иначе haze берёт значение по умолчанию 0.15 и поверх стекла появляется
+                    // заметное зерно — те самые «шумы». 0f убирает зернистость полностью.
+                    noiseFactor = 0f,
+                ),
+            )
     } else {
         this
             .clip(shape)

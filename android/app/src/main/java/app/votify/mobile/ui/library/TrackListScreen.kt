@@ -138,8 +138,16 @@ fun CollectionHeader(
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            CircleIconButton(onClick = { if (tracks.isNotEmpty()) onPlay(tracks, 0) }, size = 48.dp, filled = true, contentDescription = stringResource(R.string.action_play_all)) {
-                Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(28.dp))
+            IconButton(
+                onClick = { if (tracks.isNotEmpty()) onPlay(tracks, 0) },
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.action_play_all),
+                    tint = Color(0xFFAAAAAA),
+                    modifier = Modifier.size(40.dp),
+                )
             }
             PillChip(
                 text = stringResource(R.string.action_shuffle_all),

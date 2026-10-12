@@ -42,8 +42,11 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -143,6 +146,7 @@ fun HomeScreen(
                 }
                 else -> WaveOrbit(
                     tracks = state.wave,
+                    isPlaying = playerState.isPlaying,
                     onPlayWave = { onPlay(state.wave, 0) },
                     onPlayTrack = { index -> onPlay(state.wave, index) },
                 )
@@ -412,26 +416,25 @@ private fun HomeHeader(
             }
         }
         Spacer(Modifier.weight(1f))
-        // Кнопки шапки: диски 30 dp с зазором 8 dp и иконкой 16-17 dp.
-        // Сначала вернул фон при 34 dp — пользователь попросил сделать сам фон меньше.
+        // Кнопки шапки: диски 32 dp с зазором 10 dp, без перекрытия
         CircleIconButton(
             onClick = onOpenAccount,
-            size = 30.dp,
+            size = 32.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.settings_section_account),
         ) {
             Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         CircleIconButton(
             onClick = onOpenSearch,
-            size = 30.dp,
+            size = 32.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_search),
         ) {
             Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(16.dp))
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val animatedRotation by androidx.compose.animation.core.animateFloatAsState(
             targetValue = settingsAngle,
@@ -443,7 +446,7 @@ private fun HomeHeader(
                 settingsAngle += 360f
                 onOpenSettings()
             },
-            size = 30.dp,
+            size = 32.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_settings),
         ) {
@@ -476,12 +479,13 @@ private fun homeLyricLine(
 }
 
 /**
- * The hero of the home screen: a 72dp white Play disc in the centre with up to 8 artwork
+ * The hero of the home screen: a rounded grey Play triangle in the centre with up to 8 artwork
  * squircle bubbles scattered on an orbit around it.
  */
 @Composable
 private fun WaveOrbit(
     tracks: List<Track>,
+    isPlaying: Boolean = false,
     onPlayWave: () -> Unit,
     onPlayTrack: (Int) -> Unit,
 ) {
@@ -520,41 +524,17 @@ private fun WaveOrbit(
             }
         }
 
-        // Плавная смена акцента: раньше было 160 мс — рывок при переключении темы.
-        val heroFill by animateColorAsState(
-            VotifyColors.AccentFill,
-            androidx.compose.animation.core.tween(
-                durationMillis = 600,
-                easing = androidx.compose.animation.core.FastOutSlowInEasing,
-            ),
-            label = "heroFill",
-        )
-        val heroContent by animateColorAsState(
-            VotifyColors.AccentContent,
-            androidx.compose.animation.core.tween(
-                durationMillis = 600,
-                easing = androidx.compose.animation.core.FastOutSlowInEasing,
-            ),
-            label = "heroContent",
-        )
-
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(
+            IconButton(
                 onClick = onPlayWave,
-                shape = CircleShape,
-                color = heroFill,
-                contentColor = heroContent,
-                shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(64.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = stringResource(R.string.home_play_wave),
-                        modifier = Modifier.size(34.dp).offset(x = 2.dp),
-                    )
-                }
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.home_play_wave),
+                    tint = Color(0xFFAAAAAA),
+                    modifier = Modifier.size(54.dp),
+                )
             }
             Spacer(Modifier.height(10.dp))
             Text(

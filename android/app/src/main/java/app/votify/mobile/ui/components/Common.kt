@@ -335,21 +335,35 @@ fun CircleIconButton(
         )
     } else Modifier
 
-    Surface(
-        onClick = {
-            VotifyHaptics.click(view, context)
-            onClick()
-        },
-        shape = CircleShape,
-        color = fillColor ?: if (filled) VotifyColors.Primary else Color.Transparent,
-        contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary,
-        border = if (filled || !showBorder) null else if (spec.enabled) BorderStroke(
-            0.5.dp,
-            Color.White.copy(alpha = spec.borderAlpha)
-        ) else null,
-        modifier = modifier.size(size).then(glassModifier),
+    val backgroundColor = fillColor ?: if (filled) VotifyColors.Primary else Color.Transparent
+    val contentColor = tintColor ?: if (filled) VotifyColors.OnPrimary else VotifyColors.TextPrimary
+    val borderModifier = if (filled || !showBorder || !spec.enabled) {
+        Modifier
+    } else {
+        Modifier.border(0.5.dp, Color.White.copy(alpha = spec.borderAlpha), CircleShape)
+    }
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .then(glassModifier)
+            .background(backgroundColor, CircleShape)
+            .then(borderModifier)
+            .clickable(
+                onClick = {
+                    VotifyHaptics.click(view, context)
+                    onClick()
+                },
+                role = androidx.compose.ui.semantics.Role.Button,
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) { icon() }
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides contentColor
+        ) {
+            icon()
+        }
     }
 }
 
