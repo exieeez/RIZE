@@ -247,7 +247,7 @@ fun HomeScreen(
 
         // --- Main Section: "Для вас" (replacing "Популярное") ---
         Text(
-            text = "Для вас",
+            text = stringResource(R.string.home_for_you),
             style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -256,7 +256,7 @@ fun HomeScreen(
 
         // 1. "Треки"
         Text(
-            text = "Треки",
+            text = stringResource(R.string.home_tracks),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
             color = VotifyColors.TextMuted,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
@@ -278,7 +278,7 @@ fun HomeScreen(
 
         // 2. "Плейлисты"
         Text(
-            text = "Плейлисты",
+            text = stringResource(R.string.library_playlists),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
             color = VotifyColors.TextMuted,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 10.dp),
@@ -305,7 +305,7 @@ fun HomeScreen(
 
         // 3. "Артисты"
         Text(
-            text = "Артисты",
+            text = stringResource(R.string.home_artists),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
             color = VotifyColors.TextMuted,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 10.dp),
@@ -326,7 +326,7 @@ fun HomeScreen(
 
         // 4. "Релизы"
         Text(
-            text = "Релизы",
+            text = stringResource(R.string.home_releases),
             style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -405,7 +405,7 @@ private fun HomeHeader(
                 spec = spec,
             ),
         ) {
-            Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 Image(
                     painter = painterResource(R.drawable.ic_votify_logo),
                     contentDescription = null,
@@ -416,23 +416,23 @@ private fun HomeHeader(
             }
         }
         Spacer(Modifier.weight(1f))
-        // Кнопки шапки: диски 32 dp с зазором 10 dp, без перекрытия
+        // Кнопки шапки: диски 34 dp — одна высота с пилюлей «Votify», зазор 10 dp
         CircleIconButton(
             onClick = onOpenAccount,
-            size = 32.dp,
+            size = 34.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.settings_section_account),
         ) {
-            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
+            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(10.dp))
         CircleIconButton(
             onClick = onOpenSearch,
-            size = 32.dp,
+            size = 34.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_search),
         ) {
-            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(16.dp))
+            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
         }
         Spacer(Modifier.width(10.dp))
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
@@ -446,7 +446,7 @@ private fun HomeHeader(
                 settingsAngle += 360f
                 onOpenSettings()
             },
-            size = 32.dp,
+            size = 34.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_settings),
         ) {
@@ -455,7 +455,7 @@ private fun HomeHeader(
                 null,
                 tint = VotifyColors.TextSecondary,
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(17.dp)
                     .graphicsLayer { rotationZ = animatedRotation },
             )
         }

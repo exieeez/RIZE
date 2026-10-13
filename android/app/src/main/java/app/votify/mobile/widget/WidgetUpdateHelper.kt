@@ -46,7 +46,7 @@ object WidgetUpdateHelper {
         val isFavorite = track?.let { app.library.favoriteIds.first().contains(it.id) } ?: false
 
         val badgeText = when {
-            state.reverbPreset != "none" && state.speed < 1f -> "Slowed • Зал"
+            state.reverbPreset != "none" && state.speed < 1f -> context.getString(R.string.widget_slowed_hall)
             state.pitchLinked && state.speed > 1.1f -> "Nightcore"
             Math.abs(state.speed - 1.0f) > 0.03f -> String.format(java.util.Locale.US, "%.2f×", state.speed)
             else -> "Votify"
@@ -59,7 +59,7 @@ object WidgetUpdateHelper {
             val views = RemoteViews(context.packageName, R.layout.widget_player_3x2)
 
             // Track info
-            views.setTextViewText(R.id.widget_player_title, track?.title ?: "Не воспроизводится")
+            views.setTextViewText(R.id.widget_player_title, track?.title ?: context.getString(R.string.widget_no_track))
             views.setTextViewText(R.id.widget_player_artist, track?.artist ?: "Votify Music")
             views.setTextViewText(R.id.widget_player_badge, badgeText)
 
@@ -109,7 +109,7 @@ object WidgetUpdateHelper {
         for (id in ids) {
             val views = RemoteViews(context.packageName, R.layout.widget_player_compact_4x1)
 
-            views.setTextViewText(R.id.widget_compact_title, track?.title ?: "Не воспроизводится")
+            views.setTextViewText(R.id.widget_compact_title, track?.title ?: context.getString(R.string.widget_no_track))
             views.setTextViewText(R.id.widget_compact_artist, track?.artist ?: "Votify")
 
             if (coverBitmap != null) {

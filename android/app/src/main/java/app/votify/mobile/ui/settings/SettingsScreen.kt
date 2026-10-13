@@ -105,17 +105,20 @@ fun SettingsScreen(
         }
 
         val context = androidx.compose.ui.platform.LocalContext.current
-        SettingsSectionLabel("Обновление")
+        SettingsSectionLabel(stringResource(R.string.update_section))
         SettingsCard {
             SettingsNavRow(
                 Icons.Outlined.Refresh,
-                "Проверить обновления",
-                "Версия ${app.votify.mobile.BuildConfig.VERSION_NAME} (${app.votify.mobile.BuildConfig.BUILD_SHA.take(7)})",
+                stringResource(R.string.settings_check_updates),
+                stringResource(
+                    R.string.settings_version,
+                    "${app.votify.mobile.BuildConfig.VERSION_NAME} (${app.votify.mobile.BuildConfig.BUILD_SHA.take(7)})",
+                ),
             ) {
-                android.widget.Toast.makeText(context, "Проверка обновлений...", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.update_checking), android.widget.Toast.LENGTH_SHORT).show()
                 app.votify.mobile.VotifyApp.instance.updateManager.checkForUpdate(force = true) { hasUpdate ->
                     if (!hasUpdate) {
-                        android.widget.Toast.makeText(context, "У вас установлена последняя версия", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.update_latest), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             }

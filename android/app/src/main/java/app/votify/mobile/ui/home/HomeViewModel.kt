@@ -1,7 +1,9 @@
 package app.votify.mobile.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.votify.mobile.R
 import app.votify.mobile.data.LibraryRepository
 import app.votify.mobile.data.Track
 import app.votify.mobile.data.MusicRepository
@@ -54,6 +56,7 @@ data class HomeUiState(
 class HomeViewModel(
     private val music: MusicRepository,
     private val library: LibraryRepository,
+    private val appContext: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -143,7 +146,7 @@ class HomeViewModel(
                         HomePlaylistItem(
                             id = pl.id,
                             name = pl.name,
-                            subtitle = "${pl.trackCount} треков",
+                            subtitle = appContext.getString(R.string.home_tracks_count, pl.trackCount),
                             cover = pl.cover,
                             isLocal = true,
                         )
@@ -153,11 +156,11 @@ class HomeViewModel(
                     val userArtists = artistSeeds.map { name ->
                         HomeArtistItem(
                             name = name,
-                            followers = "В вашей медиатеке",
+                            followers = appContext.getString(R.string.home_library_subtitle),
                             avatarUrl = wave.firstOrNull { it.artist.contains(name, true) }?.cover,
                         )
                     }
-                    val allArtists = (userArtists + curatedArtists).distinctBy { it.name.lowercase() }
+                    val allArtists = (userArtists + curatedArtists()).distinctBy { it.name.lowercase() }
 
                     // Releases: derive from wave tracks or curated
                     val releaseItems = wave.take(6).map { t ->
@@ -189,7 +192,7 @@ class HomeViewModel(
                             isLoading = false,
                             error = e.message ?: "error",
                             forYouPlaylists = emptyList(),
-                            forYouArtists = curatedArtists,
+                            forYouArtists = curatedArtists(),
                             forYouReleases = curatedReleases,
                         )
                     }
@@ -206,45 +209,45 @@ class HomeViewModel(
         }
     }
 
-    companion object {
-
-        private val curatedArtists = listOf(
-            HomeArtistItem(
-                name = "ONDA ANDAR",
-                followers = "59.8K подписчиков",
+    private fun curatedArtists(): List<HomeArtistItem> = listOf(
+        HomeArtistItem(
+            name = "ONDA ANDAR",
+            followers = appContext.getString(R.string.followers_count, "59.8K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5ebc1fbf0465a3c1a851bb8d929",
             ),
             HomeArtistItem(
                 name = "zhanulka",
-                followers = "48.1K подписчиков",
+                followers = appContext.getString(R.string.followers_count, "48.1K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5eb1d279cfbb6e300170a75d506",
             ),
             HomeArtistItem(
                 name = "madk1d",
-                followers = "72.4K подписчиков",
+                followers = appContext.getString(R.string.followers_count, "72.4K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5ebb6b95b8d0cbbcfcb92a2a01d",
             ),
             HomeArtistItem(
                 name = "ICEGERGERT",
-                followers = "125K подписчиков",
+                followers = appContext.getString(R.string.followers_count, "125K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5ebff2dbe2cfa3065a319409893",
             ),
             HomeArtistItem(
                 name = "Friendly Thug 52",
-                followers = "210K подписчиков",
+                followers = appContext.getString(R.string.followers_count, "210K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5ebcb53aeb3f76023253b27b9ef",
             ),
             HomeArtistItem(
                 name = "Toxi$",
-                followers = "315K подписчиков",
+                followers = appContext.getString(R.string.followers_count, "315K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5ebd74f514b7410313a96898d9a",
             ),
             HomeArtistItem(
                 name = "VILLIAN",
-                followers = "38.2K подписчиков",
+                followers = appContext.getString(R.string.followers_count, "38.2K"),
                 avatarUrl = "https://i.scdn.co/image/ab6761610000e5eb6046e7f77f0d0ecceb6e147e",
             ),
         )
+
+    companion object {
 
         private val curatedReleases = listOf(
             HomeReleaseItem(

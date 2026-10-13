@@ -80,7 +80,7 @@ fun ColorPairTile(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                pair.titleRu,
+                stringResource(pair.titleRes()),
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,

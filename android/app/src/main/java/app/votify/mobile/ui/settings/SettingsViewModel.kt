@@ -6,6 +6,7 @@ import app.votify.mobile.BuildConfig
 import android.content.Context
 import app.votify.mobile.data.Account
 import app.votify.mobile.data.AppIcon
+import app.votify.mobile.data.AppLocale
 import app.votify.mobile.data.AppIcons
 import app.votify.mobile.data.customIconFile
 import app.votify.mobile.data.AppTheme
@@ -239,11 +240,8 @@ class SettingsViewModel(
 
     // ------------------------------------------------------------ Dotify customization
 
-    fun setLanguage(key: String) {
-        if (key == "en") {
-            _events.tryEmit(SettingsEvent.Message(appContext.getString(app.votify.mobile.R.string.settings_language_soon)))
-        }
-    }
+    /** Persists the interface language; the settings screen recreates the activity to apply it. */
+    fun setLanguage(key: String) = AppLocale.setLanguage(appContext, key)
 
     /** Update one or more customization fields; the theme mapping is re-applied automatically. */
     fun updatePrefs(transform: (CustomPrefs) -> CustomPrefs) = launchSave {

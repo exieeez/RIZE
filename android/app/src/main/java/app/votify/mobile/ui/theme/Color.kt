@@ -1,5 +1,6 @@
 package app.votify.mobile.ui.theme
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -164,6 +165,21 @@ enum class ColorPair(
 
     val background: Color get() = Color(android.graphics.Color.parseColor(backgroundHex))
     val accent: Color get() = Color(android.graphics.Color.parseColor(accentHex))
+
+    /** Localized display name resource for this pair (RU default + EN overlay). */
+    @StringRes
+    fun titleRes(): Int = when (this) {
+        DeepPurple -> app.votify.mobile.R.string.pair_deep_purple
+        DarkIndigo -> app.votify.mobile.R.string.pair_dark_indigo
+        MilkCream -> app.votify.mobile.R.string.pair_milk_cream
+        DeepBlack -> app.votify.mobile.R.string.pair_deep_black
+        DarkForest -> app.votify.mobile.R.string.pair_dark_forest
+        Graphite -> app.votify.mobile.R.string.pair_graphite
+        ElectricBlue -> app.votify.mobile.R.string.pair_electric_blue
+        JetBlack -> app.votify.mobile.R.string.pair_jet_black
+        Obsidian -> app.votify.mobile.R.string.pair_obsidian
+        Espresso -> app.votify.mobile.R.string.pair_espresso
+    }
 
     /** Палитра этой пары. */
     fun toPalette(): VotifyPalette = pairPalette(background = background, accent = accent)

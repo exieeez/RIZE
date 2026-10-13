@@ -40,9 +40,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.votify.mobile.R
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -119,13 +121,13 @@ fun UpdateBanner(
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Доступно обновление",
+                                    text = stringResource(R.string.update_available_title),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    text = if (s.info.versionName.isNotBlank()) "Версия ${s.info.versionName}" else "Свежая сборка с GitHub",
+                                    text = if (s.info.versionName.isNotBlank()) stringResource(R.string.settings_version, s.info.versionName) else stringResource(R.string.update_build_fresh),
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.7f),
                                     maxLines = 1,
@@ -143,7 +145,7 @@ fun UpdateBanner(
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                 modifier = Modifier.height(34.dp)
                             ) {
-                                Text("Обновить", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.update_action), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             IconButton(
                                 onClick = { updateManager.dismiss() },
@@ -151,7 +153,7 @@ fun UpdateBanner(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Закрыть",
+                                    contentDescription = stringResource(R.string.action_close),
                                     tint = Color.White.copy(alpha = 0.6f),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -182,15 +184,15 @@ fun UpdateBanner(
                                 Spacer(Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Загрузка обновления...",
+                                        text = stringResource(R.string.update_downloading),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
                                     val percent = if (s.totalBytes > 0) {
-                                        "${(s.progress * 100).toInt()}% (${s.bytesRead / (1024 * 1024)} из ${s.totalBytes / (1024 * 1024)} МБ)"
+                                        stringResource(R.string.update_progress, (s.progress * 100).toInt(), s.bytesRead / (1024 * 1024), s.totalBytes / (1024 * 1024))
                                     } else {
-                                        "${s.bytesRead / (1024 * 1024)} МБ"
+                                        stringResource(R.string.update_progress_mb, s.bytesRead / (1024 * 1024))
                                     }
                                     Text(
                                         text = percent,
@@ -239,13 +241,13 @@ fun UpdateBanner(
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Обновление готово к установке",
+                                    text = stringResource(R.string.update_ready_title),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    text = if (canInstall) "Нажмите «Установить» для обновления" else "Нужно разрешить установку приложений",
+                                    text = if (canInstall) stringResource(R.string.update_ready_can_install) else stringResource(R.string.update_ready_permission),
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.7f),
                                     maxLines = 1,
@@ -264,7 +266,7 @@ fun UpdateBanner(
                                 modifier = Modifier.height(34.dp)
                             ) {
                                 Text(
-                                    text = if (canInstall) "Установить" else "Разрешить",
+                                    text = if (canInstall) stringResource(R.string.update_install) else stringResource(R.string.update_allow),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -275,7 +277,7 @@ fun UpdateBanner(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Закрыть",
+                                    contentDescription = stringResource(R.string.action_close),
                                     tint = Color.White.copy(alpha = 0.6f),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -290,7 +292,7 @@ fun UpdateBanner(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Ошибка обновления",
+                                    text = stringResource(R.string.update_error_title),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFFF5252)
@@ -313,7 +315,7 @@ fun UpdateBanner(
                                     shape = RoundedCornerShape(20.dp),
                                     modifier = Modifier.height(32.dp)
                                 ) {
-                                    Text("Повторить", fontSize = 12.sp)
+                                    Text(stringResource(R.string.search_retry), fontSize = 12.sp)
                                 }
                             }
                             IconButton(
@@ -322,7 +324,7 @@ fun UpdateBanner(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Закрыть",
+                                    contentDescription = stringResource(R.string.action_close),
                                     tint = Color.White.copy(alpha = 0.6f),
                                     modifier = Modifier.size(16.dp)
                                 )

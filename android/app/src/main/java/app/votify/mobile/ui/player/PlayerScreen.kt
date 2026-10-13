@@ -487,7 +487,7 @@ fun PlayerScreen(
                                 state.bassBoost
                         Icon(
                             Icons.Outlined.Speed,
-                            contentDescription = "Ремикс и скорость",
+                            contentDescription = stringResource(R.string.remix_menu),
                             tint = if (isRemixActive) (palette?.accent ?: VotifyColors.Primary) else VotifyColors.TextSecondary,
                         )
                     }
@@ -1125,7 +1125,7 @@ private fun SpeedPresetBottomSheet(
                             fontWeight = if (isSlowed) FontWeight.Bold else FontWeight.Medium,
                         )
                         Text(
-                            "0.85× • Зал",
+                            stringResource(R.string.remix_preset_slowed),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isSlowed) Color(0xFF555558) else Color.White.copy(alpha = 0.6f),
                         )
@@ -1157,7 +1157,7 @@ private fun SpeedPresetBottomSheet(
                             fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium,
                         )
                         Text(
-                            "1.0× • Чистый",
+                            stringResource(R.string.remix_preset_clean),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isDefault) Color(0xFF555558) else Color.White.copy(alpha = 0.6f),
                         )
@@ -1221,13 +1221,13 @@ private fun SpeedPresetBottomSheet(
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
-                                "Питч как в ремиксах",
+                                stringResource(R.string.remix_pitch_link),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White,
                             )
                             Text(
-                                if (pitchLinked) "Тональность меняется вместе со скоростью" else "Ручная настройка тональности",
+                                if (pitchLinked) stringResource(R.string.remix_pitch_link_sub) else stringResource(R.string.remix_pitch_manual),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White.copy(alpha = 0.55f),
                             )
@@ -1238,7 +1238,7 @@ private fun SpeedPresetBottomSheet(
                         color = if (pitchLinked) Color.White else Color(0xFF333336),
                     ) {
                         Text(
-                            if (pitchLinked) "Вкл" else "Выкл",
+                            if (pitchLinked) stringResource(R.string.opt_on) else stringResource(R.string.opt_off),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (pitchLinked) Color(0xFF111113) else Color.White.copy(alpha = 0.7f),
@@ -1256,7 +1256,7 @@ private fun SpeedPresetBottomSheet(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    "Скорость / Темп",
+                    stringResource(R.string.remix_speed),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.65f),
                 )
@@ -1337,7 +1337,7 @@ private fun SpeedPresetBottomSheet(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Text(
-                        "Тональность (Питч)",
+                        stringResource(R.string.remix_pitch),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.65f),
                     )
@@ -1373,7 +1373,7 @@ private fun SpeedPresetBottomSheet(
             // Reverb presets section
             Column(Modifier.fillMaxWidth()) {
                 Text(
-                    "Атмосфера (Reverb)",
+                    stringResource(R.string.remix_reverb_title),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White.copy(alpha = 0.7f),
@@ -1384,10 +1384,10 @@ private fun SpeedPresetBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     val reverbOptions = listOf(
-                        "none" to "Выкл",
-                        "hall" to "Зал",
-                        "room" to "Клуб",
-                        "plate" to "Эхо",
+                        "none" to stringResource(R.string.opt_off),
+                        "hall" to stringResource(R.string.reverb_hall),
+                        "room" to stringResource(R.string.reverb_club),
+                        "plate" to stringResource(R.string.reverb_echo),
                     )
                     reverbOptions.forEach { (code, label) ->
                         val isSelected = selectedReverb == code
@@ -1436,13 +1436,13 @@ private fun SpeedPresetBottomSheet(
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
-                                "Глубокий бас (Bass Boost)",
+                                stringResource(R.string.remix_bass),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White,
                             )
                             Text(
-                                "Плотное клубное звучание низких частот",
+                                stringResource(R.string.remix_bass_sub),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White.copy(alpha = 0.55f),
                             )
@@ -1453,7 +1453,7 @@ private fun SpeedPresetBottomSheet(
                         color = if (selectedBass) Color.White else Color(0xFF333336),
                     ) {
                         Text(
-                            if (selectedBass) "Вкл" else "Выкл",
+                            if (selectedBass) stringResource(R.string.opt_on) else stringResource(R.string.opt_off),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (selectedBass) Color(0xFF111113) else Color.White.copy(alpha = 0.7f),
@@ -1488,7 +1488,7 @@ private fun SpeedPresetBottomSheet(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Запомнить пресет",
+                        stringResource(R.string.remix_save_preset),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )

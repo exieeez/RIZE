@@ -74,14 +74,14 @@ fun InterfaceSettingsScreen(
             SettingsSectionLabel(stringResource(R.string.settings_navigation))
             SettingsCard {
                 SettingsToggleRow(
-                    title = "Стиль «Остров»",
-                    subtitle = "Плавающая закруглённая панель с отступами",
+                    title = stringResource(R.string.island_style),
+                    subtitle = stringResource(R.string.island_sub),
                     checked = prefs.navBarIsland,
                     onChange = { v -> viewModel.updatePrefs { it.copy(navBarIsland = v) } },
                 )
                 SettingsDivider()
                 SettingsSliderRow(
-                    title = "Размер панели (высота)",
+                    title = stringResource(R.string.dock_height),
                     value = prefs.navBarHeight.toFloat(),
                     range = 48f..80f,
                     unit = " dp",
@@ -107,13 +107,13 @@ fun InterfaceSettingsScreen(
             SettingsCard {
                 SettingsToggleRow(
                     title = "Liquid Glass",
-                    subtitle = "Одно стекло на весь интерфейс: карточки, панели и нижняя панель",
+                    subtitle = stringResource(R.string.glass_sub),
                     checked = prefs.glassEnabled,
                     onChange = { v -> viewModel.updatePrefs { it.copy(glassEnabled = v) } },
                 )
                 SettingsDivider()
                 SettingsSliderRow(
-                    title = "Прозрачность",
+                    title = stringResource(R.string.settings_transparency),
                     value = prefs.glassAlpha.toFloat(),
                     range = 0f..100f,
                     unit = "%",
@@ -121,7 +121,7 @@ fun InterfaceSettingsScreen(
                 )
                 SettingsDivider()
                 SettingsSliderRow(
-                    title = "Размытие",
+                    title = stringResource(R.string.settings_effect_blur),
                     value = prefs.glassBlur.toFloat(),
                     range = 0f..60f,
                     unit = " dp",

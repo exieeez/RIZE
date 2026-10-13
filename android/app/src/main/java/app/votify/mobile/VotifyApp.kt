@@ -1,8 +1,10 @@
 package app.votify.mobile
 
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import app.votify.mobile.data.Account
+import app.votify.mobile.data.AppLocale
 import app.votify.mobile.data.CloudSyncAuto
 import app.votify.mobile.data.LibraryRepository
 import app.votify.mobile.data.MusicRepository
@@ -22,6 +24,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 class VotifyApp : Application(), coil.ImageLoaderFactory {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Notifications, widgets and toasts must speak the language picked in Settings. */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
 
     lateinit var api: VotifyApi
         private set

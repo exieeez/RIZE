@@ -1,5 +1,6 @@
 package app.votify.mobile.ui.workshop
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.votify.mobile.data.AppTheme
@@ -11,6 +12,7 @@ import app.votify.mobile.data.VotifyApi
 import app.votify.mobile.data.WorkshopThemeDoc
 import app.votify.mobile.data.WorkshopThemeUiSpec
 import app.votify.mobile.data.CustomPrefs
+import app.votify.mobile.R
 import app.votify.mobile.data.parseCustomPrefs
 import app.votify.mobile.data.toJson
 import app.votify.mobile.ui.theme.AmberPalette
@@ -75,6 +77,7 @@ class WorkshopViewModel(
     private val settingsRepo: SettingsRepository,
     private val api: VotifyApi,
     private val music: MusicRepository,
+    private val appContext: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WorkshopUiState())
@@ -159,14 +162,14 @@ class WorkshopViewModel(
     fun fetchConfigFromServer() {
         viewModelScope.launch {
             if (!music.isServerMode) {
-                _state.update { it.copy(error = "Сервер не подключён — вставьте конфиг вручную") }
+                _state.update { it.copy(error = appContext.getString(R.string.workshop_no_server)) }
                 return@launch
             }
             runCatching { api.firebaseConfig() }
                 .onSuccess { raw ->
                     val cfg = FirebaseRest.parseConfig(raw)
                     if (cfg == null) {
-                        _state.update { it.copy(error = "На сервере не настроен Firebase (firebase-config.json)") }
+                        _state.update { it.copy(error = appContext.getString(R.string.workshop_server_no_firebase)) }
                     } else {
                         settingsRepo.setFirebaseConfig(raw.trim())
                         rest = FirebaseRest(cfg)
@@ -312,7 +315,7 @@ class WorkshopViewModel(
             settingsRepo.setCustomTheme(json.encodeToString(WorkshopThemeSpec.serializer(), spec))
             settingsRepo.setTheme(AppTheme.Workshop)
             _state.update { it.copy(appliedAccent = accent) }
-            _events.tryEmit(WorkshopEvent.Applied("Своя тема"))
+            _events.tryEmit(WorkshopEvent.Applied(appContext.getString(R.string.workshop_my_theme)))
         }
     }
 
@@ -351,17 +354,17 @@ class WorkshopViewModel(
         if (_state.value.publishing) return
         val cleanTitle = title.trim()
         if (cleanTitle.length !in 3..60) {
-            _state.update { it.copy(error = "Название темы — от 3 до 60 символов") }
+            _state.update { it.copy(error = appContext.getString(R.string.workshop_name_length)) }
             return
         }
         if (description.length > 240) {
-            _state.update { it.copy(error = "Описание — не больше 240 символов") }
+            _state.update { it.copy(error = appContext.getString(R.string.workshop_desc_length)) }
             return
         }
         viewModelScope.launch {
             val account = settingsRepo.account.first()
             if (account == null || !account.isFirebase) {
-                _state.update { it.copy(error = "Сначала войдите в аккаунт (Настройки → Аккаунт)") }
+                _state.update { it.copy(error = appContext.getString(R.string.workshop_login_first)) }
                 return@launch
             }
             _state.update { it.copy(publishing = true, error = null) }

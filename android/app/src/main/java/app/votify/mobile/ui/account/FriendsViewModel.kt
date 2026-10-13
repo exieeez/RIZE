@@ -1,7 +1,9 @@
 package app.votify.mobile.ui.account
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.votify.mobile.R
 import app.votify.mobile.data.Account
 import app.votify.mobile.data.FirebaseRest
 import app.votify.mobile.data.ProfileInfo
@@ -43,6 +45,7 @@ data class UserUiState(
  */
 class FriendsViewModel(
     private val settingsRepo: SettingsRepository,
+    private val appContext: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FriendsUiState())
@@ -159,11 +162,11 @@ class FriendsViewModel(
                         loading = false,
                         profile = profile,
                         isFriend = isFriend,
-                        error = if (profile == null) "Профиль пользователя не найден" else null,
+                        error = if (profile == null) appContext.getString(R.string.friends_profile_not_found) else null,
                     )
                 }
             }.onFailure { e ->
-                _userState.update { it.copy(loading = false, error = e.message ?: "Ошибка загрузки") }
+                _userState.update { it.copy(loading = false, error = e.message ?: appContext.getString(R.string.friends_load_error)) }
             }
         }
     }

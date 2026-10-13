@@ -287,7 +287,7 @@ class AppUpdateManager(
             }
 
             if (!success && _state.value is UpdateState.Downloading) {
-                _state.value = UpdateState.Error("Не удалось скачать обновление. Проверьте соединение с интернетом.", info)
+                _state.value = UpdateState.Error(context.getString(app.votify.mobile.R.string.update_download_failed), info)
             }
         }
     }
@@ -319,7 +319,7 @@ class AppUpdateManager(
 
     fun installUpdate(apkFile: File) {
         if (!apkFile.exists() || apkFile.length() < 1_000_000) {
-            _state.value = UpdateState.Error("Файл обновления не найден или поврежден")
+            _state.value = UpdateState.Error(context.getString(app.votify.mobile.R.string.update_file_invalid))
             return
         }
 
@@ -348,7 +348,7 @@ class AppUpdateManager(
 
             context.startActivity(intent)
         }.onFailure { e ->
-            _state.value = UpdateState.Error("Ошибка запуска установщика: ${e.message}")
+            _state.value = UpdateState.Error(context.getString(app.votify.mobile.R.string.update_installer_failed, e.message.orEmpty()))
         }
     }
 

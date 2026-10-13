@@ -908,10 +908,10 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                         val name = when {
                             reverb != "none" && speed < 1f -> "Slowed + Reverb"
                             linked && speed > 1.1f -> "Nightcore"
-                            reverb != "none" -> "Реверберация ($reverb)"
+                            reverb != "none" -> context.getString(R.string.remix_reverb_value, reverb)
                             else -> String.format(java.util.Locale.US, "%.2f×", speed)
                         }
-                        snackbar.showSnackbar("Пресет ремикса сохранён: $name")
+                        snackbar.showSnackbar(context.getString(R.string.remix_preset_saved, name))
                     }
                 },
             )
@@ -1118,7 +1118,7 @@ private fun VotifyNavBar(
 private class AppViewModelFactory(private val app: VotifyApp) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when {
-        modelClass.isAssignableFrom(HomeViewModel::class.java) -> HomeViewModel(app.music, app.library) as T
+        modelClass.isAssignableFrom(HomeViewModel::class.java) -> HomeViewModel(app.music, app.library, app.applicationContext) as T
         modelClass.isAssignableFrom(SearchViewModel::class.java) -> SearchViewModel(app.music) as T
         modelClass.isAssignableFrom(LibraryViewModel::class.java) -> LibraryViewModel(app.library, app.player, app.music) as T
         modelClass.isAssignableFrom(PlayerViewModel::class.java) -> PlayerViewModel(app.music, app.player, app.library) as T
@@ -1127,10 +1127,10 @@ private class AppViewModelFactory(private val app: VotifyApp) : ViewModelProvide
         modelClass.isAssignableFrom(AccountViewModel::class.java) -> AccountViewModel(app.api, app.settings, app.music) as T
         modelClass.isAssignableFrom(ImportViewModel::class.java) -> ImportViewModel(app.music, app.library) as T
         modelClass.isAssignableFrom(TrendingViewModel::class.java) -> TrendingViewModel(app.music) as T
-        modelClass.isAssignableFrom(WorkshopViewModel::class.java) -> WorkshopViewModel(app.settings, app.api, app.music) as T
+        modelClass.isAssignableFrom(WorkshopViewModel::class.java) -> WorkshopViewModel(app.settings, app.api, app.music, app.applicationContext) as T
         modelClass.isAssignableFrom(ProfileViewModel::class.java) ->
             ProfileViewModel(app.settings, app.database, app.applicationContext, app.player) as T
-        modelClass.isAssignableFrom(FriendsViewModel::class.java) -> FriendsViewModel(app.settings) as T
+        modelClass.isAssignableFrom(FriendsViewModel::class.java) -> FriendsViewModel(app.settings, app.applicationContext) as T
         else -> throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
     }
 }

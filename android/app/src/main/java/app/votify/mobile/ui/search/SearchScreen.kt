@@ -90,7 +90,7 @@ fun SearchScreen(
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "Недавние запросы",
+                            stringResource(R.string.recent_searches),
                             style = MaterialTheme.typography.titleSmall,
                             color = VotifyColors.TextSecondary,
                             fontWeight = FontWeight.SemiBold,

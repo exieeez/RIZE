@@ -172,7 +172,7 @@ fun ProfileScreen(
                 )
                 TopAppbarActionBtn(
                     icon = Icons.Outlined.ContentCopy,
-                    contentDescription = "Скопировать юзернейм",
+                    contentDescription = stringResource(R.string.profile_copy_handle),
                     onClick = {
                         clipboard.setText(AnnotatedString("@$profHandle"))
                         onToast("@$profHandle")
@@ -242,7 +242,7 @@ fun ProfileScreen(
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Outlined.Edit,
-                                        contentDescription = "Сменить баннер",
+                                        contentDescription = stringResource(R.string.profile_change_banner),
                                         tint = Color.White,
                                         modifier = Modifier.size(15.dp),
                                     )
@@ -279,7 +279,7 @@ fun ProfileScreen(
                                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             Icon(
                                                 Icons.Outlined.Edit,
-                                                contentDescription = "Сменить аватар",
+                                                contentDescription = stringResource(R.string.profile_change_avatar),
                                                 tint = Color.Black,
                                                 modifier = Modifier.size(15.dp),
                                             )
@@ -609,14 +609,14 @@ private fun ProfileEditFormInline(
                 ) {
                     Icon(Icons.Outlined.Upload, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Загрузить фото", fontSize = 12.sp)
+                    Text(stringResource(R.string.profile_upload_photo), fontSize = 12.sp)
                 }
                 OutlinedButton(
                     onClick = { viewModel.setBanner("") },
                     shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Text("Сбросить", fontSize = 12.sp)
+                    Text(stringResource(R.string.profile_reset), fontSize = 12.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))

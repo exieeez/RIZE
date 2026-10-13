@@ -74,10 +74,10 @@ fun AudioSettingsScreen(
                 if (prefs.crossfade) {
                     SettingsDivider()
                     SettingsSliderRow(
-                        title = "Длительность перехода",
+                        title = stringResource(R.string.crossfade_duration),
                         value = prefs.crossfadeSeconds.toFloat(),
                         range = 1f..12f,
-                        unit = " с",
+                        unit = stringResource(R.string.seconds_unit),
                         onValueChange = { v -> viewModel.updatePrefs { it.copy(crossfadeSeconds = v.toInt()) } },
                     )
                 }

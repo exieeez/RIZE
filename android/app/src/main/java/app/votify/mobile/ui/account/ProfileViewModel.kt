@@ -100,12 +100,12 @@ class ProfileViewModel(
     private suspend fun load() {
         val acct = settingsRepo.account.first()
         if (acct == null) {
-            _state.update { it.copy(loading = false, isGuest = true, profile = null, fallbackName = "Гость", fallbackHandle = "guest") }
+            _state.update { it.copy(loading = false, isGuest = true, profile = null, fallbackName = appContext.getString(R.string.profile_guest_name), fallbackHandle = "guest") }
             return
         }
         // Те же фолбэки, что и на ПК: displayName (username) || префикс почты.
         val emailPrefix = acct.email.substringBefore('@').lowercase()
-        val fbName = acct.username.ifBlank { emailPrefix }.ifBlank { "Пользователь" }
+        val fbName = acct.username.ifBlank { emailPrefix }.ifBlank { appContext.getString(R.string.profile_role_user) }
         val fbHandle = (emailPrefix.ifBlank { acct.username })
             .lowercase()
             .replace(Regex("[^a-z0-9_]"), "")
@@ -227,7 +227,7 @@ class ProfileViewModel(
                     runCatching {
                         val client = client() ?: error("no config")
                         val token = validToken(client, acct)
-                        val curName = p?.name?.ifBlank { null } ?: acct.username.ifBlank { "Пользователь" }
+                        val curName = p?.name?.ifBlank { null } ?: acct.username.ifBlank { appContext.getString(R.string.profile_role_user) }
                         val curHandle = p?.handle?.ifBlank { null } ?: acct.username.substringBefore('@')
                         client.saveProfile(
                             idToken = token,
@@ -240,7 +240,7 @@ class ProfileViewModel(
                             favTrack = p?.favTrack,
                         )
                     }.onSuccess {
-                        _events.tryEmit(ProfileEvent.Message("Баннер сохранен"))
+                        _events.tryEmit(ProfileEvent.Message(appContext.getString(R.string.profile_banner_saved)))
                         load()
                     }
                 }
@@ -290,7 +290,7 @@ class ProfileViewModel(
                 if (acct == null) error("no account")
                 val client = client() ?: error("no config")
                 val token = validToken(client, acct)
-                val curName = p?.name?.ifBlank { null } ?: acct.username.ifBlank { "Пользователь" }
+                val curName = p?.name?.ifBlank { null } ?: acct.username.ifBlank { appContext.getString(R.string.profile_role_user) }
                 val curHandle = p?.handle?.ifBlank { null } ?: acct.username.substringBefore('@')
                 client.saveProfile(
                     idToken = token,

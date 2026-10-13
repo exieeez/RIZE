@@ -241,7 +241,6 @@
     <string name="settings_language">Язык</string>
     <string name="settings_language_ru">Русский</string>
     <string name="settings_language_en">English</string>
-    <string name="settings_language_soon">English — скоро</string>
     <string name="settings_sync">Синхронизация</string>
     <string name="sync_push">Сохранить в облако</string>
     <string name="sync_push_sub">Избранное, плейлисты и настройки — в аккаунт (или на ваш сервер)</string>
@@ -666,4 +665,110 @@
     <string name="friends_remove_title">Убрать из друзей?</string>
     <string name="friends_remove_msg">Убрать %1$s из друзей?</string>
     <string name="friend_profile">Профиль пользователя</string>
+
+    <!-- Секции главной -->
+    <string name="home_for_you">Для вас</string>
+    <string name="home_tracks">Треки</string>
+    <string name="home_artists">Артисты</string>
+    <string name="home_releases">Релизы</string>
+    <string name="recent_searches">Недавние запросы</string>
+
+    <!-- Общий выбор -->
+    <string name="opt_none">Нет</string>
+    <string name="opt_color">Цвет</string>
+    <string name="opt_on">Вкл</string>
+    <string name="opt_off">Выкл</string>
+    <string name="opt_rounded">Закругленное</string>
+
+    <!-- Стиль плеера -->
+    <string name="player_style_standard">Стандартный</string>
+    <string name="player_style_big">Большой</string>
+    <string name="player_style_record">Пластинка</string>
+    <string name="player_style_standard_desc">Классический вид с обложкой</string>
+    <string name="player_style_big_desc">Обложка на весь экран</string>
+    <string name="player_style_record_desc">Виниловая пластинка с вращением</string>
+    <string name="slider_thin">Тонкий</string>
+    <string name="slider_wave">Волновой</string>
+    <string name="bg_artwork_desc">Размытая обложка трека</string>
+    <string name="bg_lava_desc">Адаптивный градиент под обложку</string>
+    <string name="bg_dark_desc">Без фона</string>
+    <string name="corners_soft">Мягкое</string>
+    <string name="mini_btn_standard">Стандартные</string>
+    <string name="mini_btn_minimal">Минималистичные</string>
+
+    <!-- Интерфейс / аудио -->
+    <string name="island_style">Стиль «Остров»</string>
+    <string name="island_sub">Плавающая закруглённая панель с отступами</string>
+    <string name="dock_height">Размер панели (высота)</string>
+    <string name="glass_sub">Одно стекло на весь интерфейс: карточки, панели и нижняя панель</string>
+    <string name="crossfade_duration">Длительность перехода</string>
+    <string name="seconds_unit">" с"</string>
+
+    <!-- Ремикс-лист плеера -->
+    <string name="remix_menu">Ремикс и скорость</string>
+    <string name="remix_preset_slowed">0.85× • Зал</string>
+    <string name="remix_preset_clean">1.0× • Чистый</string>
+    <string name="remix_pitch_link">Питч как в ремиксах</string>
+    <string name="remix_pitch_link_sub">Тональность меняется вместе со скоростью</string>
+    <string name="remix_pitch_manual">Ручная настройка тональности</string>
+    <string name="remix_speed">Скорость / Темп</string>
+    <string name="remix_pitch">Тональность (Питч)</string>
+    <string name="remix_reverb_title">Атмосфера (Reverb)</string>
+    <string name="reverb_hall">Зал</string>
+    <string name="reverb_club">Клуб</string>
+    <string name="reverb_echo">Эхо</string>
+    <string name="remix_bass">Глубокий бас (Bass Boost)</string>
+    <string name="remix_bass_sub">Плотное клубное звучание низких частот</string>
+    <string name="remix_save_preset">Запомнить пресет</string>
+    <string name="remix_reverb_value">Реверберация (%1$s)</string>
+    <string name="remix_preset_saved">Пресет ремикса сохранён: %1$s</string>
+
+    <!-- Обновления -->
+    <string name="update_section">Обновление</string>
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_build_fresh">Свежая сборка с GitHub</string>
+    <string name="update_action">Обновить</string>
+    <string name="update_downloading">Загрузка обновления…</string>
+    <string name="update_progress">%1$d%% (%2$d из %3$d МБ)</string>
+    <string name="update_progress_mb">%1$d МБ</string>
+    <string name="update_ready_title">Обновление готово к установке</string>
+    <string name="update_ready_can_install">Нажмите «Установить» для обновления</string>
+    <string name="update_ready_permission">Нужно разрешить установку приложений</string>
+    <string name="update_install">Установить</string>
+    <string name="update_allow">Разрешить</string>
+    <string name="update_error_title">Ошибка обновления</string>
+    <string name="update_download_failed">Не удалось скачать обновление. Проверьте соединение с интернетом.</string>
+    <string name="update_file_invalid">Файл обновления не найден или поврежден</string>
+    <string name="update_installer_failed">Ошибка запуска установщика: %1$s</string>
+
+    <!-- Профиль / друзья / мастерская -->
+    <string name="profile_copy_handle">Скопировать юзернейм</string>
+    <string name="profile_change_banner">Сменить баннер</string>
+    <string name="profile_change_avatar">Сменить аватар</string>
+    <string name="profile_upload_photo">Загрузить фото</string>
+    <string name="profile_reset">Сбросить</string>
+    <string name="profile_banner_saved">Баннер сохранён</string>
+    <string name="friends_profile_not_found">Профиль пользователя не найден</string>
+    <string name="friends_load_error">Ошибка загрузки</string>
+    <string name="workshop_no_server">Сервер не подключён — вставьте конфиг вручную</string>
+    <string name="workshop_server_no_firebase">На сервере не настроен Firebase (firebase-config.json)</string>
+    <string name="workshop_name_length">Название темы — от 3 до 60 символов</string>
+    <string name="workshop_desc_length">Описание — не больше 240 символов</string>
+    <string name="workshop_login_first">Сначала войдите в аккаунт (Настройки → Аккаунт)</string>
+    <string name="home_library_subtitle">В вашей медиатеке</string>
+    <string name="followers_count">%1$s подписчиков</string>
+
+    <!-- Виджеты -->
+    <string name="widget_no_track">Не воспроизводится</string>
+    <string name="widget_slowed_hall">Slowed • Зал</string>
+    <string name="pair_deep_purple">Фиолетовый</string>
+    <string name="pair_dark_indigo">Тёмный индиго</string>
+    <string name="pair_milk_cream">Молочный / бордо</string>
+    <string name="pair_deep_black">Чёрный</string>
+    <string name="pair_dark_forest">Тёмно-зелёный</string>
+    <string name="pair_graphite">Графитовый</string>
+    <string name="pair_electric_blue">Электрический синий</string>
+    <string name="pair_jet_black">Чёрный (алый)</string>
+    <string name="pair_obsidian">Обсидиан</string>
+    <string name="pair_espresso">Тёмный кофе</string>
 </resources>

@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.votify.mobile.BuildConfig
 import app.votify.mobile.R
+import app.votify.mobile.data.AppLocale
 import app.votify.mobile.ui.theme.VotifyColors
 
 /** «Основные»: язык, синхронизация, профиль, уведомления, канвас, о приложении, обновления. */
@@ -55,6 +57,8 @@ fun GeneralSettingsScreen(
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val language = AppLocale.language(context)
 
     SettingsScaffold(stringResource(R.string.settings_general), contentPadding, onBack) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
@@ -64,14 +68,21 @@ fun GeneralSettingsScreen(
                 SettingsValueRow(
                     title = stringResource(R.string.settings_language),
                     subtitle = null,
-                    value = stringResource(R.string.settings_language_ru),
+                    value = stringResource(
+                        if (language == AppLocale.EN) R.string.settings_language_en
+                        else R.string.settings_language_ru,
+                    ),
                     trailing = Icons.Outlined.Language,
                     options = listOf(
                         "ru" to stringResource(R.string.settings_language_ru),
                         "en" to stringResource(R.string.settings_language_en),
                     ),
-                    onPick = { viewModel.setLanguage(it) },
-                    // language switching is RU-only for now
+                    onPick = {
+                        if (it != language) {
+                            viewModel.setLanguage(it)
+                            (context as? android.app.Activity)?.recreate()
+                        }
+                    },
                 )
             }
 

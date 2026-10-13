@@ -1,6 +1,7 @@
 package app.votify.mobile
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import app.votify.mobile.data.AppIcons
+import app.votify.mobile.data.AppLocale
 import app.votify.mobile.data.parseCustomPrefs
 import app.votify.mobile.ui.VotifyRoot
 import androidx.compose.runtime.getValue
@@ -23,6 +25,11 @@ class MainActivity : ComponentActivity() {
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* optional */ }
+
+    /** Applies the saved interface language (Settings → General → Language) before any UI loads. */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 
     var openPlayerRequested by mutableStateOf(false)
         internal set
