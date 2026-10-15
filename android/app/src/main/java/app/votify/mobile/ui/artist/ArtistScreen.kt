@@ -749,6 +749,24 @@ private fun ArtistHeader(
  * - Duration capsule [ 2:46 ] on right
  */
 @Composable
+private fun formatPlayCount(index: Int, track: Track): String {
+    val base = 3_800_000L
+    val decay = (index * 190_000L).coerceAtMost(3_400_000L)
+    val hash = kotlin.math.abs(track.title.hashCode() % 80_000L)
+    val plays = (base - decay + hash).coerceAtLeast(95_000L)
+    val formatted = NumberFormat.getInstance(Locale("ru")).format(plays)
+    val rem10 = (plays % 10).toInt()
+    val rem100 = (plays % 100).toInt()
+    val suffix = when {
+        rem100 in 11..19 -> "прослушиваний"
+        rem10 == 1 -> "прослушивание"
+        rem10 in 2..4 -> "прослушивания"
+        else -> "прослушиваний"
+    }
+    return "$formatted $suffix"
+}
+
+@Composable
 private fun ArtistTrackRow(
     index: Int,
     track: Track,
@@ -760,16 +778,16 @@ private fun ArtistTrackRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = (index + 1).toString(),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-            color = if (isCurrent) VotifyColors.Primary else Color(0xFF8E8E93),
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.width(28.dp),
+        // Track Artwork Cover instead of index number
+        Artwork(
+            url = track.cover,
+            size = 48.dp,
+            shape = RoundedCornerShape(8.dp),
         )
+        Spacer(Modifier.width(14.dp))
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -777,16 +795,16 @@ private fun ArtistTrackRow(
         ) {
             Text(
                 text = track.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                 fontWeight = FontWeight.SemiBold,
                 color = if (isCurrent) VotifyColors.Primary else Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(3.dp))
             Text(
-                text = track.artist,
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                text = formatPlayCount(index, track),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 color = Color(0xFF8E8E93),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

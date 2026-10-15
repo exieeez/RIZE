@@ -1047,10 +1047,57 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
 
     // First launch: offer to sign in or continue as a guest (shown once).
     if (!parseCustomPrefs(settings.customPrefs).welcomeDone) {
+        val rootContext = androidx.compose.ui.platform.LocalContext.current
+        val rootScope = androidx.compose.runtime.rememberCoroutineScope()
         WelcomeOverlay(
             onSignIn = {
                 settingsVm.updatePrefs { it.copy(welcomeDone = true) }
                 navController.navigate(Routes.ACCOUNT) { launchSingleTop = true }
+            },
+            onGoogleSignIn = {
+                val state = accountVm.state.value
+                val gmsOk = com.google.android.gms.common.GoogleApiAvailability.getInstance()
+                    .isGooglePlayServicesAvailable(rootContext) ==
+                    com.google.android.gms.common.ConnectionResult.SUCCESS
+                if (!gmsOk) {
+                    android.widget.Toast.makeText(
+                        rootContext,
+                        "Google Play Services недоступны на этом устройстве",
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                } else {
+                    rootScope.launch {
+                        runCatching {
+                            val cm = androidx.credentials.CredentialManager.create(rootContext)
+                            val option = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+                                .Builder(state.googleClientId)
+                                .build()
+                            val result = cm.getCredential(
+                                rootContext,
+                                androidx.credentials.GetCredentialRequest(listOf(option)),
+                            )
+                            val cred = result.credential
+                            if (cred is androidx.credentials.CustomCredential &&
+                                cred.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                            ) {
+                                com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(cred.data).idToken
+                            } else null
+                        }.onSuccess { token ->
+                            if (token != null) {
+                                accountVm.googleSignIn(token)
+                                settingsVm.updatePrefs { it.copy(welcomeDone = true) }
+                            }
+                        }.onFailure { e ->
+                            if (e !is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                                android.widget.Toast.makeText(
+                                    rootContext,
+                                    e.message ?: "Ошибка входа через Google",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+                }
             },
             onGuest = { settingsVm.updatePrefs { it.copy(welcomeDone = true) } },
             onRegister = { email, uname, pass ->
@@ -1061,6 +1108,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 settingsVm.updatePrefs { it.copy(welcomeDone = true) }
                 navController.navigate(Routes.IMPORT) { launchSingleTop = true }
             },
+            accountVm = accountVm,
         )
     }
 }

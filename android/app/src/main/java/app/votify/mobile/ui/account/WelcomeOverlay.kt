@@ -120,6 +120,8 @@ fun WelcomeOverlay(
     onGuest: () -> Unit,
     onRegister: ((email: String, username: String, pass: String) -> Unit)? = null,
     onImport: (() -> Unit)? = null,
+    onGoogleSignIn: (() -> Unit)? = null,
+    accountVm: AccountViewModel? = null,
 ) {
     var step by remember { mutableStateOf(OnboardingStep.WELCOME) }
 
@@ -147,7 +149,7 @@ fun WelcomeOverlay(
             when (currentStep) {
                 OnboardingStep.WELCOME -> WelcomeStep(
                     onContinueEmail = { step = OnboardingStep.EMAIL },
-                    onGoogle = onSignIn,
+                    onGoogle = { onGoogleSignIn?.invoke() ?: onSignIn() },
                     onGuest = onGuest,
                 )
                 OnboardingStep.EMAIL -> EmailStep(
@@ -156,6 +158,8 @@ fun WelcomeOverlay(
                     onNext = { step = OnboardingStep.PASSWORD },
                     onBack = { step = OnboardingStep.WELCOME },
                     onGuest = onGuest,
+                    onSignIn = onSignIn,
+                    accountVm = accountVm,
                 )
                 OnboardingStep.PASSWORD -> PasswordStep(
                     password = password,
@@ -169,6 +173,7 @@ fun WelcomeOverlay(
                     onUsernameChange = { username = it },
                     onNext = { step = OnboardingStep.AGE },
                     onBack = { step = OnboardingStep.PASSWORD },
+                    accountVm = accountVm,
                 )
                 OnboardingStep.AGE -> AgeStep(
                     age = age,
@@ -383,8 +388,32 @@ private fun EmailStep(
     onNext: () -> Unit,
     onBack: () -> Unit,
     onGuest: () -> Unit,
+    onSignIn: () -> Unit,
+    accountVm: AccountViewModel? = null,
 ) {
+    var isChecking by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     val isValid = email.contains('@') && email.contains('.')
+
+    fun submit() {
+        if (!isValid || isChecking) return
+        if (accountVm == null) {
+            onNext()
+            return
+        }
+        scope.launch {
+            isChecking = true
+            emailError = null
+            val registered = runCatching { accountVm.checkEmailRegistered(email) }.getOrDefault(false)
+            isChecking = false
+            if (registered) {
+                emailError = "Этот email уже зарегистрирован"
+            } else {
+                onNext()
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -414,28 +443,56 @@ private fun EmailStep(
 
         OutlinedTextField(
             value = email,
-            onValueChange = onEmailChange,
+            onValueChange = {
+                emailError = null
+                onEmailChange(it)
+            },
             placeholder = { Text("name@example.com", color = Color(0xFF71717A)) },
             singleLine = true,
+            isError = emailError != null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = DarkCardBg,
                 unfocusedContainerColor = DarkCardBg,
-                focusedBorderColor = DeezerPurple,
-                unfocusedBorderColor = DarkCardBorder,
+                focusedBorderColor = if (emailError != null) VotifyColors.Error else DeezerPurple,
+                unfocusedBorderColor = if (emailError != null) VotifyColors.Error else DarkCardBorder,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
             ),
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (emailError != null) {
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Close, contentDescription = null, tint = VotifyColors.Error, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = emailError ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VotifyColors.Error,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Войти в этот аккаунт",
+                style = MaterialTheme.typography.bodySmall,
+                color = DeezerPurple,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onSignIn)
+                    .padding(vertical = 4.dp),
+            )
+        }
+
         Spacer(Modifier.weight(1f))
 
         PrimaryButton(
-            text = "Продолжить",
-            enabled = isValid,
-            onClick = onNext,
+            text = if (isChecking) "Проверка..." else "Продолжить",
+            enabled = isValid && !isChecking,
+            onClick = ::submit,
         )
 
         Spacer(Modifier.height(20.dp))
@@ -596,7 +653,31 @@ private fun UsernameStep(
     onUsernameChange: (String) -> Unit,
     onNext: () -> Unit,
     onBack: () -> Unit,
+    accountVm: AccountViewModel? = null,
 ) {
+    var isChecking by remember { mutableStateOf(false) }
+    var isTaken by remember { mutableStateOf<Boolean?>(null) }
+    val cleanUsername = username.trim().removePrefix("@")
+
+    LaunchedEffect(cleanUsername) {
+        if (cleanUsername.length < 3) {
+            isChecking = false
+            isTaken = null
+            return@LaunchedEffect
+        }
+        if (accountVm == null) {
+            isTaken = false
+            return@LaunchedEffect
+        }
+        isChecking = true
+        kotlinx.coroutines.delay(400) // debounce typing
+        val available = runCatching { accountVm.isUsernameAvailable(cleanUsername) }.getOrDefault(true)
+        isChecking = false
+        isTaken = !available
+    }
+
+    val isValid = cleanUsername.length >= 3 && !isChecking && (isTaken == false || accountVm == null)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -607,7 +688,7 @@ private fun UsernameStep(
         Spacer(Modifier.height(28.dp))
 
         Text(
-            text = "Как к вам обращаться?",
+            text = "Выберите никнейм",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -628,6 +709,7 @@ private fun UsernameStep(
             onValueChange = onUsernameChange,
             placeholder = { Text("Никнейм (например, exieeez)", color = Color(0xFF71717A)) },
             singleLine = true,
+            isError = isTaken == true,
             trailingIcon = {
                 if (username.isNotBlank()) {
                     IconButton(onClick = { onUsernameChange("") }) {
@@ -639,19 +721,51 @@ private fun UsernameStep(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = DarkCardBg,
                 unfocusedContainerColor = DarkCardBg,
-                focusedBorderColor = DeezerPurple,
-                unfocusedBorderColor = DarkCardBorder,
+                focusedBorderColor = if (isTaken == true) VotifyColors.Error else DeezerPurple,
+                unfocusedBorderColor = if (isTaken == true) VotifyColors.Error else DarkCardBorder,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
             ),
             modifier = Modifier.fillMaxWidth(),
         )
 
+        Spacer(Modifier.height(8.dp))
+        when {
+            cleanUsername.isNotBlank() && cleanUsername.length < 3 -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Close, contentDescription = null, tint = Color(0xFFA1A1AA), modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Минимум 3 символа", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA1A1AA))
+                }
+            }
+            isChecking -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = DeezerPurple, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Проверка занятости...", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA1A1AA))
+                }
+            }
+            isTaken == true -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Close, contentDescription = null, tint = VotifyColors.Error, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Юзернейм @$cleanUsername уже занят", style = MaterialTheme.typography.bodySmall, color = VotifyColors.Error)
+                }
+            }
+            isTaken == false && cleanUsername.length >= 3 -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Юзернейм свободен", style = MaterialTheme.typography.bodySmall, color = Color(0xFF22C55E))
+                }
+            }
+        }
+
         Spacer(Modifier.weight(1f))
 
         PrimaryButton(
             text = "Продолжить",
-            enabled = username.isNotBlank(),
+            enabled = isValid,
             onClick = onNext,
         )
 

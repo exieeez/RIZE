@@ -119,10 +119,8 @@ class FirebaseRest(private val config: FirebaseConfig) {
         withContext(Dispatchers.IO) {
             val handleLower = username.trim().lowercase().removePrefix("@")
             if (handleLower.isNotBlank()) {
-                val docUrl = "https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents/usernames/$handleLower?key=${config.apiKey}"
-                val checkReq = Request.Builder().url(docUrl).get().build()
-                val exists = http.newCall(checkReq).execute().use { resp -> resp.isSuccessful }
-                if (exists) {
+                val taken = !isUsernameAvailable(handleLower)
+                if (taken) {
                     throw FirebaseRestException("ALREADY_EXISTS", "Юзернейм @$handleLower уже занят")
                 }
             }
@@ -149,6 +147,40 @@ class FirebaseRest(private val config: FirebaseConfig) {
             }
             account
         }
+
+    /** Проверяет, зарегистрирован ли уже email в Firebase Auth. */
+    suspend fun checkEmailRegistered(email: String): Boolean = withContext(Dispatchers.IO) {
+        val trimmed = email.trim()
+        if (trimmed.isBlank() || !trimmed.contains('@')) return@withContext false
+        runCatching {
+            val url = "https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${config.apiKey}"
+            val body = postJson(
+                url,
+                buildJsonObject {
+                    put("identifier", trimmed)
+                    put("continueUri", "http://localhost")
+                },
+            )
+            val registered = body["registered"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() == true
+            val providers = body["allProviders"]?.jsonArray?.isNotEmpty() == true
+            registered || providers
+        }.getOrDefault(false)
+    }
+
+    /** Проверяет, свободен ли юзернейм в базе (коллекция usernames). */
+    suspend fun isUsernameAvailable(username: String): Boolean = withContext(Dispatchers.IO) {
+        val handleLower = username.trim().lowercase().removePrefix("@")
+        if (handleLower.length < 3) return@withContext false
+        runCatching {
+            val docUrl = "https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents/usernames/$handleLower?key=${config.apiKey}"
+            val checkReq = Request.Builder().url(docUrl).get().build()
+            http.newCall(checkReq).execute().use { resp ->
+                // Если статус успешный (200 OK) — документ существует, значит занят.
+                // Если 404 (или !resp.isSuccessful) — документ не найден, значит свободен.
+                !resp.isSuccessful
+            }
+        }.getOrDefault(true)
+    }
 
     /** Reserve handleLower in usernames collection. Fails with ALREADY_EXISTS if taken. */
     suspend fun reserveUsername(idToken: String, uid: String, handle: String): String = withContext(Dispatchers.IO) {
@@ -452,7 +484,7 @@ class FirebaseRest(private val config: FirebaseConfig) {
             json.parseToJsonElement(body).jsonObject["error"]!!.jsonObject["message"]!!.jsonPrimitive.content
         }.getOrNull() ?: "HTTP $code"
         return when {
-            msg.contains("EMAIL_EXISTS") -> "Аккаунт с таким email уже существует"
+            msg.contains("EMAIL_EXISTS") -> "Этот email уже зарегистрирован"
             msg.contains("INVALID_LOGIN_CREDENTIALS") || msg.contains("INVALID_PASSWORD") -> "Неверный email или пароль"
             msg.contains("EMAIL_NOT_FOUND") -> "Аккаунт не найден"
             msg.contains("WEAK_PASSWORD") -> "Пароль слишком короткий (минимум 6 символов)"

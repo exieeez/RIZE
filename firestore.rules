@@ -154,7 +154,7 @@ service cloud.firestore {
     }
 
     match /usernames/{handleLower} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }

@@ -139,6 +139,16 @@ class AccountViewModel(
         }
     }
 
+    suspend fun checkEmailRegistered(email: String): Boolean {
+        val client = firebase ?: FirebaseRest.effectiveConfig("")?.let { FirebaseRest(it) } ?: return false
+        return client.checkEmailRegistered(email)
+    }
+
+    suspend fun isUsernameAvailable(username: String): Boolean {
+        val client = firebase ?: FirebaseRest.effectiveConfig("")?.let { FirebaseRest(it) } ?: return true
+        return client.isUsernameAvailable(username)
+    }
+
     fun setMode(mode: AccountMode) {
         _state.update { it.copy(mode = mode, error = null, resetCode = null, resetSent = false) }
     }

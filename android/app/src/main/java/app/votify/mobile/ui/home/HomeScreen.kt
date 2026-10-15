@@ -136,51 +136,10 @@ fun HomeScreen(
             tracks = state.wave,
             isLoading = state.isLoading,
             error = state.error,
-            waveSource = state.waveSource,
-            seeds = state.seeds,
             isPlaying = playerState.isPlaying,
             onRefresh = viewModel::refresh,
             onPlayWave = { if (state.wave.isNotEmpty()) onPlay(state.wave, 0) },
-            onPlayTrack = { index -> if (index in state.wave.indices) onPlay(state.wave, index) },
-            onCustomizeWave = onOpenSettings,
         )
-
-        // Под «Моей волной» — одна строка текста текущей песни (как в Spotify под обложкой).
-        val lyricLine = homeLyricLine(viewModel, playerState)
-        if (!lyricLine.isNullOrBlank()) {
-            // Одна строка, которая влезает целиком: длинную строку печатаем мельче.
-            val lyricSize = when {
-                lyricLine.length > 64 -> 11.sp
-                lyricLine.length > 44 -> 12.sp
-                else -> 14.sp
-            }
-            Text(
-                lyricLine,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = lyricSize, lineHeight = lyricSize * 1.25f),
-                color = VotifyColors.TextSecondary,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
-            )
-        }
-
-        if (!state.isLoading && state.error == null) {
-            Text(
-                text = when (state.waveSource) {
-                    WaveSource.Personal -> stringResource(R.string.home_wave_personal, state.seeds.take(3).joinToString(", "))
-                    WaveSource.Generic -> stringResource(R.string.home_wave_generic)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = VotifyColors.TextMuted,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-            )
-        }
 
         Spacer(Modifier.height(14.dp))
 
@@ -344,30 +303,7 @@ fun HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
-
-        // Quick tiles: Favorites / Trending
-        Row(
-            Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            QuickTile(
-                title = stringResource(R.string.home_favorites),
-                subtitle = if (favoriteCount > 0) pluralTracks(favoriteCount) else stringResource(R.string.home_playlist),
-                icon = Icons.Filled.Favorite,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenFavorites,
-            )
-            QuickTile(
-                title = stringResource(R.string.home_trending),
-                subtitle = stringResource(R.string.trending_live),
-                icon = Icons.Filled.TrendingUp,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenTrending,
-            )
-        }
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -379,8 +315,10 @@ private fun HomeHeader(
     onOpenAccount: () -> Unit,
     onOpenSite: () -> Unit,
 ) {
-    val headerButtonBg = Color(0xFF1E2026)
-    val headerButtonBorder = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f))
+    val isGlass = LocalLiquidGlass.current
+    val spec = rememberGlassSpec()
+    val headerButtonBg = if (isGlass) Color.White.copy(alpha = spec.tintAlpha.coerceIn(0.10f, 0.22f)) else Color(0xFF1E2026)
+    val headerButtonBorder = BorderStroke(0.5.dp, Color.White.copy(alpha = if (isGlass) spec.borderAlpha.coerceIn(0.12f, 0.25f) else 0.12f))
 
     Row(
         Modifier
@@ -489,122 +427,64 @@ private fun HomeHeader(
     }
 }
 
-/** Строка текста песни для главной: синхронизированная — по позиции, иначе первая строка. */
-@Composable
-private fun homeLyricLine(
-    viewModel: HomeViewModel,
-    playerState: app.votify.mobile.player.PlayerUiState,
-): String? {
-    val track = playerState.current ?: return null
-    LaunchedEffect(track.id) { viewModel.loadLyrics(track) }
-    val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
-    val parsed = lyrics ?: return null
-    val index = parsed.activeIndex(playerState.positionMs)
-    return (parsed.lines.getOrNull(index)?.text ?: parsed.lines.firstOrNull()?.text)
-        ?.trim()
-        ?.takeIf { it.isNotBlank() }
-}
-
 /**
- * The hero of the home screen: «Моя волна» with 3D DNA particle animation
- * and a prominent Play button.
+ * The hero of the home screen: 3D Volumetric Spiral Galaxy
+ * with the Play/Pause button centered right in the middle of the galaxy.
  */
 @Composable
 private fun MyWaveHeroSection(
     tracks: List<Track>,
     isLoading: Boolean,
     error: String?,
-    waveSource: WaveSource,
-    seeds: List<String>,
     isPlaying: Boolean,
     onRefresh: () -> Unit,
     onPlayWave: () -> Unit,
-    onPlayTrack: (Int) -> Unit,
-    onCustomizeWave: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .height(340.dp)
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        // Wave Header: Title + Subtitle on Left, Play Button on Right
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.home_my_wave),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = when {
-                        waveSource == WaveSource.Personal && seeds.isNotEmpty() ->
-                            stringResource(R.string.home_wave_personal, seeds.take(2).joinToString(", "))
-                        else -> "Персональная подборка на основе вашего вкуса"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = VotifyColors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        when {
+            isLoading -> CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
+            error != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.search_error), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(error, color = VotifyColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(12.dp))
+                PillChip(text = stringResource(R.string.search_retry), selected = true, onClick = onRefresh)
             }
+            tracks.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.home_wave_empty), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
+            }
+            else -> {
+                // Large 3D Volumetric Spiral Galaxy
+                SpiralParticleWave(
+                    size = 330.dp,
+                    accentColor = VotifyColors.Primary,
+                    isPlaying = isPlaying,
+                    onClick = onPlayWave,
+                )
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Wave Play/Pause Button:
-                // When playing -> Pause (||), when paused/idle -> Play (▶)
+                // Prominent Play/Pause button centered directly in the core of the galaxy
                 Surface(
                     onClick = onPlayWave,
                     shape = CircleShape,
                     color = VotifyColors.Primary,
                     contentColor = VotifyColors.PitchBlack,
-                    modifier = Modifier.size(50.dp),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.size(56.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.home_play_wave),
                             tint = VotifyColors.PitchBlack,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(36.dp),
                         )
                     }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        // Center Area: 3D DNA SpiralParticleWave or Loading / Error
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(280.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            when {
-                isLoading -> CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
-                error != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.search_error), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
-                    Text(error, color = VotifyColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(12.dp))
-                    PillChip(text = stringResource(R.string.search_retry), selected = true, onClick = onRefresh)
-                }
-                tracks.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.home_wave_empty), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
-                }
-                else -> {
-                    // 3D DNA Spiral Particle Wave
-                    SpiralParticleWave(
-                        size = 280.dp,
-                        accentColor = VotifyColors.Primary,
-                        isPlaying = isPlaying,
-                        onClick = onPlayWave,
-                    )
                 }
             }
         }

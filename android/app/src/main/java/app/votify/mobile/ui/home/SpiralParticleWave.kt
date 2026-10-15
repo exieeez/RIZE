@@ -59,30 +59,30 @@ private class GalaxyParticle(
 @Composable
 fun SpiralParticleWave(
     modifier: Modifier = Modifier,
-    size: Dp = 280.dp,
+    size: Dp = 330.dp,
     accentColor: Color = VotifyColors.Primary,
     isPlaying: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
-    val totalParticles = 1500
+    val totalParticles = 2200
     val particles = remember {
         val list = ArrayList<GalaxyParticle>(totalParticles)
         val random = Random(1337)
 
-        val maxRadius = 120f
-        val coreRadius = 26f
+        val maxRadius = 145f
+        val coreRadius = 36f
         val numArms = 2
 
-        // 1. Dense Galactic Bulge / Core (380 particles)
-        val coreCount = 380
+        // 1. Dense Galactic Bulge / Core (520 particles)
+        val coreCount = 520
         for (i in 0 until coreCount) {
             val r = sqrt(random.nextFloat()) * coreRadius
             val angle = random.nextFloat() * 2f * PI.toFloat()
-            val z = (random.nextFloat() - 0.5f) * 16f * (1f - r / coreRadius)
+            val z = (random.nextFloat() - 0.5f) * 32f * (1f - r / coreRadius)
 
             val u = random.nextFloat() * 2f * PI.toFloat()
             val v = (random.nextFloat() - 0.5f) * PI.toFloat()
-            val dist = 110f + random.nextFloat() * 130f
+            val dist = 120f + random.nextFloat() * 150f
 
             list.add(
                 GalaxyParticle(
@@ -90,7 +90,7 @@ fun SpiralParticleWave(
                     baseAngle = angle,
                     zOffset = z,
                     speedFactor = 1.25f - (r / coreRadius) * 0.25f,
-                    size = 1.2f + random.nextFloat() * 1.8f,
+                    size = 1.2f + random.nextFloat() * 2.0f,
                     scatterDirX = cos(v) * cos(u) * dist,
                     scatterDirY = sin(v) * dist,
                     scatterDirZ = cos(v) * sin(u) * dist,
@@ -101,8 +101,8 @@ fun SpiralParticleWave(
             )
         }
 
-        // 2. Logarithmic Spiral Arms (920 particles)
-        val armCount = 920
+        // 2. Logarithmic Spiral Arms (1380 particles)
+        val armCount = 1380
         for (i in 0 until armCount) {
             val armIndex = i % numArms
             val armBaseAngle = armIndex * (2f * PI.toFloat() / numArms)
@@ -117,16 +117,16 @@ fun SpiralParticleWave(
             // Arm spread / dispersion (Gaussian-like spread perpendicular to arm)
             val r1 = random.nextFloat() - 0.5f
             val r2 = random.nextFloat() - 0.5f
-            val dispersion = (r1 + r2) * 0.38f * (1f + (r / maxRadius) * 0.5f)
+            val dispersion = (r1 + r2) * 0.40f * (1f + (r / maxRadius) * 0.5f)
             val finalAngle = spiralTheta + dispersion
 
-            // Disk thickness tapering towards edges
-            val diskThickness = (1f - (r / maxRadius) * 0.5f) * 12f
+            // Disk thickness tapering towards edges for true 3D volume
+            val diskThickness = (1f - (r / maxRadius) * 0.35f) * 28f
             val z = (random.nextFloat() - 0.5f) * diskThickness
 
             val u = random.nextFloat() * 2f * PI.toFloat()
             val v = (random.nextFloat() - 0.5f) * PI.toFloat()
-            val dist = 120f + random.nextFloat() * 150f
+            val dist = 130f + random.nextFloat() * 170f
 
             val variantRoll = random.nextFloat()
             val variant = when {
@@ -142,7 +142,7 @@ fun SpiralParticleWave(
                     zOffset = z,
                     // Flat rotation curve: v ~ constant -> omega = v / r
                     speedFactor = 0.90f + (1f - r / maxRadius) * 0.45f,
-                    size = 1.0f + random.nextFloat() * 1.9f,
+                    size = 1.0f + random.nextFloat() * 2.2f,
                     scatterDirX = cos(v) * cos(u) * dist,
                     scatterDirY = sin(v) * dist,
                     scatterDirZ = cos(v) * sin(u) * dist,
@@ -153,16 +153,16 @@ fun SpiralParticleWave(
             )
         }
 
-        // 3. Ambient Stellar Halo (200 particles scattered randomly across the circular disk)
-        val haloCount = 200
+        // 3. Ambient Stellar Halo (300 particles scattered randomly across the circular disk)
+        val haloCount = 300
         for (i in 0 until haloCount) {
             val r = sqrt(random.nextFloat()) * maxRadius
             val angle = random.nextFloat() * 2f * PI.toFloat()
-            val z = (random.nextFloat() - 0.5f) * 14f
+            val z = (random.nextFloat() - 0.5f) * 26f
 
             val u = random.nextFloat() * 2f * PI.toFloat()
             val v = (random.nextFloat() - 0.5f) * PI.toFloat()
-            val dist = 100f + random.nextFloat() * 130f
+            val dist = 110f + random.nextFloat() * 150f
 
             list.add(
                 GalaxyParticle(
@@ -170,7 +170,7 @@ fun SpiralParticleWave(
                     baseAngle = angle,
                     zOffset = z,
                     speedFactor = 0.85f,
-                    size = 0.9f + random.nextFloat() * 1.3f,
+                    size = 0.9f + random.nextFloat() * 1.5f,
                     scatterDirX = cos(v) * cos(u) * dist,
                     scatterDirY = sin(v) * dist,
                     scatterDirZ = cos(v) * sin(u) * dist,
@@ -242,12 +242,12 @@ fun SpiralParticleWave(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(this.size.width / 2f, this.size.height / 2f)
-            val baseScale = (this.size.minDimension / 270f) * pulseScale
+            val baseScale = (this.size.minDimension / 310f) * pulseScale
             val scatter = scatterAnim.value
             val globalRad = Math.toRadians(globalRotation.toDouble()).toFloat()
 
-            // Subtle 3D tilt of the galaxy plane (e.g. 28 degrees) for depth while keeping it round & circular
-            val tiltAngle = Math.toRadians(24.0).toFloat()
+            // 3D tilt of the galaxy plane (30 degrees) for deep volumetric perspective
+            val tiltAngle = Math.toRadians(30.0).toFloat()
             val cosTilt = cos(tiltAngle)
             val sinTilt = sin(tiltAngle)
 
@@ -255,15 +255,15 @@ fun SpiralParticleWave(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.35f * (1f - scatter * 0.4f)),
-                        accentColor.copy(alpha = 0.28f * (1f - scatter * 0.4f)),
+                        Color.White.copy(alpha = 0.38f * (1f - scatter * 0.4f)),
+                        accentColor.copy(alpha = 0.32f * (1f - scatter * 0.4f)),
                         accentColor.copy(alpha = 0.08f),
                         Color.Transparent,
                     ),
                     center = center,
-                    radius = 80f * baseScale,
+                    radius = 95f * baseScale,
                 ),
-                radius = 80f * baseScale,
+                radius = 95f * baseScale,
                 center = center,
             )
 
@@ -271,17 +271,17 @@ fun SpiralParticleWave(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        accentColor.copy(alpha = 0.12f * (1f - scatter * 0.3f)),
+                        accentColor.copy(alpha = 0.15f * (1f - scatter * 0.3f)),
                         Color.Transparent,
                     ),
                     center = center,
-                    radius = 135f * baseScale,
+                    radius = 155f * baseScale,
                 ),
-                radius = 135f * baseScale,
+                radius = 155f * baseScale,
                 center = center,
             )
 
-            val cameraDistance = 420f
+            val cameraDistance = 440f
 
             for (p in particles) {
                 // Differential rotation: each star orbits smoothly

@@ -32,8 +32,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -166,9 +168,35 @@ fun AccountScreen(
                     }
 
                     AccountMode.Register -> {
+                        var isCheckingUsername by remember { mutableStateOf(false) }
+                        var isUsernameTaken by remember { mutableStateOf<Boolean?>(null) }
+                        val cleanUsername = username.trim().removePrefix("@")
+                        LaunchedEffect(cleanUsername) {
+                            if (cleanUsername.length < 3) {
+                                isCheckingUsername = false
+                                isUsernameTaken = null
+                                return@LaunchedEffect
+                            }
+                            isCheckingUsername = true
+                            kotlinx.coroutines.delay(400)
+                            val avail = runCatching { viewModel.isUsernameAvailable(cleanUsername) }.getOrDefault(true)
+                            isCheckingUsername = false
+                            isUsernameTaken = !avail
+                        }
+
                         VotifyTextField(email, { email = it }, stringResource(R.string.account_email))
                         Spacer(Modifier.height(12.dp))
                         VotifyTextField(username, { username = it }, stringResource(R.string.account_username))
+                        if (isCheckingUsername) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Проверка юзернейма...", style = MaterialTheme.typography.bodySmall, color = VotifyColors.TextMuted)
+                        } else if (isUsernameTaken == true) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Юзернейм @$cleanUsername уже занят", style = MaterialTheme.typography.bodySmall, color = VotifyColors.Error)
+                        } else if (isUsernameTaken == false && cleanUsername.length >= 3) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Юзернейм свободен", style = MaterialTheme.typography.bodySmall, color = Color(0xFF22C55E))
+                        }
                         Spacer(Modifier.height(12.dp))
                         VotifyTextField(password, { password = it }, stringResource(R.string.account_password), masked = true)
                         Spacer(Modifier.height(10.dp))
@@ -181,7 +209,7 @@ fun AccountScreen(
                         PrimaryButton(
                             text = stringResource(R.string.account_register_btn),
                             loading = state.loading,
-                            enabled = email.isNotBlank() && username.isNotBlank() && allPass,
+                            enabled = email.isNotBlank() && cleanUsername.length >= 3 && isUsernameTaken != true && !isCheckingUsername && allPass,
                         ) { viewModel.register(email, username, password) }
                     }
 
