@@ -77,7 +77,7 @@ object DeezerApi {
                 }
                 val request = Request.Builder()
                     .url(urlBuilder.build())
-                    .header("User-Agent", "Votify/1.1.6 (Android)")
+                    .header("User-Agent", "Votify/1.1.7 (Android)")
                     .get()
                     .build()
 

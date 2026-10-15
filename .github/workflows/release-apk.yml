@@ -78,7 +78,7 @@ jobs:
           } > README.md
           RUN_NUM=${{ github.run_number }}
           V_CODE=$((1000 + RUN_NUM))
-          V_NAME="1.1.6"
+          V_NAME="1.1.7"
           cat <<EOF > version.json
           {
             "versionCode": $V_CODE,
@@ -127,6 +127,6 @@ jobs:
             || true
           gh release create "$TAG" "Votify-debug.apk" "version.json" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Votify Android — свежая debug-сборка (1.1.6)" \
+            --title "Votify Android — свежая debug-сборка (1.1.7)" \
             --notes-file notes.md \
             --prerelease
