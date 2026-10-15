@@ -89,6 +89,11 @@ class MainActivity : ComponentActivity() {
         VotifyApp.instance.player.connect()
     }
 
+    override fun onResume() {
+        super.onResume()
+        VotifyApp.instance.updateManager.checkForUpdate()
+    }
+
     override fun onStop() {
         // Playback keeps running in PlaybackService; we only drop the UI-side controller.
         VotifyApp.instance.player.disconnect()

@@ -53,8 +53,8 @@ class AppUpdateManager(
     private val scope: CoroutineScope,
 ) {
     private val http = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(7, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
@@ -63,7 +63,7 @@ class AppUpdateManager(
     val state: StateFlow<UpdateState> = _state.asStateFlow()
 
     private val prefs = context.getSharedPreferences("votify_app_updates", Context.MODE_PRIVATE)
-    private var dismissed = false
+    private var dismissedSha: String? = null
 
     init {
         // Clear any old obsolete cached APK from legacy cache directory
@@ -74,10 +74,7 @@ class AppUpdateManager(
 
     fun checkForUpdate(force: Boolean = false, onResult: ((Boolean) -> Unit)? = null) {
         if (force) {
-            dismissed = false
-        } else if (dismissed) {
-            onResult?.invoke(false)
-            return
+            dismissedSha = null
         }
         if (_state.value is UpdateState.Downloading || _state.value is UpdateState.Ready) {
             onResult?.invoke(true)
@@ -108,7 +105,7 @@ class AppUpdateManager(
             // or if codes match and remote commit sha is newer.
             val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode))
 
-            if (!force && dismissed) {
+            if (!force && dismissedSha == info.sha) {
                 _state.value = UpdateState.Idle
                 withContext(Dispatchers.Main) { onResult?.invoke(false) }
                 return@launch
@@ -158,9 +155,9 @@ class AppUpdateManager(
 
     private fun fetchUpdateInfo(): UpdateInfo? {
         val urls = listOf(
+            "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
+            "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
             "https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=${System.currentTimeMillis()}",
-            "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json",
-            "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json",
             "https://raw.githack.com/exieeez/Votify/apk/version.json"
         )
         for (url in urls) {
@@ -200,11 +197,12 @@ class AppUpdateManager(
             } else false
 
             val downloadUrls = listOfNotNull(
+                "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/Votify-debug.apk",
+                info.releaseUrl.ifBlank { null },
+                "https://github.com/exieeez/Votify/releases/download/android-debug/Votify-debug.apk",
+                info.cdnUrl.ifBlank { null },
                 info.downloadUrl.ifBlank { null },
                 "https://raw.githubusercontent.com/exieeez/Votify/apk/Votify-debug.apk?t=${System.currentTimeMillis()}",
-                info.releaseUrl.ifBlank { null },
-                "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/Votify-debug.apk",
-                info.cdnUrl.ifBlank { null },
                 info.mirrorUrl.ifBlank { null }
             )
 
@@ -355,7 +353,7 @@ class AppUpdateManager(
     fun installAndRestart(apkFile: File) = installUpdate(apkFile)
 
     fun dismiss() {
-        dismissed = true
+        dismissedSha = (_state.value as? UpdateState.Available)?.info?.sha ?: "dismissed"
         _state.value = UpdateState.Idle
     }
 

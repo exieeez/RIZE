@@ -258,6 +258,14 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
     val lyricsVisible by playerVm.lyricsVisible.collectAsStateWithLifecycle()
     val lyrics by playerVm.lyrics.collectAsStateWithLifecycle()
 
+    // Periodically poll for updates so the banner pops up automatically without restarting
+    LaunchedEffect(Unit) {
+        while (true) {
+            app.updateManager.checkForUpdate()
+            kotlinx.coroutines.delay(25_000)
+        }
+    }
+
     // Snackbar messages from library actions (resolved to localized text here).
     LaunchedEffect(libraryVm) {
         libraryVm.messages.collect { m ->
