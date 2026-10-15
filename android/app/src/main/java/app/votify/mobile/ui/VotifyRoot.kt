@@ -246,6 +246,8 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
     val profileVm: ProfileViewModel = viewModel(factory = factory)
     val friendsVm: FriendsViewModel = viewModel(factory = factory)
 
+    val globalAccount by accountVm.account.collectAsStateWithLifecycle()
+    val downloadedIds by libraryVm.downloadedIds.collectAsStateWithLifecycle()
     val favoriteIds by libraryVm.favoriteIds.collectAsStateWithLifecycle()
     val currentId = playerState.current?.id
     val currentIsFavorite = currentId != null && favoriteIds.contains(currentId)
@@ -542,6 +544,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 onPlay = play,
                                 onMore = openMenu,
                                 onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                                onOpenArtist = { name -> navController.navigate("artist/${android.net.Uri.encode(name)}") { launchSingleTop = true } },
                             )
                         }
                         composable(Tab.Library.route) {
@@ -600,6 +603,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 onBack = { navController.popBackStack() },
                                 onPlay = play,
                                 onMore = openMenu,
+                                onOpenArtist = { newName -> navController.navigate("artist/${android.net.Uri.encode(newName)}") { launchSingleTop = true } },
                             )
                         }
                         composable(Routes.SETTINGS) {
@@ -871,6 +875,9 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 isFavorite = currentIsFavorite,
                 lyricsVisible = lyricsVisible,
                 lyrics = lyrics,
+                userName = globalAccount?.username ?: "exieeez",
+                userAvatar = profileVm.state.value.profile?.avatar,
+                isDownloaded = playerState.current?.let { it.id in downloadedIds } == true,
                 onCollapse = { playerExpanded = false },
                 onPlayPause = player::togglePlayPause,
                 onNext = { player.next() },
@@ -882,6 +889,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 onToggleFavorite = { playerState.current?.let(libraryVm::toggleFavorite) },
                 onToggleLyrics = playerVm::toggleLyrics,
                 onAddToPlaylist = { playerState.current?.let(libraryVm::openPlaylistPicker) },
+                onDownload = { playerState.current?.let(libraryVm::downloadTrack) },
                 onOpenQueue = libraryVm::openQueue,
                 onOpenArtist = openArtist,
                 onShare = { playerState.current?.let(shareTrack) },
@@ -986,6 +994,14 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 navController.navigate(Routes.ACCOUNT) { launchSingleTop = true }
             },
             onGuest = { settingsVm.updatePrefs { it.copy(welcomeDone = true) } },
+            onRegister = { email, uname, pass ->
+                accountVm.register(email, uname, pass)
+                settingsVm.updatePrefs { it.copy(welcomeDone = true) }
+            },
+            onImport = {
+                settingsVm.updatePrefs { it.copy(welcomeDone = true) }
+                navController.navigate(Routes.IMPORT) { launchSingleTop = true }
+            },
         )
     }
 }

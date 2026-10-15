@@ -1,5 +1,7 @@
 package app.votify.mobile.ui.account
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -166,11 +171,17 @@ fun AccountScreen(
                         VotifyTextField(username, { username = it }, stringResource(R.string.account_username))
                         Spacer(Modifier.height(12.dp))
                         VotifyTextField(password, { password = it }, stringResource(R.string.account_password), masked = true)
+                        Spacer(Modifier.height(10.dp))
+                        val hasLen = password.length >= 8
+                        val hasLet = password.any { it.isLetter() }
+                        val hasDig = password.any { it.isDigit() || !it.isLetterOrDigit() }
+                        val allPass = hasLen && hasLet && hasDig
+                        AccountPasswordRulesCard(hasLen, hasLet, hasDig)
                         Spacer(Modifier.height(16.dp))
                         PrimaryButton(
                             text = stringResource(R.string.account_register_btn),
                             loading = state.loading,
-                            enabled = email.isNotBlank() && password.isNotBlank(),
+                            enabled = email.isNotBlank() && username.isNotBlank() && allPass,
                         ) { viewModel.register(email, username, password) }
                     }
 
@@ -491,5 +502,40 @@ private fun PrimaryButton(text: String, loading: Boolean, enabled: Boolean, onCl
                 Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+@Composable
+private fun AccountPasswordRulesCard(hasLen: Boolean, hasLet: Boolean, hasDig: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF18181E),
+        border = BorderStroke(0.5.dp, Color(0xFF2A2A34)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AccountRuleRow("Не менее 8 символов", hasLen)
+            AccountRuleRow("Минимум 1 буква", hasLet)
+            AccountRuleRow("Минимум 1 цифра или символ", hasDig)
+        }
+    }
+}
+
+@Composable
+private fun AccountRuleRow(text: String, passed: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(if (passed) Color(0xFF22C55E) else Color(0xFF27272A)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (passed) {
+                Icon(Icons.Filled.Check, null, tint = Color.Black, modifier = Modifier.size(11.dp))
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = if (passed) Color.White else Color(0xFF71717A))
     }
 }

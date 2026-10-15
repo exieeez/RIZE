@@ -125,33 +125,19 @@ fun HomeScreen(
             onOpenSite = onOpenSite,
         )
 
-        // --- "Моя волна": big white Play with an orbit of artwork bubbles ---
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(300.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            when {
-                state.isLoading -> CircularProgressIndicator(color = VotifyColors.TextMuted, strokeWidth = 2.dp)
-                state.error != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.search_error), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
-                    Text(state.error ?: "", color = VotifyColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(12.dp))
-                    PillChip(text = stringResource(R.string.search_retry), selected = true, onClick = viewModel::refresh)
-                }
-                state.wave.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.home_wave_empty), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
-                }
-                else -> WaveOrbit(
-                    tracks = state.wave,
-                    isPlaying = playerState.isPlaying,
-                    onPlayWave = { onPlay(state.wave, 0) },
-                    onPlayTrack = { index -> onPlay(state.wave, index) },
-                )
-            }
-        }
+        // --- "Моя волна" with 3D SpiralParticleWave ---
+        MyWaveHeroSection(
+            tracks = state.wave,
+            isLoading = state.isLoading,
+            error = state.error,
+            waveSource = state.waveSource,
+            seeds = state.seeds,
+            isPlaying = playerState.isPlaying,
+            onRefresh = viewModel::refresh,
+            onPlayWave = { if (state.wave.isNotEmpty()) onPlay(state.wave, 0) },
+            onPlayTrack = { index -> if (index in state.wave.indices) onPlay(state.wave, index) },
+            onCustomizeWave = onOpenSettings,
+        )
 
         // Под «Моей волной» — одна строка текста текущей песни (как в Spotify под обложкой).
         val lyricLine = homeLyricLine(viewModel, playerState)
@@ -479,70 +465,184 @@ private fun homeLyricLine(
 }
 
 /**
- * The hero of the home screen: a rounded grey Play triangle in the centre with up to 8 artwork
- * squircle bubbles scattered on an orbit around it.
+ * The hero of the home screen: «Моя волна» with 3D spiral particle ribbon animation,
+ * wave settings, and a prominent Play button.
  */
 @Composable
-private fun WaveOrbit(
+private fun MyWaveHeroSection(
     tracks: List<Track>,
-    isPlaying: Boolean = false,
+    isLoading: Boolean,
+    error: String?,
+    waveSource: WaveSource,
+    seeds: List<String>,
+    isPlaying: Boolean,
+    onRefresh: () -> Unit,
     onPlayWave: () -> Unit,
     onPlayTrack: (Int) -> Unit,
+    onCustomizeWave: () -> Unit,
 ) {
-    val bubbles = tracks.take(8)
-    val drift by rememberInfiniteTransition(label = "orbit").animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(70_000, easing = LinearEasing), RepeatMode.Restart),
-        label = "drift",
-    )
+    val isGlass = LocalLiquidGlass.current
+    val spec = rememberGlassSpec()
 
-    Box(Modifier.size(310.dp), contentAlignment = Alignment.Center) {
-        bubbles.forEachIndexed { i, track ->
-            val radius: Dp = 120.dp
-            val size: Dp = if (i % 2 == 0) 56.dp else 48.dp
-            val angle = Math.toRadians((i * (360.0 / bubbles.size)) - 90 + drift)
-            val dx = (radius.value * cos(angle)).toFloat().dp
-            val dy = (radius.value * sin(angle)).toFloat().dp
-            val isGlass = LocalLiquidGlass.current
-            val shape = RoundedCornerShape(16.dp)
-            Box(
-                Modifier
-                    .offset(x = dx, y = dy)
-                    .size(size)
-                    .clip(shape)
-                    .border(
-                        1.dp,
-                        if (isGlass) Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.35f), Color.White.copy(alpha = 0.08f))
-                        ) else SolidColor(VotifyColors.BorderSubtle),
-                        shape,
-                    )
-                    .clickable { onPlayTrack(i) },
-            ) {
-                Artwork(track.cover, size = size, shape = shape, contentDescription = track.title)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+    ) {
+        // Wave Header: Title + Subtitle on Left, Action Buttons on Right
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_my_wave),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = when {
+                        waveSource == WaveSource.Personal && seeds.isNotEmpty() ->
+                            stringResource(R.string.home_wave_personal, seeds.take(2).joinToString(", "))
+                        else -> "Персональная подборка на основе вашего вкуса"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VotifyColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Wave Settings / Preferences Button
+                Surface(
+                    onClick = onCustomizeWave,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    modifier = Modifier.size(42.dp).votifyGlass(
+                        shape = CircleShape,
+                        baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
+                        spec = spec,
+                    ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.Favorite,
+                            contentDescription = stringResource(R.string.settings_title),
+                            tint = VotifyColors.Primary,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                }
+
+                Spacer(Modifier.width(10.dp))
+
+                // Prominent Circular Play/Pause Button
+                Surface(
+                    onClick = onPlayWave,
+                    shape = CircleShape,
+                    color = VotifyColors.Primary,
+                    contentColor = VotifyColors.PitchBlack,
+                    modifier = Modifier.size(50.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.home_play_wave),
+                            tint = VotifyColors.PitchBlack,
+                            modifier = Modifier.size(32.dp),
+                        )
+                    }
+                }
             }
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(
-                onClick = onPlayWave,
-                modifier = Modifier.size(64.dp),
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.home_play_wave),
-                    tint = Color(0xFFAAAAAA),
-                    modifier = Modifier.size(54.dp),
-                )
+        Spacer(Modifier.height(14.dp))
+
+        // Center Area: SpiralParticleWave or Loading / Error
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                isLoading -> CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
+                error != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stringResource(R.string.search_error), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    Text(error, color = VotifyColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(12.dp))
+                    PillChip(text = stringResource(R.string.search_retry), selected = true, onClick = onRefresh)
+                }
+                tracks.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stringResource(R.string.home_wave_empty), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
+                }
+                else -> {
+                    // 3D Spiral Particle Wave
+                    SpiralParticleWave(
+                        size = 280.dp,
+                        accentColor = VotifyColors.Primary,
+                        isPlaying = isPlaying,
+                        onClick = onPlayWave,
+                    )
+                }
             }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                stringResource(R.string.home_my_wave),
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
-                color = Color.White,
-                fontWeight = FontWeight.Medium,
-            )
+        }
+
+        // Preview track pills under the wave
+        if (tracks.isNotEmpty() && !isLoading && error == null) {
+            Spacer(Modifier.height(8.dp))
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                itemsIndexed(tracks.take(6)) { index, track ->
+                    Surface(
+                        onClick = { onPlayTrack(index) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(0.5.dp, VotifyColors.BorderSubtle),
+                        modifier = Modifier.votifyGlass(
+                            shape = RoundedCornerShape(12.dp),
+                            baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainerLow,
+                            spec = spec,
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Artwork(
+                                url = track.cover,
+                                size = 28.dp,
+                                shape = RoundedCornerShape(6.dp),
+                                contentDescription = track.title,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = track.title,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = VotifyColors.TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = track.artist,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VotifyColors.TextMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -1,13 +1,17 @@
 package app.votify.mobile.ui.search
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,20 +20,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,24 +47,32 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.votify.mobile.R
+import app.votify.mobile.data.DeezerAlbum
+import app.votify.mobile.data.DeezerArtist
 import app.votify.mobile.data.Track
+import app.votify.mobile.ui.components.Artwork
 import app.votify.mobile.ui.components.PillChip
 import app.votify.mobile.ui.components.SectionHeader
 import app.votify.mobile.ui.components.TrackRow
-import app.votify.mobile.ui.components.pluralTracks
-import app.votify.mobile.ui.components.VotifyCard
 import app.votify.mobile.ui.theme.VotifyColors
+import java.text.NumberFormat
+import java.util.Locale
 
 @Composable
 fun SearchScreen(
@@ -64,6 +82,7 @@ fun SearchScreen(
     onPlay: (List<Track>, Int) -> Unit,
     onMore: (Track) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenArtist: (String) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
@@ -72,10 +91,30 @@ fun SearchScreen(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 8.dp,
-            bottom = contentPadding.calculateBottomPadding() + 16.dp,
+            bottom = contentPadding.calculateBottomPadding() + 24.dp,
         ),
     ) {
+        // --- 1. Search Header ---
         item {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Text(
+                    text = "Поиск",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Найди что-нибудь новое",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VotifyColors.TextSecondary,
+                )
+            }
+        }
+
+        // --- 2. Search Input Bar ---
+        item {
+            Spacer(Modifier.height(8.dp))
             SearchBar(
                 query = state.query,
                 onQueryChange = viewModel::onQueryChange,
@@ -85,101 +124,215 @@ fun SearchScreen(
             )
         }
 
-        if (state.recent.isNotEmpty() && state.results.isEmpty() && !state.isLoading) {
-            item {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+        // --- 3. Filter Chips ---
+        item {
+            Spacer(Modifier.height(10.dp))
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(SearchFilter.values()) { f ->
+                    PillChip(
+                        text = f.label,
+                        selected = state.filter == f,
+                        onClick = { viewModel.setFilter(f) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // --- 4. Main Content (Idle vs Results vs Loading) ---
+        if (state.query.isBlank()) {
+            // === IDLE STATE (Rich Discoverable Search) ===
+
+            // Search History
+            if (state.recent.isNotEmpty() || state.historyItems.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
                         Text(
-                            stringResource(R.string.recent_searches),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = VotifyColors.TextSecondary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f),
+                            text = "История поиска",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                         )
                         TextButton(onClick = viewModel::clearRecent) {
-                            Text(stringResource(R.string.search_clear), color = VotifyColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(state.recent) { q ->
-                            PillChip(
-                                text = q,
-                                selected = false,
-                                onClick = { viewModel.pickRecent(q) },
-                                leading = { Icon(Icons.Default.History, null, modifier = Modifier.size(14.dp)) },
+                            Text(
+                                text = "Очистить",
+                                color = VotifyColors.TextMuted,
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
-                }
-            }
-        }
 
-        when {
-            state.isLoading -> item {
-                Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
-                }
-            }
-
-            state.error != null || state.offline -> item {
-                when {
-                    state.offline && state.serverMode -> StatusBlock(
-                        title = stringResource(R.string.search_offline_title),
-                        subtitle = stringResource(R.string.search_offline_sub),
-                        action = stringResource(R.string.search_open_settings),
-                        onAction = onOpenSettings,
-                        secondaryAction = stringResource(R.string.search_retry),
-                        onSecondaryAction = viewModel::retry,
-                    )
-                    state.offline -> StatusBlock(
-                        title = stringResource(R.string.search_no_internet_title),
-                        subtitle = stringResource(R.string.search_no_internet_sub),
-                        action = stringResource(R.string.search_retry),
-                        onAction = viewModel::retry,
-                    )
-                    else -> StatusBlock(
-                        title = stringResource(R.string.search_error),
-                        subtitle = state.error,
-                        action = stringResource(R.string.search_retry),
-                        onAction = viewModel::retry,
-                    )
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        if (state.historyItems.isNotEmpty()) {
+                            items(state.historyItems) { h ->
+                                HistoryCard(
+                                    item = h,
+                                    onClick = {
+                                        if (h.track != null) {
+                                            viewModel.addTrackToHistory(h.track)
+                                            onPlay(listOf(h.track), 0)
+                                        } else {
+                                            viewModel.pickRecent(h.query)
+                                        }
+                                    },
+                                )
+                            }
+                        } else {
+                            items(state.recent) { q ->
+                                PillChip(
+                                    text = q,
+                                    selected = false,
+                                    onClick = { viewModel.pickRecent(q) },
+                                    leading = { Icon(Icons.Default.History, null, modifier = Modifier.size(14.dp)) },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
                 }
             }
 
-            state.searched && state.results.isEmpty() -> item {
-                StatusBlock(
-                    title = stringResource(R.string.search_empty),
-                    subtitle = "«${state.query}» — " + stringResource(R.string.search_empty_hint),
+            // Popular Queries (Deezer Trending Charts)
+            item {
+                SectionHeader(
+                    title = "Популярные запросы",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                 )
             }
 
-            !state.searched -> {
-                // Чистый экран: никаких лишних блоков, сверху выводятся только недавние запросы
-            }
-
-            else -> {
+            if (state.isLoadingPopular) {
                 item {
-                    Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        SectionHeader(
-                            title = stringResource(R.string.search_results),
-                            action = pluralTracks(state.results.size),
-                        )
+                    Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
                     }
                 }
+            } else if (state.popularItems.isNotEmpty()) {
                 item {
-                    VotifyCard(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
-                        Column {
-                            state.results.forEachIndexed { index, track ->
-                                TrackRow(
-                                    track = track,
-                                    isCurrent = track.id == currentTrackId,
-                                    onClick = { onPlay(state.results, index) },
-                                    onMore = { onMore(track) },
-                                )
-                                if (index != state.results.lastIndex) {
-                                    HorizontalDivider(color = VotifyColors.BorderSubtle, thickness = 1.dp)
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(state.popularItems) { item ->
+                            PopularItemCard(
+                                item = item,
+                                onClick = {
+                                    if (item.track != null) {
+                                        viewModel.addTrackToHistory(item.track)
+                                        onPlay(listOf(item.track), 0)
+                                    } else if (item.artistName.isNotBlank()) {
+                                        onOpenArtist(item.artistName)
+                                    } else {
+                                        viewModel.pickRecent(item.title)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
+        } else {
+            // === SEARCH RESULTS STATE ===
+            when {
+                state.isLoading -> item {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
+                    }
+                }
+
+                state.error != null || state.offline -> item {
+                    StatusBlock(
+                        title = if (state.offline) stringResource(R.string.search_no_internet_title) else stringResource(R.string.search_error),
+                        subtitle = if (state.offline) stringResource(R.string.search_no_internet_sub) else (state.error ?: ""),
+                        action = stringResource(R.string.search_retry),
+                        onAction = viewModel::retry,
+                    )
+                }
+
+                state.searched && state.results.isEmpty() && state.artistResults.isEmpty() && state.albumResults.isEmpty() -> item {
+                    StatusBlock(
+                        title = stringResource(R.string.search_empty),
+                        subtitle = stringResource(R.string.search_empty_hint),
+                    )
+                }
+
+                else -> {
+                    // 1. Artist Matches (if filter is All or Artists)
+                    if (state.artistResults.isNotEmpty() && (state.filter == SearchFilter.All || state.filter == SearchFilter.Artists)) {
+                        item {
+                            SectionHeader(
+                                title = "Артисты",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                items(state.artistResults) { artist ->
+                                    ArtistSearchResultCard(
+                                        artist = artist,
+                                        onClick = { onOpenArtist(artist.name) },
+                                    )
                                 }
                             }
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+
+                    // 2. Album Matches (if filter is All or Albums)
+                    if (state.albumResults.isNotEmpty() && (state.filter == SearchFilter.All || state.filter == SearchFilter.Albums)) {
+                        item {
+                            SectionHeader(
+                                title = "Альбомы",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                items(state.albumResults) { album ->
+                                    AlbumSearchResultCard(
+                                        album = album,
+                                        onClick = { onOpenArtist(album.artistName) },
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+
+                    // 3. Track Results (if filter is All or Tracks)
+                    if (state.results.isNotEmpty() && (state.filter == SearchFilter.All || state.filter == SearchFilter.Tracks)) {
+                        item {
+                            SectionHeader(
+                                title = "Треки",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            )
+                        }
+
+                        itemsIndexed(state.results, key = { i, t -> "$i-${t.id}" }) { i, t ->
+                            TrackRow(
+                                track = t,
+                                isCurrent = t.id == currentTrackId,
+                                onClick = {
+                                    viewModel.addTrackToHistory(t)
+                                    onPlay(state.results, i)
+                                },
+                                onMore = { onMore(t) },
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
                         }
                     }
                 }
@@ -188,7 +341,6 @@ fun SearchScreen(
     }
 }
 
-/** 48dp pill search field: #1E1E1E fill, #2A2A2A border, brightens to white when focused. */
 @Composable
 private fun SearchBar(
     query: String,
@@ -198,73 +350,314 @@ private fun SearchBar(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
+
     Row(
-        modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
-            .background(VotifyColors.SurfaceContainer, CircleShape)
-            .border(1.dp, if (focused) VotifyColors.TextPrimary else VotifyColors.BorderSubtle, CircleShape)
-            .padding(start = 16.dp, end = 4.dp),
+            .height(50.dp)
+            .clip(RoundedCornerShape(25.dp))
+            .background(Color(0xFF1E1E24))
+            .border(
+                width = 0.5.dp,
+                color = if (focused) VotifyColors.Primary else Color(0xFF2A2A34),
+                shape = RoundedCornerShape(25.dp),
+            )
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextMuted, modifier = Modifier.size(20.dp))
+        Icon(
+            imageVector = Icons.Outlined.Search,
+            contentDescription = null,
+            tint = if (focused) VotifyColors.Primary else VotifyColors.TextSecondary,
+            modifier = Modifier.size(20.dp),
+        )
+
         Spacer(Modifier.width(10.dp))
-        Box(Modifier.weight(1f)) {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.search_hint), color = VotifyColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = VotifyColors.TextPrimary),
-                cursorBrush = SolidColor(VotifyColors.TextPrimary),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { focused = it.isFocused },
-            )
-        }
+
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+            cursorBrush = SolidColor(VotifyColors.Primary),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { focused = it.isFocused },
+            decorationBox = { inner ->
+                if (query.isEmpty()) {
+                    Text(
+                        text = "Треки, артисты, альбомы...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VotifyColors.TextMuted,
+                    )
+                }
+                inner()
+            },
+        )
+
         if (query.isNotEmpty()) {
-            IconButton(onClick = onClear) {
-                Icon(Icons.Default.Close, stringResource(R.string.search_clear), tint = VotifyColors.TextMuted, modifier = Modifier.size(18.dp))
+            IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.search_clear),
+                    tint = VotifyColors.TextSecondary,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun StatusBlock(
-    title: String,
-    subtitle: String? = null,
-    action: String? = null,
-    onAction: (() -> Unit)? = null,
-    secondaryAction: String? = null,
-    onSecondaryAction: (() -> Unit)? = null,
+private fun PopularItemCard(
+    item: PopularItem,
+    onClick: () -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF1E1E24),
+        border = BorderStroke(0.5.dp, Color(0xFF2A2A34)),
+        modifier = Modifier.width(220.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = VotifyColors.TextSecondary, fontWeight = FontWeight.SemiBold)
-        if (subtitle != null) {
-            Spacer(Modifier.height(4.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = VotifyColors.TextMuted)
-        }
-        if (action != null && onAction != null) {
-            Spacer(Modifier.height(12.dp))
-            if (secondaryAction != null && onSecondaryAction != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PillChip(text = action, selected = true, onClick = onAction)
-                    PillChip(text = secondaryAction, selected = false, onClick = onSecondaryAction)
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Artwork(
+                url = item.cover,
+                size = 54.dp,
+                shape = RoundedCornerShape(10.dp),
+                contentDescription = item.title,
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                // Flat matte badge
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color(0xFF141418),
+                    modifier = Modifier.padding(bottom = 3.dp),
+                ) {
+                    Text(
+                        text = item.type,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = VotifyColors.Primary,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                    )
                 }
-            } else {
-                PillChip(text = action, selected = true, onClick = onAction)
+
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Text(
+                    text = item.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VotifyColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
 }
 
+@Composable
+private fun HistoryCard(
+    item: HistoryItem,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF18181E),
+        border = BorderStroke(0.5.dp, Color(0xFF2A2A34)),
+        modifier = Modifier.width(180.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (item.cover.isNotBlank()) {
+                Artwork(
+                    url = item.cover,
+                    size = 38.dp,
+                    shape = RoundedCornerShape(8.dp),
+                    contentDescription = item.title,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF24242C)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = VotifyColors.TextMuted,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title.ifBlank { item.query },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (item.subtitle.isNotBlank()) {
+                    Text(
+                        text = item.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VotifyColors.TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArtistSearchResultCard(
+    artist: DeezerArtist,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .width(105.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(90.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF1E1E24))
+                .border(0.5.dp, Color(0xFF2A2A34), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Artwork(
+                url = artist.pictureBig.ifBlank { artist.picture },
+                size = 90.dp,
+                shape = CircleShape,
+                contentDescription = artist.name,
+            )
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            text = artist.name,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+
+        if (artist.nbFan > 0) {
+            Text(
+                text = "${NumberFormat.getNumberInstance(Locale.getDefault()).format(artist.nbFan)} фанов",
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                color = VotifyColors.TextMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AlbumSearchResultCard(
+    album: DeezerAlbum,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .width(120.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Artwork(
+            url = album.coverBig.ifBlank { album.cover },
+            size = 120.dp,
+            shape = RoundedCornerShape(12.dp),
+            contentDescription = album.title,
+        )
+
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            text = album.title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Text(
+            text = album.artistName,
+            style = MaterialTheme.typography.bodySmall,
+            color = VotifyColors.TextMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun StatusBlock(
+    title: String,
+    subtitle: String,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+        )
+        if (subtitle.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = VotifyColors.TextMuted,
+                textAlign = TextAlign.Center,
+            )
+        }
+        if (action != null && onAction != null) {
+            Spacer(Modifier.height(16.dp))
+            PillChip(text = action, selected = true, onClick = onAction)
+        }
+    }
+}

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -56,6 +57,8 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.GraphicEq
@@ -157,14 +160,13 @@ fun PlayerScreen(
     artworkStyle: ArtworkStyle,
     background: PlayerBackground,
     visuals: PlayerVisuals = PlayerVisuals(),
-    /**
-     * Параметры стекла для панелей с кнопками. Передаются явно, потому что экран
-     * плеера вызывается вне провайдера настроек и не видит CompositionLocal.
-     */
     glassSpec: GlassSpec = GlassSpec(enabled = false, alphaFraction = 0.6f, blurDp = 20),
     isFavorite: Boolean,
     lyricsVisible: Boolean,
     lyrics: LyricsState,
+    userName: String = "exieeez",
+    userAvatar: String? = null,
+    isDownloaded: Boolean = false,
     onCollapse: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
@@ -176,6 +178,7 @@ fun PlayerScreen(
     onToggleFavorite: () -> Unit,
     onToggleLyrics: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onDownload: () -> Unit = {},
     onOpenQueue: () -> Unit,
     onOpenArtist: (String) -> Unit,
     onShare: () -> Unit,
@@ -275,24 +278,104 @@ fun PlayerScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp),
         ) {
-            // Header
+            // Header: round glass buttons on edges, profile capsule in center
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                IconButton(onClick = onCollapse) {
-                    Icon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.player_collapse), tint = VotifyColors.TextPrimary, modifier = Modifier.size(28.dp))
+                Surface(
+                    onClick = onCollapse,
+                    shape = CircleShape,
+                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
+                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
+                    modifier = Modifier.size(42.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.player_collapse),
+                            tint = VotifyColors.TextPrimary,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
-                Text(
-                    stringResource(R.string.player_now_playing),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = VotifyColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                )
-                IconButton(onClick = onShare) { Icon(Icons.Outlined.Share, stringResource(R.string.action_share), tint = VotifyColors.TextSecondary) }
-                IconButton(onClick = onOpenMenu) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.player_menu), tint = VotifyColors.TextSecondary) }
+
+                // Profile capsule: avatar, username, accent counter badge
+                Surface(
+                    shape = CircleShape,
+                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
+                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
+                    modifier = Modifier.clickable(onClick = onOpenQueue),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(start = 6.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (!userAvatar.isNullOrBlank()) {
+                            AsyncImage(
+                                model = userAvatar,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp).clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E1E24))
+                                    .border(0.5.dp, Color(0xFF2A2A34), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = userName.take(1).uppercase().ifBlank { "E" },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VotifyColors.TextPrimary,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = userName.ifBlank { "exieeez" },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VotifyColors.TextPrimary,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        val queueCount = if (state.queue.isNotEmpty()) state.queue.size else 48
+                        Surface(
+                            shape = CircleShape,
+                            color = palette?.accent ?: VotifyColors.Primary,
+                            contentColor = VotifyColors.PitchBlack,
+                        ) {
+                            Text(
+                                text = queueCount.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    onClick = onOpenMenu,
+                    shape = CircleShape,
+                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
+                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
+                    modifier = Modifier.size(42.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Outlined.MoreVert,
+                            contentDescription = stringResource(R.string.player_menu),
+                            tint = VotifyColors.TextPrimary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
 
             // Artwork / lyrics area
@@ -349,71 +432,75 @@ fun PlayerScreen(
                 }
             }
 
-            // Title / artist with ♥ and ⊕ on the sides
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onToggleFavorite) {
-                    Icon(
-                        if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        stringResource(R.string.player_favorite),
-                        tint = VotifyColors.TextPrimary,
-                    )
-                }
-                Column(Modifier.weight(1f), horizontalAlignment = if (visuals.titleLeft) Alignment.Start else Alignment.CenterHorizontally) {
-                    Text(
-                        track?.title ?: "—",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = VotifyColors.TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = if (visuals.titleLeft) TextAlign.Start else TextAlign.Center,
-                        modifier = if (visuals.titleLeft) Modifier.fillMaxWidth() else Modifier,
-                    )
-                    Text(
-                        track?.artist ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = VotifyColors.TextMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable(enabled = !track?.artist.isNullOrBlank()) { track?.artist?.let(onOpenArtist) },
-                    )
-                }
-                IconButton(onClick = onAddToPlaylist) { Icon(Icons.Outlined.PlaylistAdd, stringResource(R.string.action_add_to_playlist), tint = VotifyColors.TextPrimary) }
+            // Centered Title & Artist (strictly center, no side buttons)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    track?.title ?: "—",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = VotifyColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    track?.artist ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VotifyColors.TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.clickable(enabled = !track?.artist.isNullOrBlank()) { track?.artist?.let(onOpenArtist) },
+                )
             }
 
             Spacer(Modifier.height(4.dp))
 
+            val nextTrack = if (state.queue.isNotEmpty() && state.currentIndex >= 0 && state.currentIndex + 1 < state.queue.size) {
+                state.queue[state.currentIndex + 1]
+            } else if (state.queue.isNotEmpty()) state.queue.firstOrNull() else null
+
+            val accentColor = when {
+                visuals.themedSliderHex.isNotBlank() ->
+                    runCatching { Color(android.graphics.Color.parseColor(visuals.themedSliderHex)) }.getOrDefault(VotifyColors.Primary)
+                visuals.accentFromArt -> palette?.accent ?: VotifyColors.Primary
+                else -> VotifyColors.Primary
+            }
+
             Scrubber(
                 state = state,
                 onSeek = onSeek,
-                accent = when {
-                    visuals.themedSliderHex.isNotBlank() ->
-                        runCatching { Color(android.graphics.Color.parseColor(visuals.themedSliderHex)) }.getOrDefault(VotifyColors.Primary)
-                    visuals.accentFromArt -> palette?.accent ?: VotifyColors.Primary
-                    else -> VotifyColors.Primary
-                },
+                accent = accentColor,
                 sliderStyle = visuals.sliderStyle,
                 ios = visuals.iosSlider,
+                nextTrack = nextTrack,
+                onOpenQueue = onOpenQueue,
             )
 
             Spacer(Modifier.height(10.dp))
 
-            // Transport panel — стекло Liquid Glass, как у нижней панели.
+            // Main glass transport dock (Repeat, Prev, Big White Play/Pause, Next, Shuffle)
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(26.dp),
                 color = Color.Transparent,
-                border = if (glassSpec.enabled) BorderStroke(0.5.dp, Color.White.copy(alpha = glassSpec.borderAlpha)) else null,
+                border = if (glassSpec.enabled) BorderStroke(0.5.dp, Color.White.copy(alpha = glassSpec.borderAlpha)) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .votifyGlass(
-                        shape = RoundedCornerShape(24.dp),
-                        baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(26.dp),
+                        baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.75f),
                         spec = glassSpec,
                         hazeState = playerHazeState,
                     ),
             ) {
                 Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -422,24 +509,25 @@ fun PlayerScreen(
                         Icon(
                             if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                             stringResource(R.string.player_repeat),
-                            tint = if (repeatOn) VotifyColors.TextPrimary else VotifyColors.TextMuted,
+                            tint = if (repeatOn) accentColor else VotifyColors.TextMuted,
                         )
                     }
                     IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Filled.SkipPrevious, stringResource(R.string.player_previous), tint = VotifyColors.TextPrimary, modifier = Modifier.size(32.dp))
                     }
+                    // Prominent white circular Play/Pause button
                     Surface(
                         onClick = onPlayPause,
-                        shape = if (visuals.pillPlayButton) RoundedCornerShape(32.dp) else CircleShape,
-                        color = if (visuals.accentFromArt) palette?.accent ?: VotifyColors.Primary else VotifyColors.Primary,
+                        shape = CircleShape,
+                        color = Color.White,
                         contentColor = VotifyColors.PitchBlack,
-                        modifier = if (visuals.pillPlayButton) Modifier.height(56.dp).width(120.dp) else Modifier.size(64.dp),
+                        modifier = Modifier.size(64.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 stringResource(if (state.isPlaying) R.string.player_pause else R.string.player_play),
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(34.dp),
                             )
                         }
                     }
@@ -447,63 +535,127 @@ fun PlayerScreen(
                         Icon(Icons.Filled.SkipNext, stringResource(R.string.player_next), tint = VotifyColors.TextPrimary, modifier = Modifier.size(32.dp))
                     }
                     IconButton(onClick = onToggleShuffle) {
-                        Icon(Icons.Filled.Shuffle, stringResource(R.string.player_shuffle), tint = if (state.shuffle) VotifyColors.TextPrimary else VotifyColors.TextMuted)
+                        Icon(Icons.Filled.Shuffle, stringResource(R.string.player_shuffle), tint = if (state.shuffle) accentColor else VotifyColors.TextMuted)
                     }
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Secondary row: lyrics / queue — тот же стеклянный материал.
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color.Transparent,
-                border = if (glassSpec.enabled) BorderStroke(0.5.dp, Color.White.copy(alpha = glassSpec.borderAlpha)) else null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .votifyGlass(
-                        shape = RoundedCornerShape(16.dp),
-                        baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainer.copy(alpha = 0.7f),
-                        spec = glassSpec,
-                        hazeState = playerHazeState,
-                    ),
+            // Two bottom glass capsules: Left (♡, ⊕, ⤓) and Right (T, 🎚, ⏲)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically,
+                // Left capsule: Favorite, Add to Playlist, Offline download
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .votifyGlass(
+                            shape = RoundedCornerShape(22.dp),
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.7f),
+                            spec = glassSpec,
+                            hazeState = playerHazeState,
+                        ),
                 ) {
-                    IconButton(onClick = onToggleLyrics) {
-                        Icon(
-                            Icons.Outlined.Description,
-                            stringResource(R.string.player_lyrics),
-                            tint = if (lyricsVisible) VotifyColors.TextPrimary else VotifyColors.TextSecondary,
-                        )
+                    Row(
+                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = onToggleFavorite) {
+                            Icon(
+                                if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                stringResource(R.string.player_favorite),
+                                tint = if (isFavorite) accentColor else VotifyColors.TextPrimary,
+                            )
+                        }
+                        IconButton(onClick = onAddToPlaylist) {
+                            Icon(
+                                Icons.Outlined.PlaylistAdd,
+                                stringResource(R.string.action_add_to_playlist),
+                                tint = VotifyColors.TextPrimary,
+                            )
+                        }
+                        IconButton(onClick = onDownload) {
+                            Icon(
+                                if (isDownloaded) Icons.Outlined.DownloadDone else Icons.Outlined.Download,
+                                contentDescription = stringResource(R.string.action_download_playlist),
+                                tint = if (isDownloaded) accentColor else VotifyColors.TextPrimary,
+                            )
+                        }
                     }
-                    IconButton(onClick = { showSpeedSheet = true }) {
+                }
+
+                // Right capsule: Lyrics (T), Equalizer (🎚), Speed preset toggle (⏲)
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .votifyGlass(
+                            shape = RoundedCornerShape(22.dp),
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.7f),
+                            spec = glassSpec,
+                            hazeState = playerHazeState,
+                        ),
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = onToggleLyrics) {
+                            Text(
+                                text = "T",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (lyricsVisible) accentColor else VotifyColors.TextPrimary,
+                            )
+                        }
                         val isRemixActive = Math.abs(state.speed - 1.0f) > 0.02f ||
                                 Math.abs(state.pitch - 1.0f) > 0.02f ||
                                 state.reverbPreset != "none" ||
                                 state.bassBoost
-                        Icon(
-                            Icons.Outlined.Speed,
-                            contentDescription = stringResource(R.string.remix_menu),
-                            tint = if (isRemixActive) (palette?.accent ?: VotifyColors.Primary) else VotifyColors.TextSecondary,
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = onOpenQueue) { Icon(Icons.Outlined.FormatListBulleted, stringResource(R.string.player_queue), tint = VotifyColors.TextSecondary) }
-                        if (state.queue.size > 1) {
-                            Surface(
-                                shape = CircleShape,
-                                color = VotifyColors.Primary,
-                                contentColor = VotifyColors.OnPrimary,
-                                modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 2.dp),
+                        IconButton(onClick = { showSpeedSheet = true }) {
+                            Icon(
+                                Icons.Outlined.GraphicEq,
+                                contentDescription = stringResource(R.string.remix_menu),
+                                tint = if (isRemixActive) accentColor else VotifyColors.TextSecondary,
+                            )
+                        }
+                        // Speed preset cycle toggle (0.85x Slowed, 1.0x, 1.2x Speed Up)
+                        val speedLabel = when {
+                            Math.abs(state.speed - 0.85f) < 0.05f -> "0.85x"
+                            Math.abs(state.speed - 1.2f) < 0.05f -> "1.2x"
+                            Math.abs(state.speed - 1.0f) < 0.05f -> "1.0x"
+                            else -> String.format(java.util.Locale.US, "%.2fx", state.speed)
+                        }
+                        Surface(
+                            onClick = {
+                                val nextSpeed = when {
+                                    Math.abs(state.speed - 1.0f) < 0.05f -> 0.85f
+                                    Math.abs(state.speed - 0.85f) < 0.05f -> 1.2f
+                                    else -> 1.0f
+                                }
+                                onSetRemix(nextSpeed, if (state.pitchLinked) nextSpeed else state.pitch, state.pitchLinked, state.reverbPreset, state.bassBoost)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (Math.abs(state.speed - 1.0f) > 0.02f) accentColor.copy(alpha = 0.2f) else Color.Transparent,
+                        ) {
+                            Box(
+                                Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    state.queue.size.toString(),
+                                    text = speedLabel,
                                     style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (Math.abs(state.speed - 1.0f) > 0.02f) accentColor else VotifyColors.TextSecondary,
                                 )
                             }
                         }
@@ -722,6 +874,8 @@ fun Scrubber(
     accent: Color,
     sliderStyle: String = "ios",
     ios: Boolean = true,
+    nextTrack: app.votify.mobile.data.Track? = null,
+    onOpenQueue: () -> Unit = {},
 ) {
     var dragging by remember { mutableStateOf<Float?>(null) }
     val value = dragging ?: state.progress
@@ -921,9 +1075,49 @@ fun Scrubber(
                 )
             }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             val shown = if (dragging != null) (state.durationMs * value).toLong() else state.positionMs
             Text(formatDuration(shown), style = MaterialTheme.typography.labelSmall, color = VotifyColors.TextMuted)
+
+            if (nextTrack != null) {
+                Surface(
+                    onClick = onOpenQueue,
+                    shape = CircleShape,
+                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
+                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (!nextTrack.cover.isNullOrBlank()) {
+                            AsyncImage(
+                                model = nextTrack.cover,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(3.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = "Далее: ${nextTrack.title}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = VotifyColors.TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 160.dp),
+                        )
+                    }
+                }
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
+
             Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = VotifyColors.TextMuted)
         }
     }
