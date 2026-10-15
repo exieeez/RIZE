@@ -76,8 +76,9 @@ jobs:
             echo
             echo "Сборка: ${GITHUB_SHA}"
           } > README.md
-          V_CODE=${{ github.run_number }}
-          V_NAME="1.1.5"
+          RUN_NUM=${{ github.run_number }}
+          V_CODE=$((1000 + RUN_NUM))
+          V_NAME="1.1.6"
           cat <<EOF > version.json
           {
             "versionCode": $V_CODE,
@@ -96,12 +97,13 @@ jobs:
           git push -f origin apk
           echo "зеркало обновлено: ветка apk"
 
-          # Purge jsDelivr cache so CDN never serves an old APK
+          # Purge jsDelivr cache so CDN never serves an old APK or stale version.json
           curl -sf "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/Votify-debug.apk" || true
           curl -sf "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/version.json" || true
 
           # Publish to GitHub Release
           cd "$GITHUB_WORKSPACE/android"
+          cp /tmp/apkmirror/version.json version.json
           TAG="android-debug"
           {
             echo "Автосборка APK из ветки $GITHUB_REF_NAME (коммит $GITHUB_SHA)."
@@ -123,8 +125,8 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
             && gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag \
             || true
-          gh release create "$TAG" "Votify-debug.apk" \
+          gh release create "$TAG" "Votify-debug.apk" "version.json" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Votify Android — свежая debug-сборка" \
+            --title "Votify Android — свежая debug-сборка (1.1.6)" \
             --notes-file notes.md \
             --prerelease

@@ -102,8 +102,9 @@ class AppUpdateManager(
             } else false
 
             // An update is considered newer if remote code > curCode,
-            // or if codes match and remote commit sha is newer.
-            val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode))
+            // or if codes match and remote commit sha is newer,
+            // or if force is true and remote sha is different from current.
+            val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode)) || (force && isNewerSha)
 
             if (!force && dismissedSha == info.sha) {
                 _state.value = UpdateState.Idle
@@ -155,29 +156,34 @@ class AppUpdateManager(
 
     private fun fetchUpdateInfo(): UpdateInfo? {
         val urls = listOf(
-            "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
-            "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
             "https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=${System.currentTimeMillis()}",
+            "https://github.com/exieeez/Votify/releases/download/android-debug/version.json?t=${System.currentTimeMillis()}",
+            "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
+            "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
             "https://raw.githack.com/exieeez/Votify/apk/version.json"
         )
+        val candidates = mutableListOf<UpdateInfo>()
         for (url in urls) {
             runCatching {
                 val req = Request.Builder()
                     .url(url)
-                    .header("Cache-Control", "no-cache")
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .header("Pragma", "no-cache")
                     .build()
                 http.newCall(req).execute().use { resp ->
                     if (resp.isSuccessful) {
                         val body = resp.body?.string().orEmpty()
                         if (body.isNotBlank()) {
-                            return json.decodeFromString<UpdateInfo>(body)
+                            val parsed = json.decodeFromString<UpdateInfo>(body)
+                            if (parsed.versionCode > 0 || parsed.sha.isNotBlank()) {
+                                candidates.add(parsed)
+                            }
                         }
                     }
                 }
             }
         }
-        return null
+        return candidates.maxByOrNull { it.versionCode }
     }
 
     fun startDownload(info: UpdateInfo) {
@@ -197,12 +203,13 @@ class AppUpdateManager(
             } else false
 
             val downloadUrls = listOfNotNull(
-                "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/Votify-debug.apk",
                 info.releaseUrl.ifBlank { null },
                 "https://github.com/exieeez/Votify/releases/download/android-debug/Votify-debug.apk",
-                info.cdnUrl.ifBlank { null },
                 info.downloadUrl.ifBlank { null },
                 "https://raw.githubusercontent.com/exieeez/Votify/apk/Votify-debug.apk?t=${System.currentTimeMillis()}",
+                info.cdnUrl.ifBlank { null },
+                "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/Votify-debug.apk",
+                "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/Votify-debug.apk",
                 info.mirrorUrl.ifBlank { null }
             )
 
