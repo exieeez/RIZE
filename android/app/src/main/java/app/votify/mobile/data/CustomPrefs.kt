@@ -37,6 +37,8 @@ data class CustomPrefs(
     val pitchShiftLinked: Boolean = true,
     val reverbPreset: String = "none", // none | hall | room | plate
     val bassBoost: Boolean = false,
+    val equalizerPreset: String = "neutral", // neutral | bass | treble | vocal | electronic | rock | custom
+    val equalizerBands: String = "0.0,0.0,0.0,0.0,0.0,0.0", // 6 bands: 60Hz, 150Hz, 400Hz, 1kHz, 2.4kHz, 15kHz
 
     // ---- Интерфейс ----
     val themeMode: String = "dark", // dark | light | system
@@ -180,13 +182,13 @@ private fun CustomPrefs.migrateGlassPrefs(): CustomPrefs {
 fun CustomPrefs.toAppTheme(): AppTheme = when (themeMode) {
     "light" -> AppTheme.Light
     "system" -> AppTheme.System
-    else -> when (themeName) {
-        "graphite" -> AppTheme.Graphite
+    else -> when (themeName.lowercase()) {
+        "graphite", "amoled" -> AppTheme.Graphite
         "violet" -> AppTheme.Violet
-        "azure" -> AppTheme.Azure
-        "emerald" -> AppTheme.Emerald
-        "amber" -> AppTheme.Amber
-        "rose" -> AppTheme.Rose
+        "azure", "sky", "aqua" -> AppTheme.Azure
+        "emerald", "mint" -> AppTheme.Emerald
+        "amber", "sand" -> AppTheme.Amber
+        "rose", "blossom" -> AppTheme.Rose
         "workshop" -> AppTheme.Workshop
         else -> AppTheme.OledBlack
     }

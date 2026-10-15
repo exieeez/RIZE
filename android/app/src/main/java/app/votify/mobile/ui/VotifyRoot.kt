@@ -409,6 +409,14 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
         player.setBassBoost(cp.bassBoost)
     }
 
+    LaunchedEffect(cp.equalizerBands) {
+        val bands = cp.equalizerBands.split(",")
+            .mapNotNull { it.trim().toFloatOrNull() }
+        if (bands.size == 6) {
+            player.setEqualizerBands(bands)
+        }
+    }
+
     val statusBar = WindowInsets.statusBars.asPaddingValues()
     val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Content can scroll freely under the translucent nav bar and mini-player.
@@ -979,6 +987,24 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                             else -> String.format(java.util.Locale.US, "%.2f×", speed)
                         }
                         snackbar.showSnackbar(context.getString(R.string.remix_preset_saved, name))
+                    }
+                },
+                initialEqualizerPreset = cp.equalizerPreset,
+                initialEqualizerBands = cp.equalizerBands,
+                onEqualizerChange = { bands ->
+                    player.setEqualizerBands(bands)
+                },
+                onSaveEqualizer = { bands, preset ->
+                    snackbarScope.launch {
+                        val cur = parseCustomPrefs(app.settings.settings.first().customPrefs)
+                        val bandsStr = bands.joinToString(",") { String.format(java.util.Locale.US, "%.1f", it) }
+                        val updated = cur.copy(
+                            equalizerPreset = preset,
+                            equalizerBands = bandsStr,
+                        )
+                        app.settings.setCustomPrefs(updated.toJson())
+                        player.setEqualizerBands(bands)
+                        snackbar.showSnackbar("Эквалайзер сохранён")
                     }
                 },
             )

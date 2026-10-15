@@ -251,10 +251,10 @@ private fun SearchBar(
             .fillMaxWidth()
             .height(52.dp)
             .clip(RoundedCornerShape(26.dp))
-            .background(Color(0xFF16181D))
+            .background(Color(0xFF141416))
             .border(
                 width = 0.5.dp,
-                color = if (focused) VotifyColors.Primary.copy(alpha = 0.8f) else Color(0xFF282A34),
+                color = if (focused) VotifyColors.Primary.copy(alpha = 0.8f) else Color(0xFF27272A),
                 shape = RoundedCornerShape(26.dp),
             )
             .padding(horizontal = 14.dp),
@@ -313,8 +313,8 @@ private fun PopularItemCard(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF1E1E24),
-        border = BorderStroke(0.5.dp, Color(0xFF2A2A34)),
+        color = Color(0xFF18181B),
+        border = BorderStroke(0.5.dp, Color(0xFF27272A)),
         modifier = Modifier.width(220.dp),
     ) {
         Row(
@@ -334,7 +334,7 @@ private fun PopularItemCard(
                 // Flat matte badge
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = Color(0xFF141418),
+                    color = Color(0xFF141416),
                     modifier = Modifier.padding(bottom = 3.dp),
                 ) {
                     Text(
@@ -374,8 +374,8 @@ private fun HistoryCard(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF18181E),
-        border = BorderStroke(0.5.dp, Color(0xFF2A2A34)),
+        color = Color(0xFF18181B),
+        border = BorderStroke(0.5.dp, Color(0xFF27272A)),
         modifier = Modifier.width(180.dp),
     ) {
         Row(
@@ -394,7 +394,7 @@ private fun HistoryCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF24242C)),
+                        .background(Color(0xFF202024)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -446,8 +446,8 @@ private fun ArtistSearchResultCard(
             modifier = Modifier
                 .size(90.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1E1E24))
-                .border(0.5.dp, Color(0xFF2A2A34), CircleShape),
+                .background(Color(0xFF18181B))
+                .border(0.5.dp, Color(0xFF27272A), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Artwork(

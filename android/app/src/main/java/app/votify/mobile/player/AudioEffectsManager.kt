@@ -1,6 +1,7 @@
 package app.votify.mobile.player
 
 import android.media.audiofx.BassBoost
+import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.PresetReverb
 import android.util.Log
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Manages native audio effects (PresetReverb for atmospheric "Slowed + Reverb" soundstage,
- * and BassBoost for deep club/subwoofer bass) synchronized with ExoPlayer's audio session.
+ * BassBoost for deep club/subwoofer bass, and Equalizer) synchronized with ExoPlayer's audio session.
  */
 @UnstableApi
 object AudioEffectsManager {
@@ -23,6 +24,7 @@ object AudioEffectsManager {
     private var player: ExoPlayer? = null
     private var presetReverb: PresetReverb? = null
     private var bassBoost: BassBoost? = null
+    private var equalizer: Equalizer? = null
     private var loudness: LoudnessEnhancer? = null
     private var normalizationEnabled: Boolean = false
     private var currentAudioSessionId: Int = C.AUDIO_SESSION_ID_UNSET
@@ -33,6 +35,9 @@ object AudioEffectsManager {
     private val _bassBoostEnabled = MutableStateFlow(false)
     val bassBoostEnabled: StateFlow<Boolean> = _bassBoostEnabled.asStateFlow()
 
+    private val _equalizerBands = MutableStateFlow(listOf(0f, 0f, 0f, 0f, 0f, 0f))
+    val equalizerBands: StateFlow<List<Float>> = _equalizerBands.asStateFlow()
+
     fun attachPlayer(exoPlayer: ExoPlayer) {
         player = exoPlayer
         currentAudioSessionId = exoPlayer.audioSessionId
@@ -42,8 +47,10 @@ object AudioEffectsManager {
     fun onAudioSessionIdChanged(audioSessionId: Int) {
         currentAudioSessionId = audioSessionId
         releaseBass()
+        releaseEqualizer()
         releaseLoudness()
         applyBassBoost()
+        applyEqualizer()
         applyNormalization()
     }
 
@@ -52,6 +59,7 @@ object AudioEffectsManager {
         player = null
         releaseReverb()
         releaseBass()
+        releaseEqualizer()
     }
 
     fun setReverb(preset: String) {
@@ -62,6 +70,11 @@ object AudioEffectsManager {
     fun setBassBoost(enabled: Boolean) {
         _bassBoostEnabled.value = enabled
         applyBassBoost()
+    }
+
+    fun setEqualizerBands(bands: List<Float>) {
+        _equalizerBands.value = bands.take(6)
+        applyEqualizer()
     }
 
     /**
@@ -94,6 +107,7 @@ object AudioEffectsManager {
     private fun applyEffects() {
         applyReverb()
         applyBassBoost()
+        applyEqualizer()
         applyNormalization()
     }
 
@@ -154,6 +168,54 @@ object AudioEffectsManager {
         }
     }
 
+    private fun applyEqualizer() {
+        val sessionId = currentAudioSessionId
+        if (sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId <= 0) {
+            runCatching { equalizer?.enabled = false }
+            return
+        }
+        val bands = _equalizerBands.value
+        val isFlat = bands.all { kotlin.math.abs(it) < 0.05f }
+        runCatching {
+            if (equalizer == null) {
+                equalizer = Equalizer(0, sessionId)
+            }
+            equalizer?.let { eq ->
+                val numBands = eq.numberOfBands.toInt()
+                if (numBands > 0) {
+                    val bandRange = eq.bandLevelRange // [min, max] in millibels (e.g. -1500..1500)
+                    val minMb = bandRange[0].toInt()
+                    val maxMb = bandRange[1].toInt()
+                    val userFreqs = floatArrayOf(60f, 150f, 400f, 1000f, 2400f, 15000f)
+                    for (b in 0 until numBands) {
+                        val centerFreqHz = eq.getCenterFreq(b.toShort()) / 1000f
+                        val gainDb = interpolateGain(centerFreqHz, userFreqs, bands)
+                        val millibels = (gainDb * 100).toInt().coerceIn(minMb, maxMb)
+                        eq.setBandLevel(b.toShort(), millibels.toShort())
+                    }
+                    eq.enabled = !isFlat
+                }
+            }
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to apply Equalizer: ${e.message}")
+        }
+    }
+
+    private fun interpolateGain(freq: Float, freqs: FloatArray, gains: List<Float>): Float {
+        if (freq <= freqs.first()) return gains.firstOrNull() ?: 0f
+        if (freq >= freqs.last()) return gains.lastOrNull() ?: 0f
+        for (i in 0 until freqs.size - 1) {
+            if (freq >= freqs[i] && freq <= freqs[i + 1]) {
+                val denom = (kotlin.math.ln(freqs[i + 1]) - kotlin.math.ln(freqs[i])).coerceAtLeast(0.001f)
+                val t = (kotlin.math.ln(freq) - kotlin.math.ln(freqs[i])) / denom
+                val g0 = gains.getOrElse(i) { 0f }
+                val g1 = gains.getOrElse(i + 1) { 0f }
+                return g0 + t.toFloat() * (g1 - g0)
+            }
+        }
+        return 0f
+    }
+
     private fun releaseReverb() {
         runCatching {
             presetReverb?.enabled = false
@@ -168,6 +230,14 @@ object AudioEffectsManager {
             bassBoost?.release()
         }
         bassBoost = null
+    }
+
+    private fun releaseEqualizer() {
+        runCatching {
+            equalizer?.enabled = false
+            equalizer?.release()
+        }
+        equalizer = null
     }
 
     private fun releaseLoudness() {

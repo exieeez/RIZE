@@ -12,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,6 +31,15 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -187,9 +197,14 @@ fun PlayerScreen(
     onOpenMenu: () -> Unit,
     onSetRemix: (speed: Float, pitch: Float, pitchLinked: Boolean, reverb: String, bass: Boolean) -> Unit = { _, _, _, _, _ -> },
     onSaveSpeedPreset: (speed: Float, pitch: Float, pitchLinked: Boolean, reverb: String, bass: Boolean) -> Unit = { _, _, _, _, _ -> },
+    initialEqualizerPreset: String = "neutral",
+    initialEqualizerBands: String = "0.0,0.0,0.0,0.0,0.0,0.0",
+    onEqualizerChange: (List<Float>) -> Unit = {},
+    onSaveEqualizer: (bands: List<Float>, preset: String) -> Unit = { _, _ -> },
 ) {
     val track = state.current
     var showSpeedSheet by remember { mutableStateOf(false) }
+    var showEqualizerSheet by remember { mutableStateOf(false) }
 
     if (showSpeedSheet) {
         SpeedPresetBottomSheet(
@@ -204,6 +219,23 @@ fun PlayerScreen(
                 showSpeedSheet = false
             },
             onDismiss = { showSpeedSheet = false },
+        )
+    }
+
+    if (showEqualizerSheet) {
+        val parsedBands = remember(initialEqualizerBands) {
+            val list = initialEqualizerBands.split(",").mapNotNull { it.trim().toFloatOrNull() }
+            if (list.size == 6) list else listOf(0f, 0f, 0f, 0f, 0f, 0f)
+        }
+        EqualizerBottomSheet(
+            initialPreset = initialEqualizerPreset,
+            initialBands = parsedBands,
+            onBandsChange = onEqualizerChange,
+            onSavePreset = { bands, preset ->
+                onSaveEqualizer(bands, preset)
+                showEqualizerSheet = false
+            },
+            onDismiss = { showEqualizerSheet = false },
         )
     }
 
@@ -662,19 +694,19 @@ fun PlayerScreen(
                                 Math.abs(state.pitch - 1.0f) > 0.02f ||
                                 state.reverbPreset != "none" ||
                                 state.bassBoost
-                        IconButton(onClick = { showSpeedSheet = true }) {
+                        IconButton(onClick = { showEqualizerSheet = true }) {
                             Icon(
-                                Icons.Outlined.Tune,
-                                contentDescription = stringResource(R.string.remix_menu),
-                                tint = if (isRemixActive) Color(0xFFF5A623) else Color.White,
+                                Icons.Outlined.GraphicEq,
+                                contentDescription = "Эквалайзер",
+                                tint = Color.White,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
                         IconButton(onClick = { showSpeedSheet = true }) {
                             Icon(
                                 Icons.Outlined.Speed,
-                                contentDescription = "Скорость воспроизведения",
-                                tint = if (Math.abs(state.speed - 1.0f) > 0.02f) Color(0xFFF5A623) else Color.White,
+                                contentDescription = stringResource(R.string.remix_menu),
+                                tint = if (isRemixActive) Color(0xFFF5A623) else Color.White,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -1746,6 +1778,369 @@ private fun SpeedPresetBottomSheet(
                         stringResource(R.string.remix_save_preset),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EqualizerBottomSheet(
+    initialPreset: String,
+    initialBands: List<Float>,
+    onBandsChange: (List<Float>) -> Unit,
+    onSavePreset: (bands: List<Float>, preset: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var bands by remember(initialBands) {
+        mutableStateOf(if (initialBands.size == 6) initialBands else listOf(0f, 0f, 0f, 0f, 0f, 0f))
+    }
+    var currentPreset by remember(initialPreset) { mutableStateOf(initialPreset) }
+
+    val presets = remember {
+        listOf(
+            "neutral" to "Нейтральный",
+            "bass" to "Басы",
+            "treble" to "Высокие",
+            "vocal" to "Вокал",
+            "electronic" to "Электронная",
+            "rock" to "Рок",
+        )
+    }
+
+    fun applyPreset(presetKey: String) {
+        val newBands = when (presetKey) {
+            "bass" -> listOf(6.0f, 4.5f, 2.0f, 0.0f, -1.0f, -2.0f)
+            "treble" -> listOf(-2.0f, -1.0f, 0.0f, 2.0f, 4.5f, 6.0f)
+            "vocal" -> listOf(-1.5f, 1.0f, 4.0f, 3.5f, 1.0f, -0.5f)
+            "electronic" -> listOf(5.0f, 3.5f, -1.0f, 2.0f, 4.0f, 5.0f)
+            "rock" -> listOf(4.0f, 2.5f, -0.5f, 1.5f, 3.0f, 4.5f)
+            else -> listOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+        }
+        bands = newBands
+        currentPreset = presetKey
+        onBandsChange(newBands)
+    }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFF141416),
+        scrimColor = Color.Black.copy(alpha = 0.65f),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 10.dp, bottom = 12.dp)
+                    .size(width = 38.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.22f)),
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+        ) {
+            // Presets row at top matching media_1792083147577.jpg
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                item {
+                    // [+] button
+                    Surface(
+                        onClick = {
+                            currentPreset = "custom"
+                            onSavePreset(bands, "custom")
+                        },
+                        shape = CircleShape,
+                        color = Color(0xFF222226),
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Outlined.AddCircleOutline,
+                                contentDescription = "Добавить пресет",
+                                tint = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                }
+                items(presets) { (key, label) ->
+                    val isSelected = currentPreset == key
+                    Surface(
+                        onClick = { applyPreset(key) },
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (isSelected) Color.White else Color(0xFF1E1E22),
+                        contentColor = if (isSelected) Color(0xFF111113) else Color.White,
+                        border = BorderStroke(
+                            0.5.dp,
+                            if (isSelected) Color.White else Color.White.copy(alpha = 0.1f),
+                        ),
+                        modifier = Modifier.height(36.dp),
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 14.dp),
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(28.dp))
+
+            // Catmull-Rom Spline Equalizer Canvas
+            val freqLabels = listOf("60", "150", "400", "1k", "2.4k", "15k")
+            var canvasWidth by remember { mutableFloatStateOf(0f) }
+            val canvasHeight = 190.dp
+            val paddingX = 24.dp
+            val topBottomPad = 20.dp
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(canvasHeight)
+                    .onSizeChanged { canvasWidth = it.width.toFloat() }
+                    .pointerInput(canvasWidth) {
+                        if (canvasWidth <= 0f) return@pointerInput
+                        val padPx = paddingX.toPx()
+                        val tbPadPx = topBottomPad.toPx()
+                        val usableW = (canvasWidth - 2 * padPx).coerceAtLeast(1f)
+                        val stepW = usableW / 5f
+                        val h = size.height.toFloat()
+                        val usableH = (h - 2 * tbPadPx).coerceAtLeast(1f)
+                        val yZero = h / 2f
+
+                        fun updateGainAt(touchX: Float, touchY: Float) {
+                            val index = ((touchX - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
+                            val gainDb = (-(touchY - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
+                            val roundedGain = (kotlin.math.round(gainDb * 10f) / 10f)
+                            bands = bands.toMutableList().also { it[index] = roundedGain }
+                            currentPreset = "custom"
+                            onBandsChange(bands)
+                        }
+
+                        detectTapGestures { offset ->
+                            updateGainAt(offset.x, offset.y)
+                        }
+                    }
+                    .pointerInput(canvasWidth) {
+                        if (canvasWidth <= 0f) return@pointerInput
+                        val padPx = paddingX.toPx()
+                        val tbPadPx = topBottomPad.toPx()
+                        val usableW = (canvasWidth - 2 * padPx).coerceAtLeast(1f)
+                        val stepW = usableW / 5f
+                        val h = size.height.toFloat()
+                        val usableH = (h - 2 * tbPadPx).coerceAtLeast(1f)
+                        val yZero = h / 2f
+
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                val index = ((offset.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
+                                val gainDb = (-(offset.y - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
+                                val roundedGain = (kotlin.math.round(gainDb * 10f) / 10f)
+                                bands = bands.toMutableList().also { it[index] = roundedGain }
+                                currentPreset = "custom"
+                                onBandsChange(bands)
+                            },
+                        ) { change, _ ->
+                            change.consume()
+                            val index = ((change.position.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
+                            val gainDb = (-(change.position.y - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
+                            val roundedGain = (kotlin.math.round(gainDb * 10f) / 10f)
+                            bands = bands.toMutableList().also { it[index] = roundedGain }
+                            currentPreset = "custom"
+                            onBandsChange(bands)
+                        }
+                    },
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val padPx = paddingX.toPx()
+                    val tbPadPx = topBottomPad.toPx()
+                    val usableW = size.width - 2 * padPx
+                    val stepW = usableW / 5f
+                    val usableH = size.height - 2 * tbPadPx
+                    val yZero = size.height / 2f
+
+                    // 1. Draw 0 dB baseline (dashed)
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.12f),
+                        start = Offset(padPx, yZero),
+                        end = Offset(size.width - padPx, yZero),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f)),
+                    )
+
+                    // 2. Compute 6 points
+                    val points = mutableListOf<Offset>()
+                    for (i in 0..5) {
+                        val px = padPx + i * stepW
+                        val g = bands.getOrElse(i) { 0f }.coerceIn(-12f, 12f)
+                        val py = yZero - (g / 12f) * (usableH / 2f)
+                        points.add(Offset(px, py))
+
+                        // Vertical frequency guide line
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.05f),
+                            start = Offset(px, tbPadPx),
+                            end = Offset(px, size.height - tbPadPx),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                    }
+
+                    // 3. Catmull-Rom spline path
+                    val curvePath = Path()
+                    val fillPath = Path()
+                    curvePath.moveTo(points[0].x, points[0].y)
+                    fillPath.moveTo(points[0].x, points[0].y)
+
+                    for (i in 0 until points.size - 1) {
+                        val p0 = points.getOrElse(i - 1) { points[i] }
+                        val p1 = points[i]
+                        val p2 = points[i + 1]
+                        val p3 = points.getOrElse(i + 2) { points[i + 1] }
+
+                        val c1x = p1.x + (p2.x - p0.x) / 6f
+                        val c1y = p1.y + (p2.y - p0.y) / 6f
+                        val c2x = p2.x - (p3.x - p1.x) / 6f
+                        val c2y = p2.y - (p3.y - p1.y) / 6f
+
+                        curvePath.cubicTo(c1x, c1y, c2x, c2y, p2.x, p2.y)
+                        fillPath.cubicTo(c1x, c1y, c2x, c2y, p2.x, p2.y)
+                    }
+
+                    // Close fill under curve
+                    fillPath.lineTo(points.last().x, size.height)
+                    fillPath.lineTo(points.first().x, size.height)
+                    fillPath.close()
+
+                    // Draw gradient fill under curve
+                    drawPath(
+                        fillPath,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xFF3B82F6).copy(alpha = 0.35f), Color.Transparent),
+                            startY = 0f,
+                            endY = size.height,
+                        ),
+                    )
+
+                    // Draw spline curve
+                    drawPath(
+                        curvePath,
+                        color = Color(0xFF60A5FA),
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                    )
+
+                    // Draw draggable point handles
+                    points.forEach { pt ->
+                        drawCircle(
+                            color = Color(0xFF3B82F6).copy(alpha = 0.35f),
+                            radius = 11.dp.toPx(),
+                            center = pt,
+                        )
+                        drawCircle(
+                            color = Color(0xFF60A5FA),
+                            radius = 6.dp.toPx(),
+                            center = pt,
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 3.dp.toPx(),
+                            center = pt,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Frequency and Gain labels under points
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                freqLabels.forEachIndexed { i, label ->
+                    val gain = bands.getOrElse(i) { 0f }
+                    val gainText = if (gain > 0f) "+%.1f".format(java.util.Locale.US, gain) else "%.1f".format(java.util.Locale.US, gain)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(46.dp),
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.45f),
+                            fontSize = 11.sp,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = gainText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (gain != 0f) Color.White else Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            // Bottom actions: Down chevron & "Запомнить" pill button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = "Скрыть",
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+
+                Button(
+                    onClick = { onSavePreset(bands, currentPreset) },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF111113),
+                    ),
+                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.BookmarkBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Запомнить",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
                     )
                 }
             }

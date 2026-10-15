@@ -24,9 +24,9 @@ android {
         targetSdk = 35
         val runNumber = (project.findProperty("votifyRunNumber") as String?)?.toIntOrNull()
             ?: (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull())
-        val baseRun = runNumber ?: 248
+        val baseRun = runNumber ?: 250
         versionCode = if (baseRun < 1000) 1000 + baseRun else baseRun
-        versionName = "1.1.8"
+        versionName = "1.1.9"
 
         // Backend base URL. 10.0.2.2 = host machine from the Android emulator.
         // Override for a real device: -PvotifyApiBase=http://192.168.1.10:17217

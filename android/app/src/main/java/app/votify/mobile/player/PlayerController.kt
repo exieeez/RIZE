@@ -650,4 +650,9 @@ class PlayerController(
         AudioEffectsManager.setBassBoost(enabled)
         _state.update { it.copy(bassBoost = enabled) }
     }
+
+    @OptIn(UnstableApi::class)
+    fun setEqualizerBands(bands: List<Float>) {
+        AudioEffectsManager.setEqualizerBands(bands)
+    }
 }
