@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Download
@@ -278,7 +279,7 @@ fun PlayerScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp),
         ) {
-            // Header: round glass buttons on edges, profile capsule in center
+            // Header: round liquid glass buttons on edges, profile capsule in center (1-to-1 with screenshot)
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -287,74 +288,89 @@ fun PlayerScreen(
                 Surface(
                     onClick = onCollapse,
                     shape = CircleShape,
-                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
-                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
-                    modifier = Modifier.size(42.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = glassSpec,
+                            hazeState = playerHazeState,
+                        ),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Outlined.KeyboardArrowDown,
                             contentDescription = stringResource(R.string.player_collapse),
-                            tint = VotifyColors.TextPrimary,
-                            modifier = Modifier.size(24.dp),
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp),
                         )
                     }
                 }
 
-                // Profile capsule: avatar, username, accent counter badge
+                // Profile capsule: avatar, username, golden counter badge
                 Surface(
                     shape = CircleShape,
-                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
-                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
-                    modifier = Modifier.clickable(onClick = onOpenQueue),
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .clickable(onClick = onOpenQueue)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = glassSpec,
+                            hazeState = playerHazeState,
+                        ),
                 ) {
                     Row(
-                        modifier = Modifier.padding(start = 6.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (!userAvatar.isNullOrBlank()) {
                             AsyncImage(
                                 model = userAvatar,
                                 contentDescription = null,
-                                modifier = Modifier.size(24.dp).clip(CircleShape),
+                                modifier = Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)),
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
+                                    .size(26.dp)
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0xFF1E1E24))
-                                    .border(0.5.dp, Color(0xFF2A2A34), CircleShape),
+                                    .border(0.5.dp, Color(0xFF2A2A34), RoundedCornerShape(6.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = userName.take(1).uppercase().ifBlank { "E" },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = VotifyColors.TextPrimary,
+                                    color = Color.White,
                                 )
                             }
                         }
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = userName.ifBlank { "exieeez" },
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = VotifyColors.TextPrimary,
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp),
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                         )
                         Spacer(Modifier.width(8.dp))
                         val queueCount = if (state.queue.isNotEmpty()) state.queue.size else 48
                         Surface(
                             shape = CircleShape,
-                            color = palette?.accent ?: VotifyColors.Primary,
-                            contentColor = VotifyColors.PitchBlack,
+                            color = Color(0xFFF5A623),
+                            contentColor = Color.Black,
                         ) {
                             Text(
                                 text = queueCount.toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                color = Color.Black,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             )
                         }
                     }
@@ -363,15 +379,22 @@ fun PlayerScreen(
                 Surface(
                     onClick = onOpenMenu,
                     shape = CircleShape,
-                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
-                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
-                    modifier = Modifier.size(42.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = glassSpec,
+                            hazeState = playerHazeState,
+                        ),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Outlined.MoreVert,
                             contentDescription = stringResource(R.string.player_menu),
-                            tint = VotifyColors.TextPrimary,
+                            tint = Color.White,
                             modifier = Modifier.size(22.dp),
                         )
                     }
@@ -485,22 +508,22 @@ fun PlayerScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // Main glass transport dock (Repeat, Prev, Big White Play/Pause, Next, Shuffle)
+            // Main glass transport dock (Repeat, Prev, Big White Play/Pause, Next, Shuffle) - 1-to-1 match
             Surface(
-                shape = RoundedCornerShape(26.dp),
+                shape = RoundedCornerShape(32.dp),
                 color = Color.Transparent,
-                border = if (glassSpec.enabled) BorderStroke(0.5.dp, Color.White.copy(alpha = glassSpec.borderAlpha)) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .votifyGlass(
-                        shape = RoundedCornerShape(26.dp),
-                        baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.75f),
+                        shape = RoundedCornerShape(32.dp),
+                        baseColor = if (glassSpec.enabled) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
                         spec = glassSpec,
                         hazeState = playerHazeState,
                     ),
             ) {
                 Row(
-                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -509,60 +532,63 @@ fun PlayerScreen(
                         Icon(
                             if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                             stringResource(R.string.player_repeat),
-                            tint = if (repeatOn) accentColor else VotifyColors.TextMuted,
+                            tint = if (repeatOn) Color(0xFFF5A623) else Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                     IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Filled.SkipPrevious, stringResource(R.string.player_previous), tint = VotifyColors.TextPrimary, modifier = Modifier.size(32.dp))
+                        Icon(Icons.Filled.SkipPrevious, stringResource(R.string.player_previous), tint = Color.White, modifier = Modifier.size(30.dp))
                     }
                     // Prominent white circular Play/Pause button
                     Surface(
                         onClick = onPlayPause,
                         shape = CircleShape,
                         color = Color.White,
-                        contentColor = VotifyColors.PitchBlack,
+                        contentColor = Color.Black,
                         modifier = Modifier.size(64.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 stringResource(if (state.isPlaying) R.string.player_pause else R.string.player_play),
+                                tint = Color.Black,
                                 modifier = Modifier.size(34.dp),
                             )
                         }
                     }
                     IconButton(onClick = onNext, modifier = Modifier.size(48.dp), enabled = state.hasNext) {
-                        Icon(Icons.Filled.SkipNext, stringResource(R.string.player_next), tint = VotifyColors.TextPrimary, modifier = Modifier.size(32.dp))
+                        Icon(Icons.Filled.SkipNext, stringResource(R.string.player_next), tint = Color.White, modifier = Modifier.size(30.dp))
                     }
                     IconButton(onClick = onToggleShuffle) {
-                        Icon(Icons.Filled.Shuffle, stringResource(R.string.player_shuffle), tint = if (state.shuffle) accentColor else VotifyColors.TextMuted)
+                        Icon(Icons.Filled.Shuffle, stringResource(R.string.player_shuffle), tint = if (state.shuffle) Color(0xFFF5A623) else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(24.dp))
                     }
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // Two bottom glass capsules: Left (♡, ⊕, ⤓) and Right (T, 🎚, ⏲)
+            // Two bottom glass capsules: Left (♡, ⊕, ⤓) and Right (T, 🎚, ⏱) - 1-to-1 match
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // Left capsule: Favorite, Add to Playlist, Offline download
+                // Left capsule: Favorite, Add to Playlist (⊕), Offline download (⤓)
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = Color.Transparent,
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier
                         .weight(1f)
+                        .height(52.dp)
                         .votifyGlass(
-                            shape = RoundedCornerShape(22.dp),
-                            baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(24.dp),
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
                             spec = glassSpec,
                             hazeState = playerHazeState,
                         ),
                 ) {
                     Row(
-                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        Modifier.fillMaxSize().padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -570,51 +596,55 @@ fun PlayerScreen(
                             Icon(
                                 if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 stringResource(R.string.player_favorite),
-                                tint = if (isFavorite) accentColor else VotifyColors.TextPrimary,
+                                tint = if (isFavorite) Color(0xFFFF4081) else Color.White,
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                         IconButton(onClick = onAddToPlaylist) {
                             Icon(
-                                Icons.Outlined.PlaylistAdd,
+                                Icons.Outlined.AddCircleOutline,
                                 stringResource(R.string.action_add_to_playlist),
-                                tint = VotifyColors.TextPrimary,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                         IconButton(onClick = onDownload) {
                             Icon(
                                 if (isDownloaded) Icons.Outlined.DownloadDone else Icons.Outlined.Download,
                                 contentDescription = stringResource(R.string.action_download_playlist),
-                                tint = if (isDownloaded) accentColor else VotifyColors.TextPrimary,
+                                tint = if (isDownloaded) Color(0xFFF5A623) else Color.White,
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     }
                 }
 
-                // Right capsule: Lyrics (T), Equalizer (🎚), Speed preset toggle (⏲)
+                // Right capsule: Lyrics (T), Equalizer (🎚), Speed preset (⏱)
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = Color.Transparent,
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier
                         .weight(1f)
+                        .height(52.dp)
                         .votifyGlass(
-                            shape = RoundedCornerShape(22.dp),
-                            baseColor = if (glassSpec.enabled) GlassBaseColor else VotifyColors.SurfaceContainerLow.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(24.dp),
+                            baseColor = if (glassSpec.enabled) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
                             spec = glassSpec,
                             hazeState = playerHazeState,
                         ),
                 ) {
                     Row(
-                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        Modifier.fillMaxSize().padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         IconButton(onClick = onToggleLyrics) {
                             Text(
                                 text = "T",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (lyricsVisible) accentColor else VotifyColors.TextPrimary,
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = if (lyricsVisible) Color(0xFFF5A623) else Color.White,
                             )
                         }
                         val isRemixActive = Math.abs(state.speed - 1.0f) > 0.02f ||
@@ -623,41 +653,19 @@ fun PlayerScreen(
                                 state.bassBoost
                         IconButton(onClick = { showSpeedSheet = true }) {
                             Icon(
-                                Icons.Outlined.GraphicEq,
+                                Icons.Outlined.Tune,
                                 contentDescription = stringResource(R.string.remix_menu),
-                                tint = if (isRemixActive) accentColor else VotifyColors.TextSecondary,
+                                tint = if (isRemixActive) Color(0xFFF5A623) else Color.White,
+                                modifier = Modifier.size(24.dp),
                             )
                         }
-                        // Speed preset cycle toggle (0.85x Slowed, 1.0x, 1.2x Speed Up)
-                        val speedLabel = when {
-                            Math.abs(state.speed - 0.85f) < 0.05f -> "0.85x"
-                            Math.abs(state.speed - 1.2f) < 0.05f -> "1.2x"
-                            Math.abs(state.speed - 1.0f) < 0.05f -> "1.0x"
-                            else -> String.format(java.util.Locale.US, "%.2fx", state.speed)
-                        }
-                        Surface(
-                            onClick = {
-                                val nextSpeed = when {
-                                    Math.abs(state.speed - 1.0f) < 0.05f -> 0.85f
-                                    Math.abs(state.speed - 0.85f) < 0.05f -> 1.2f
-                                    else -> 1.0f
-                                }
-                                onSetRemix(nextSpeed, if (state.pitchLinked) nextSpeed else state.pitch, state.pitchLinked, state.reverbPreset, state.bassBoost)
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (Math.abs(state.speed - 1.0f) > 0.02f) accentColor.copy(alpha = 0.2f) else Color.Transparent,
-                        ) {
-                            Box(
-                                Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = speedLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (Math.abs(state.speed - 1.0f) > 0.02f) accentColor else VotifyColors.TextSecondary,
-                                )
-                            }
+                        IconButton(onClick = { showSpeedSheet = true }) {
+                            Icon(
+                                Icons.Outlined.Speed,
+                                contentDescription = "Скорость воспроизведения",
+                                tint = if (Math.abs(state.speed - 1.0f) > 0.02f) Color(0xFFF5A623) else Color.White,
+                                modifier = Modifier.size(24.dp),
+                            )
                         }
                     }
                 }
@@ -1081,33 +1089,34 @@ fun Scrubber(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val shown = if (dragging != null) (state.durationMs * value).toLong() else state.positionMs
-            Text(formatDuration(shown), style = MaterialTheme.typography.labelSmall, color = VotifyColors.TextMuted)
+            Text(formatDuration(shown), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
 
             if (nextTrack != null) {
                 Surface(
                     onClick = onOpenQueue,
-                    shape = CircleShape,
-                    color = VotifyColors.SurfaceContainer.copy(alpha = 0.55f),
-                    border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.Black.copy(alpha = 0.45f),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (!nextTrack.cover.isNullOrBlank()) {
                             AsyncImage(
                                 model = nextTrack.cover,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(3.dp)),
+                                modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)),
                                 contentScale = ContentScale.Crop,
                             )
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(8.dp))
                         }
                         Text(
-                            text = "Далее: ${nextTrack.title}",
+                            text = nextTrack.title,
                             style = MaterialTheme.typography.labelSmall,
-                            color = VotifyColors.TextSecondary,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.95f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.widthIn(max = 160.dp),
@@ -1118,7 +1127,7 @@ fun Scrubber(
                 Spacer(Modifier.weight(1f))
             }
 
-            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = VotifyColors.TextMuted)
+            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
         }
     }
 }

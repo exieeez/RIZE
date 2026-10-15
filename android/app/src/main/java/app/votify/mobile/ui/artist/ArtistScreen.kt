@@ -27,12 +27,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
@@ -215,14 +218,15 @@ fun ArtistScreen(
     val isGlass = LocalLiquidGlass.current
     val spec = rememberGlassSpec()
 
-    // Album tracklist bottom sheet
+    // Album tracklist bottom sheet (1-to-1 design matching screenshot)
     state.selectedAlbum?.let { album ->
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = viewModel::closeAlbum,
             sheetState = sheetState,
-            containerColor = VotifyColors.SurfaceBase,
+            containerColor = Color.Black,
             scrimColor = Color.Black.copy(alpha = 0.65f),
+            dragHandle = null,
         ) {
             AlbumTracksSheetContent(
                 album = album,
@@ -236,6 +240,10 @@ fun ArtistScreen(
                 onPlayAll = {
                     val votifyTracks = state.albumTracks.map { it.toVotifyTrack() }
                     if (votifyTracks.isNotEmpty()) onPlay(votifyTracks, 0)
+                },
+                onShuffleAll = {
+                    val votifyTracks = state.albumTracks.map { it.toVotifyTrack() }
+                    if (votifyTracks.isNotEmpty()) onPlay(votifyTracks.shuffled(), 0)
                 },
                 onClose = viewModel::closeAlbum,
             )
@@ -340,17 +348,16 @@ fun ArtistScreen(
                             )
                         }
 
-                        val previewTracks = state.tracks.take(10)
+                        val previewTracks = state.tracks.take(20)
                         if (previewTracks.isEmpty()) {
                             item { EmptyCollection(stringResource(R.string.artist_empty)) }
                         } else {
                             itemsIndexed(previewTracks, key = { i, t -> "$i-${t.id}" }) { i, t ->
-                                TrackRow(
+                                ArtistTrackRow(
+                                    index = i,
                                     track = t,
                                     isCurrent = t.id == currentTrackId,
                                     onClick = { onPlay(state.tracks, i) },
-                                    onMore = { onMore(t) },
-                                    modifier = Modifier.padding(horizontal = 8.dp),
                                 )
                             }
                         }
@@ -479,7 +486,11 @@ fun ArtistScreen(
 }
 
 /**
- * Clean artist header on solid black background with circular avatar.
+ * Artist header matching screenshot 1-to-1:
+ * - Liquid Glass < and ··· top circular buttons
+ * - Hero banner fading downwards into solid black
+ * - Left-aligned bold white title + avatar/artist subtitle row
+ * - Action buttons row: [ ▶ Play ] white pill, circular glass Shuffle, circular glass Add
  */
 @Composable
 private fun ArtistHeader(
@@ -500,66 +511,13 @@ private fun ArtistHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black)
-            .padding(top = contentTopPadding + 8.dp, start = 16.dp, end = 16.dp, bottom = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .background(Color.Black),
     ) {
-        // Navigation Top Bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Surface(
-                onClick = onBack,
-                shape = CircleShape,
-                color = Color.Transparent,
-                modifier = Modifier.size(40.dp).votifyGlass(
-                    shape = CircleShape,
-                    baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer.copy(alpha = 0.8f),
-                    spec = spec,
-                ),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = stringResource(R.string.nav_back),
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-
-            Surface(
-                onClick = onToggleFollow,
-                shape = CircleShape,
-                color = Color.Transparent,
-                modifier = Modifier.size(40.dp).votifyGlass(
-                    shape = CircleShape,
-                    baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer.copy(alpha = 0.8f),
-                    spec = spec,
-                ),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (isFollowing) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "В избранное",
-                        tint = if (isFollowing) VotifyColors.Primary else Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        // Artist Avatar on pure black background (no image/tint underneath)
+        // Hero Artwork Area fading into solid black
         Box(
             modifier = Modifier
-                .size(136.dp)
-                .clip(CircleShape)
-                .border(1.5.dp, Color.White.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .height(340.dp),
         ) {
             if (photoUrl.isNotBlank()) {
                 AsyncImage(
@@ -572,98 +530,278 @@ private fun ArtistHeader(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF16181D)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = VotifyColors.TextMuted,
-                        modifier = Modifier.size(64.dp),
-                    )
-                }
+                        .background(Color(0xFF141416)),
+                )
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
+            // Smooth vertical gradient to solid black
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.Black.copy(alpha = 0.35f),
+                                0.35f to Color.Transparent,
+                                0.70f to Color.Black.copy(alpha = 0.65f),
+                                1.0f to Color.Black,
+                            )
+                        )
+                    )
+            )
 
-        Text(
-            text = artist?.name ?: name,
-            style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        val fanText = if ((artist?.nbFan ?: 0) > 0) {
-            val formatted = NumberFormat.getNumberInstance(Locale.getDefault()).format(artist?.nbFan)
-            "$formatted слушателей"
-        } else if (tracksCount > 0) {
-            pluralTracks(tracksCount)
-        } else {
-            "Исполнитель Deezer"
-        }
-
-        val albumText = if ((artist?.nbAlbum ?: 0) > 0) {
-            " • ${artist?.nbAlbum} релизов"
-        } else ""
-
-        Text(
-            text = fanText + albumText,
-            style = MaterialTheme.typography.bodyMedium,
-            color = VotifyColors.TextSecondary,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        // Action Buttons
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // Big Circular Play Button
-            Surface(
-                onClick = onPlayTop,
-                shape = CircleShape,
-                color = VotifyColors.Primary,
-                contentColor = VotifyColors.PitchBlack,
-                modifier = Modifier.size(52.dp),
+            // Top bar buttons overlay: Left <, Right ··· (Liquid Glass)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = "Слушать",
-                        tint = VotifyColors.PitchBlack,
-                        modifier = Modifier.size(32.dp),
-                    )
-                }
-            }
-
-            // Shuffle Button
-            Surface(
-                onClick = onShuffleTop,
-                shape = CircleShape,
-                color = Color.Transparent,
-                modifier = Modifier.size(44.dp).votifyGlass(
+                Surface(
+                    onClick = onBack,
                     shape = CircleShape,
-                    baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
-                    spec = spec,
-                ),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Outlined.Shuffle,
-                        contentDescription = "Перемешать",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.nav_back),
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = onToggleFollow,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Outlined.MoreHoriz,
+                            contentDescription = "Опции",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
+        }
+
+        // Header Content on Pure Solid Black Background
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black)
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            // Big Bold Title (left-aligned)
+            Text(
+                text = artist?.name ?: name,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 30.sp),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Start,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            // Subtitle Row: Mini avatar + Name
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    text = artist?.name ?: name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            // Action Buttons Row: [ ▶ Play ] pill, Circular 🔀, Circular +
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Wide White Play Pill Button
+                Surface(
+                    onClick = onPlayTop,
+                    shape = CircleShape,
+                    color = Color.White,
+                    contentColor = Color.Black,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Play",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                        )
+                    }
+                }
+
+                // Circular Glass Shuffle Button
+                Surface(
+                    onClick = onShuffleTop,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color(0xFF222226),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Outlined.Shuffle,
+                            contentDescription = "Перемешать",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+
+                // Circular Glass Add / Follow Button
+                Surface(
+                    onClick = onToggleFollow,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color(0xFF222226),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isFollowing) Icons.Filled.Favorite else Icons.Outlined.Add,
+                            contentDescription = "Добавить",
+                            tint = if (isFollowing) VotifyColors.Primary else Color.White,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Minimal numbered track row matching screenshot 1-to-1:
+ * - Number on left
+ * - Bold title + artist subtitle in middle
+ * - Duration capsule [ 2:46 ] on right
+ */
+@Composable
+private fun ArtistTrackRow(
+    index: Int,
+    track: Track,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = (index + 1).toString(),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+            color = if (isCurrent) VotifyColors.Primary else Color(0xFF8E8E93),
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.width(28.dp),
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp),
+        ) {
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                fontWeight = FontWeight.SemiBold,
+                color = if (isCurrent) VotifyColors.Primary else Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = track.artist,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                color = Color(0xFF8E8E93),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFF1C1C1E).copy(alpha = 0.85f),
+        ) {
+            Text(
+                text = formatDuration(track.duration * 1000L),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                color = Color(0xFF8E8E93),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
         }
     }
 }
@@ -773,128 +911,273 @@ private fun AlbumTracksSheetContent(
     currentTrackId: String?,
     onPlayTrack: (Int) -> Unit,
     onPlayAll: () -> Unit,
+    onShuffleAll: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val isGlass = LocalLiquidGlass.current
+    val spec = rememberGlassSpec()
+    val coverUrl = album.coverXl.ifBlank { album.coverBig.ifBlank { album.cover } }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .background(Color.Black),
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+        // Hero Artwork Area
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                Artwork(
-                    url = album.coverXl.ifBlank { album.cover },
-                    size = 54.dp,
-                    shape = RoundedCornerShape(10.dp),
+            if (coverUrl.isNotBlank()) {
+                AsyncImage(
+                    model = coverUrl,
                     contentDescription = album.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
                 )
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = album.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "${album.artistName} • ${album.releaseDate.take(4)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = VotifyColors.TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            } else {
+                Box(Modifier.fillMaxSize().background(Color(0xFF141416)))
             }
 
-            IconButton(onClick = onClose) {
-                Icon(Icons.Outlined.Close, contentDescription = "Закрыть", tint = VotifyColors.TextSecondary)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.Black.copy(alpha = 0.35f),
+                                0.35f to Color.Transparent,
+                                0.70f to Color.Black.copy(alpha = 0.65f),
+                                1.0f to Color.Black,
+                            )
+                        )
+                    )
+            )
+
+            // Top bar buttons overlay: Left <, Right ··· (Liquid Glass)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Surface(
+                    onClick = onClose,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = { /* options */ },
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color.Black.copy(alpha = 0.35f),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Outlined.MoreHoriz,
+                            contentDescription = "Опции",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        // Header Content on Solid Black
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Text(
+                text = album.title,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Start,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (coverUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = coverUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    text = album.artistName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Action Buttons Row: [ ▶ Play ] pill, Circular 🔀, Circular +
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(
+                    onClick = onPlayAll,
+                    shape = CircleShape,
+                    color = Color.White,
+                    contentColor = Color.Black,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Play",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = onShuffleAll,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color(0xFF222226),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Shuffle, contentDescription = "Перемешать", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                }
+
+                Surface(
+                    onClick = { /* Add to library */ },
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .votifyGlass(
+                            shape = CircleShape,
+                            baseColor = if (isGlass) GlassBaseColor else Color(0xFF222226),
+                            spec = spec,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Add, contentDescription = "Добавить", tint = Color.White, modifier = Modifier.size(24.dp))
+                    }
+                }
             }
         }
 
         Spacer(Modifier.height(14.dp))
 
-        // Play All Button
-        if (tracks.isNotEmpty()) {
-            Surface(
-                onClick = onPlayAll,
-                shape = RoundedCornerShape(12.dp),
-                color = VotifyColors.Primary,
-                contentColor = VotifyColors.PitchBlack,
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = VotifyColors.PitchBlack, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Слушать альбом (${tracks.size} треков)",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-        }
-
-        // Track list
+        // Numbered track list
         if (isLoading) {
-            Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
             }
         } else if (tracks.isEmpty()) {
             EmptyCollection("Треклист недоступен")
         } else {
             LazyColumn(
-                modifier = Modifier.height(380.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(380.dp),
+                contentPadding = PaddingValues(bottom = 28.dp),
             ) {
                 itemsIndexed(tracks) { index, t ->
                     val isCurrent = currentTrackId == "dz_${t.id}"
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
                             .clickable { onPlayTrack(index) }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = (index + 1).toString(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isCurrent) VotifyColors.Primary else VotifyColors.TextMuted,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                            color = if (isCurrent) VotifyColors.Primary else Color(0xFF8E8E93),
+                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.width(28.dp),
                         )
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
                                 text = t.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                                fontWeight = FontWeight.SemiBold,
                                 color = if (isCurrent) VotifyColors.Primary else Color.White,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = t.artistName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = VotifyColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                                color = Color(0xFF8E8E93),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        Text(
-                            text = formatDuration(t.durationSeconds.toLong()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = VotifyColors.TextMuted,
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF1C1C1E).copy(alpha = 0.85f),
+                        ) {
+                            Text(
+                                text = formatDuration(t.durationSeconds * 1000L),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                color = Color(0xFF8E8E93),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
                     }
                 }
             }
