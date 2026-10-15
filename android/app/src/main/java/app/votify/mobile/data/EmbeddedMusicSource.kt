@@ -490,27 +490,45 @@ private const val TRENDING_TTL_MS = 30 * 60 * 1000L
 
     fun recommendations(limit: Int): List<Track> {
         ensureInit()
-        val queries = listOf(
-            "ONDA ANDAR",
-            "madk1d",
-            "VILLIAN ДИНАСТИЯ",
-            "ICEGERGERT",
-            "Friendly Thug 52 NGG",
-            "ALBLAK 52",
-            "Hugo Loud",
-            "Toxi$",
-            "Heronwater",
-            "Scally Milano",
+        // Mix in fresh chart titles if available
+        val chartSeeds = runCatching {
+            chartEntries(20).shuffled().take(4).map { (artist, title) ->
+                if (artist.isNotBlank()) "$artist $title" else title
+            }
+        }.getOrDefault(emptyList())
+
+        val curatedQueries = listOf(
+            "The Weeknd",
+            "Travis Scott",
+            "Kendrick Lamar",
+            "Billie Eilish",
+            "Post Malone",
+            "Daft Punk",
+            "Gorillaz",
+            "Drake",
+            "Arctic Monkeys",
+            "Kanye West",
+            "Playboi Carti",
+            "SZA",
+            "Joji",
+            "A\$AP Rocky",
+            "Linkin Park",
+            "Скриптонит",
+            "SALUKI",
+            "Miyagi & Эндшпиль",
             "Big Baby Tape",
             "Kizaru",
-            "Bushido Zho",
-            "SALUKI",
-            "Платина",
             "OG Buda",
+            "Платина",
+            "Markul",
+            "Boulevard Depo",
+            "PHARAOH",
+            "Три дня дождя",
+            "ICEGERGERT",
+            "Friendly Thug 52 NGG",
         )
+        val queries = (chartSeeds + curatedQueries).shuffled().take(6)
         return queries.asSequence()
-            .shuffled()
-            .take(6)
             .map { q -> runCatching { rawSearch(q, music = true, 6) }.getOrDefault(emptyList()) }
             .flatten()
             .distinctBy { it.id }

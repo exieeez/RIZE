@@ -3,6 +3,10 @@ package app.votify.mobile.ui.account
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -64,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
@@ -237,7 +242,27 @@ private fun WelcomeStep(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Top purple wave header
+        // Top animated purple liquid wave header
+        val waveTransition = rememberInfiniteTransition(label = "waveTransition")
+        val phase1 by waveTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = (2f * Math.PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(4500, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "wavePhase1",
+        )
+        val phase2 by waveTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = (2f * Math.PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(6500, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "wavePhase2",
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -246,18 +271,60 @@ private fun WelcomeStep(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
-                val path = Path().apply {
+
+                // Back ambient wave
+                val backPath = Path().apply {
                     moveTo(0f, 0f)
                     lineTo(w, 0f)
-                    lineTo(w, h * 0.45f)
-                    cubicTo(
-                        w * 0.75f, h * 0.85f,
-                        w * 0.25f, h * 0.25f,
-                        0f, h * 0.7f,
-                    )
+                    val steps = 36
+                    for (i in steps downTo 0) {
+                        val x = w * (i.toFloat() / steps)
+                        val rel = x / w
+                        val y = h * 0.46f +
+                            (kotlin.math.sin(rel * 2.2f * kotlin.math.PI + phase2).toFloat() * (h * 0.14f)) +
+                            (kotlin.math.cos(rel * 4f * kotlin.math.PI + phase1 * 0.6f).toFloat() * (h * 0.05f))
+                        lineTo(x, y)
+                    }
                     close()
                 }
-                drawPath(path, color = DeezerPurple.copy(alpha = 0.85f))
+                drawPath(
+                    backPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF7C3AED).copy(alpha = 0.55f),
+                            Color(0xFFA855F7).copy(alpha = 0.35f),
+                        ),
+                        startY = 0f,
+                        endY = h * 0.65f,
+                    ),
+                )
+
+                // Front vibrant liquid wave
+                val frontPath = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(w, 0f)
+                    val steps = 40
+                    for (i in steps downTo 0) {
+                        val x = w * (i.toFloat() / steps)
+                        val rel = x / w
+                        val y = h * 0.52f +
+                            (kotlin.math.sin(rel * 2.6f * kotlin.math.PI + phase1).toFloat() * (h * 0.16f)) +
+                            (kotlin.math.cos(rel * 1.4f * kotlin.math.PI - phase2 * 0.8f).toFloat() * (h * 0.07f))
+                        lineTo(x, y)
+                    }
+                    close()
+                }
+                drawPath(
+                    frontPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            DeezerPurple.copy(alpha = 0.95f),
+                            Color(0xFF9333EA).copy(alpha = 0.85f),
+                        ),
+                        startY = 0f,
+                        endY = h * 0.75f,
+                    ),
+                )
             }
             Surface(
                 shape = CircleShape,

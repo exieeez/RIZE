@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -256,17 +257,23 @@ fun PlayerScreen(
             )
         }
 
-        if (artworkStyle == ArtworkStyle.Blur && !track?.cover.isNullOrBlank()) {
+        if (!track?.cover.isNullOrBlank()) {
             AsyncImage(
                 model = track?.cover,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().blur(60.dp),
-                alpha = 0.35f,
+                modifier = Modifier.fillMaxSize().blur(36.dp),
+                alpha = 0.65f,
             )
             Box(
                 Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(listOf(Color.Transparent, bottomColor.copy(alpha = 0.7f), bottomColor)),
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.25f),
+                            Color.Black.copy(alpha = 0.42f),
+                            Color.Black.copy(alpha = 0.68f),
+                        ),
+                    ),
                 ),
             )
         }
@@ -331,20 +338,22 @@ fun PlayerScreen(
                             AsyncImage(
                                 model = userAvatar,
                                 contentDescription = null,
-                                modifier = Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)),
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape),
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
                             Box(
                                 modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .size(28.dp)
+                                    .clip(CircleShape)
                                     .background(Color(0xFF1E1E24))
-                                    .border(0.5.dp, Color(0xFF2A2A34), RoundedCornerShape(6.dp)),
+                                    .border(0.5.dp, Color(0xFF2A2A34), CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = userName.take(1).uppercase().ifBlank { "E" },
+                                    text = userName.take(1).uppercase().ifBlank { "U" },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
@@ -353,13 +362,15 @@ fun PlayerScreen(
                         }
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = userName.ifBlank { "exieeez" },
+                            text = userName.ifBlank { "User" },
                             style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp),
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Spacer(Modifier.width(8.dp))
-                        val queueCount = if (state.queue.isNotEmpty()) state.queue.size else 48
+                        val queueCount = state.queue.size
                         Surface(
                             shape = CircleShape,
                             color = Color(0xFFF5A623),
@@ -1090,44 +1101,85 @@ fun Scrubber(
         ) {
             val shown = if (dragging != null) (state.durationMs * value).toLong() else state.positionMs
             Text(formatDuration(shown), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
+            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
+        }
 
-            if (nextTrack != null) {
-                Surface(
-                    onClick = onOpenQueue,
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color.Black.copy(alpha = 0.45f),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
-                    modifier = Modifier.padding(horizontal = 4.dp),
+        if (nextTrack != null) {
+            Spacer(Modifier.height(8.dp))
+            Surface(
+                onClick = onOpenQueue,
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Black.copy(alpha = 0.38f),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (!nextTrack.cover.isNullOrBlank()) {
-                            AsyncImage(
-                                model = nextTrack.cover,
+                    if (!nextTrack.cover.isNullOrBlank()) {
+                        AsyncImage(
+                            model = nextTrack.cover,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.08f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.QueueMusic,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)),
-                                contentScale = ContentScale.Crop,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp),
                             )
-                            Spacer(Modifier.width(8.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "ДАЛЕЕ",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF5A623),
+                            )
                         }
                         Text(
                             text = nextTrack.title,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.95f),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 160.dp),
                         )
+                        if (nextTrack.artist.isNotBlank()) {
+                            Text(
+                                text = nextTrack.artist,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.60f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = stringResource(R.string.player_queue),
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
-            } else {
-                Spacer(Modifier.weight(1f))
             }
-
-            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
         }
     }
 }

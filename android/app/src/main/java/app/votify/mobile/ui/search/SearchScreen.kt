@@ -90,6 +90,8 @@ fun SearchScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
 
+    val searchBarBottom = (contentPadding.calculateBottomPadding() - 24.dp).coerceAtLeast(0.dp) + 6.dp
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Content list: Only shown when searching (query is not blank)
         if (state.query.isNotBlank()) {
@@ -97,7 +99,7 @@ fun SearchScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     top = contentPadding.calculateTopPadding() + 8.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 76.dp,
+                    bottom = searchBarBottom + 68.dp,
                 ),
             ) {
                 // Filter Chips
@@ -221,7 +223,7 @@ fun SearchScreen(
             .padding(
                 start = 16.dp,
                 end = 16.dp,
-                bottom = contentPadding.calculateBottomPadding() + 8.dp,
+                bottom = searchBarBottom,
             ),
     ) {
         SearchBar(
