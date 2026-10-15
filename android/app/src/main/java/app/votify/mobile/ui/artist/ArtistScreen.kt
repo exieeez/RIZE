@@ -243,7 +243,9 @@ fun ArtistScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
         contentPadding = PaddingValues(
             top = 0.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp,
@@ -477,7 +479,7 @@ fun ArtistScreen(
 }
 
 /**
- * Full-width visual header with artist photo from Deezer.
+ * Clean artist header on solid black background with circular avatar.
  */
 @Composable
 private fun ArtistHeader(
@@ -495,58 +497,16 @@ private fun ArtistHeader(
     val isGlass = LocalLiquidGlass.current
     val spec = rememberGlassSpec()
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(340.dp),
+            .background(Color.Black)
+            .padding(top = contentTopPadding + 8.dp, start = 16.dp, end = 16.dp, bottom = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // High-res photo background or sleek flat dark placeholder
-        if (photoUrl.isNotBlank()) {
-            AsyncImage(
-                model = photoUrl,
-                contentDescription = name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF18181E)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.Person,
-                    contentDescription = null,
-                    tint = VotifyColors.TextMuted,
-                    modifier = Modifier.size(96.dp),
-                )
-            }
-        }
-
-        // Gradient overlay for smooth transition to dark theme
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.75f),
-                            VotifyColors.SurfaceBase,
-                        ),
-                        startY = 0f,
-                        endY = Float.POSITIVE_INFINITY,
-                    ),
-                ),
-        )
-
         // Navigation Top Bar
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = contentTopPadding + 8.dp, start = 16.dp, end = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -591,87 +551,117 @@ private fun ArtistHeader(
             }
         }
 
-        // Bottom Info & Controls
-        Column(
+        Spacer(Modifier.height(14.dp))
+
+        // Artist Avatar on pure black background (no image/tint underneath)
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .size(136.dp)
+                .clip(CircleShape)
+                .border(1.5.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = artist?.name ?: name,
-                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 32.sp),
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            val fanText = if ((artist?.nbFan ?: 0) > 0) {
-                val formatted = NumberFormat.getNumberInstance(Locale.getDefault()).format(artist?.nbFan)
-                "$formatted слушателей"
-            } else if (tracksCount > 0) {
-                pluralTracks(tracksCount)
+            if (photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
             } else {
-                "Исполнитель Deezer"
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF16181D)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Person,
+                        contentDescription = null,
+                        tint = VotifyColors.TextMuted,
+                        modifier = Modifier.size(64.dp),
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = artist?.name ?: name,
+            style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        val fanText = if ((artist?.nbFan ?: 0) > 0) {
+            val formatted = NumberFormat.getNumberInstance(Locale.getDefault()).format(artist?.nbFan)
+            "$formatted слушателей"
+        } else if (tracksCount > 0) {
+            pluralTracks(tracksCount)
+        } else {
+            "Исполнитель Deezer"
+        }
+
+        val albumText = if ((artist?.nbAlbum ?: 0) > 0) {
+            " • ${artist?.nbAlbum} релизов"
+        } else ""
+
+        Text(
+            text = fanText + albumText,
+            style = MaterialTheme.typography.bodyMedium,
+            color = VotifyColors.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        // Action Buttons
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Big Circular Play Button
+            Surface(
+                onClick = onPlayTop,
+                shape = CircleShape,
+                color = VotifyColors.Primary,
+                contentColor = VotifyColors.PitchBlack,
+                modifier = Modifier.size(52.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = "Слушать",
+                        tint = VotifyColors.PitchBlack,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
             }
 
-            val albumText = if ((artist?.nbAlbum ?: 0) > 0) {
-                " • ${artist?.nbAlbum} релизов"
-            } else ""
-
-            Text(
-                text = fanText + albumText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = VotifyColors.TextSecondary,
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // Action Buttons
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            // Shuffle Button
+            Surface(
+                onClick = onShuffleTop,
+                shape = CircleShape,
+                color = Color.Transparent,
+                modifier = Modifier.size(44.dp).votifyGlass(
+                    shape = CircleShape,
+                    baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
+                    spec = spec,
+                ),
             ) {
-                // Big Circular Play Button
-                Surface(
-                    onClick = onPlayTop,
-                    shape = CircleShape,
-                    color = VotifyColors.Primary,
-                    contentColor = VotifyColors.PitchBlack,
-                    modifier = Modifier.size(54.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Filled.PlayArrow,
-                            contentDescription = "Слушать",
-                            tint = VotifyColors.PitchBlack,
-                            modifier = Modifier.size(34.dp),
-                        )
-                    }
-                }
-
-                // Shuffle Button
-                Surface(
-                    onClick = onShuffleTop,
-                    shape = CircleShape,
-                    color = Color.Transparent,
-                    modifier = Modifier.size(46.dp).votifyGlass(
-                        shape = CircleShape,
-                        baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
-                        spec = spec,
-                    ),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Outlined.Shuffle,
-                            contentDescription = "Перемешать",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.Shuffle,
+                        contentDescription = "Перемешать",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         }

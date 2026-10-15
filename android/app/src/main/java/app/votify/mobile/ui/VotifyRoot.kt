@@ -458,6 +458,13 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
         // (вместе со своим текстом), а не фон под ней.
         val contentHazeState = remember { HazeState() }
         val bgHazeState = remember { HazeState() }
+        var isSearchOpen by remember { mutableStateOf(false) }
+        BackHandler(enabled = isSearchOpen) { isSearchOpen = false }
+        val searchBlurDp by androidx.compose.animation.core.animateDpAsState(
+            targetValue = if (isSearchOpen) 40.dp else 0.dp,
+            animationSpec = tween(280),
+            label = "searchBlur",
+        )
         CompositionLocalProvider(
             LocalCustomPrefs provides bgPrefs,
             LocalLiquidGlass provides glassSpec.enabled,
@@ -506,12 +513,9 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                         NavHost(
                             navController,
                             startDestination = Tab.Home.route,
-                            modifier = Modifier.fillMaxSize(),
-                            // Переходы между экранами без плавного проявления: при перекрёстном
-                            // затухании Compose держит ОБА экрана сразу, их полупрозрачные карточки
-                            // накладываются, а размытие рисует отдельный слой-источник — из-за этого
-                            // стекло на мгновение выглядело как слой, который смещается относительно
-                            // экрана. Мгновенная смена экранов этот артефакт убирает полностью.
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(searchBlurDp),
                             enterTransition = { androidx.compose.animation.EnterTransition.None },
                             exitTransition = { androidx.compose.animation.ExitTransition.None },
                             popEnterTransition = { androidx.compose.animation.EnterTransition.None },
@@ -525,7 +529,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 playerState = playerState,
                                 onSeek = player::seekTo,
                                 iosSlider = parseCustomPrefs(settings.customPrefs).sliderStyle == "ios",
-                                onOpenSearch = { navController.navigate(Tab.Search.route) { launchSingleTop = true } },
+                                onOpenSearch = { isSearchOpen = true },
                                 onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
                                 onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
                                 onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
@@ -537,15 +541,10 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                             )
                         }
                         composable(Tab.Search.route) {
-                            SearchScreen(
-                                viewModel = searchVm,
-                                currentTrackId = playerState.current?.id,
-                                contentPadding = contentPadding,
-                                onPlay = play,
-                                onMore = openMenu,
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
-                                onOpenArtist = { name -> navController.navigate("artist/${android.net.Uri.encode(name)}") { launchSingleTop = true } },
-                            )
+                            LaunchedEffect(Unit) {
+                                isSearchOpen = true
+                                navController.popBackStack()
+                            }
                         }
                         composable(Tab.Library.route) {
                             LibraryScreen(
@@ -766,8 +765,55 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 onBack = { navController.popBackStack() },
                             )
                         }
-                        }
                     }
+
+                    // Heavy backdrop scrim when search is open
+                    AnimatedVisibility(
+                        visible = isSearchOpen,
+                        enter = fadeIn(tween(240)),
+                        exit = fadeOut(tween(200)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() },
+                                ) {
+                                    isSearchOpen = false
+                                },
+                        )
+                    }
+
+                    // Search sheet sliding in from the bottom
+                    AnimatedVisibility(
+                        visible = isSearchOpen,
+                        enter = slideInVertically(
+                            animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                        ) { it } + fadeIn(tween(220)),
+                        exit = slideOutVertically(
+                            animationSpec = tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                        ) { it } + fadeOut(tween(160)),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        SearchScreen(
+                            viewModel = searchVm,
+                            currentTrackId = playerState.current?.id,
+                            contentPadding = contentPadding,
+                            onPlay = play,
+                            onMore = openMenu,
+                            onOpenSettings = {
+                                isSearchOpen = false
+                                navController.navigate(Routes.SETTINGS) { launchSingleTop = true }
+                            },
+                            onOpenArtist = { name ->
+                                isSearchOpen = false
+                                navController.navigate("artist/${android.net.Uri.encode(name)}") { launchSingleTop = true }
+                            },
+                        )
+                    }
+                }
 
             Column(
                 modifier = Modifier
@@ -823,12 +869,17 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                 }
                 if (hasMini) Spacer(Modifier.height(8.dp))
                 VotifyNavBar(
-                    selected = Tab.entries.firstOrNull { t -> currentDestination?.hierarchy?.any { it.route == t.route } == true } ?: Tab.Home,
+                    selected = if (isSearchOpen) Tab.Search else (Tab.entries.firstOrNull { t -> currentDestination?.hierarchy?.any { it.route == t.route } == true } ?: Tab.Home),
                     onSelect = { tab ->
-                        navController.navigate(tab.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = false }
-                            launchSingleTop = true
-                            restoreState = false
+                        if (tab == Tab.Search) {
+                            isSearchOpen = !isSearchOpen
+                        } else {
+                            isSearchOpen = false
+                            navController.navigate(tab.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = false }
+                                launchSingleTop = true
+                                restoreState = false
+                            }
                         }
                     },
                     cp = cp,

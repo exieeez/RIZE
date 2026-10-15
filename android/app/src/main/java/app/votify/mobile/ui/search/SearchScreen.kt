@@ -2,6 +2,7 @@ package app.votify.mobile.ui.search
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -87,60 +90,49 @@ fun SearchScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding() + 8.dp,
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-        ),
-    ) {
-        // --- 1. Search Header ---
-        item {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Text(
-                    text = "Поиск",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = "Найди что-нибудь новое",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = VotifyColors.TextSecondary,
-                )
-            }
-        }
-
-        // --- 2. Search Input Bar ---
-        item {
-            Spacer(Modifier.height(8.dp))
-            SearchBar(
-                query = state.query,
-                onQueryChange = viewModel::onQueryChange,
-                onSubmit = { keyboard?.hide(); viewModel.submit() },
-                onClear = viewModel::clear,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
-
-        // --- 3. Filter Chips ---
-        item {
-            Spacer(Modifier.height(10.dp))
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(SearchFilter.values()) { f ->
-                    PillChip(
-                        text = f.label,
-                        selected = state.filter == f,
-                        onClick = { viewModel.setFilter(f) },
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding() + 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 76.dp,
+            ),
+        ) {
+            // --- 1. Search Header ---
+            item {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Text(
+                        text = "Поиск",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Найди что-нибудь новое",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VotifyColors.TextSecondary,
                     )
                 }
             }
-            Spacer(Modifier.height(12.dp))
-        }
+
+            // --- 2. Filter Chips ---
+            item {
+                Spacer(Modifier.height(4.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(SearchFilter.values()) { f ->
+                        PillChip(
+                            text = f.label,
+                            selected = state.filter == f,
+                            onClick = { viewModel.setFilter(f) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
 
         // --- 4. Main Content (Idle vs Results vs Loading) ---
         if (state.query.isBlank()) {
@@ -339,6 +331,26 @@ fun SearchScreen(
             }
         }
     }
+
+    // Floating Search Bar at the bottom matching media_1792070867694.jpg
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = contentPadding.calculateBottomPadding() + 8.dp,
+            ),
+    ) {
+        SearchBar(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            onSubmit = { keyboard?.hide(); viewModel.submit() },
+            onClear = viewModel::clear,
+        )
+    }
+}
 }
 
 @Composable
@@ -354,21 +366,21 @@ private fun SearchBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .clip(RoundedCornerShape(25.dp))
-            .background(Color(0xFF1E1E24))
+            .height(52.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(Color(0xFF16181D))
             .border(
                 width = 0.5.dp,
-                color = if (focused) VotifyColors.Primary else Color(0xFF2A2A34),
-                shape = RoundedCornerShape(25.dp),
+                color = if (focused) VotifyColors.Primary.copy(alpha = 0.8f) else Color(0xFF282A34),
+                shape = RoundedCornerShape(26.dp),
             )
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Outlined.Search,
             contentDescription = null,
-            tint = if (focused) VotifyColors.Primary else VotifyColors.TextSecondary,
+            tint = if (focused) VotifyColors.Primary else Color.White.copy(alpha = 0.75f),
             modifier = Modifier.size(20.dp),
         )
 
@@ -388,7 +400,7 @@ private fun SearchBar(
             decorationBox = { inner ->
                 if (query.isEmpty()) {
                     Text(
-                        text = "Треки, артисты, альбомы...",
+                        text = "Поиск",
                         style = MaterialTheme.typography.bodyMedium,
                         color = VotifyColors.TextMuted,
                     )
@@ -398,13 +410,46 @@ private fun SearchBar(
         )
 
         if (query.isNotEmpty()) {
-            IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onClear, modifier = Modifier.size(28.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.search_clear),
                     tint = VotifyColors.TextSecondary,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
+            }
+            Spacer(Modifier.width(4.dp))
+        }
+
+        // Action badges on the right matching media_1792070867694.jpg
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Shuffle,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.45f),
+                modifier = Modifier.size(16.dp),
+            )
+
+            // Red YouTube pill badge
+            Box(
+                modifier = Modifier
+                    .size(width = 28.dp, height = 18.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color(0xFFE50914)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(modifier = Modifier.size(7.dp)) {
+                    val path = Path().apply {
+                        moveTo(0.5.dp.toPx(), 0f)
+                        lineTo(size.width, size.height / 2f)
+                        lineTo(0.5.dp.toPx(), size.height)
+                        close()
+                    }
+                    drawPath(path, Color.White)
+                }
             }
         }
     }

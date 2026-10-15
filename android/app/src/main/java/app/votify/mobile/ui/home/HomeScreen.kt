@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -53,7 +54,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -385,27 +391,34 @@ private fun HomeHeader(
             onClick = onOpenSite,
             shape = CircleShape,
             color = Color.Transparent,
-            modifier = Modifier.votifyGlass(
-                shape = CircleShape,
-                baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
-                spec = spec,
-            ),
+            modifier = Modifier
+                .height(36.dp)
+                .votifyGlass(
+                    shape = CircleShape,
+                    baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
+                    spec = spec,
+                ),
         ) {
-            Row(Modifier.padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Image(
                     painter = painterResource(R.drawable.ic_votify_logo),
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
-                Spacer(Modifier.width(8.dp))
-                Text("Votify", style = MaterialTheme.typography.titleSmall, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(6.dp))
+                Text("Votify", style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp), color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.weight(1f))
-        // Кнопки шапки: диски 34 dp — одна высота с пилюлей «Votify», зазор 10 dp
+        // Кнопки шапки: диски 36 dp — точно одна высота с пилюлей «Votify», зазор 10 dp
         CircleIconButton(
             onClick = onOpenAccount,
-            size = 34.dp,
+            size = 36.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.settings_section_account),
         ) {
@@ -414,11 +427,11 @@ private fun HomeHeader(
         Spacer(Modifier.width(10.dp))
         CircleIconButton(
             onClick = onOpenSearch,
-            size = 34.dp,
+            size = 36.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_search),
         ) {
-            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(17.dp))
+            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(10.dp))
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
@@ -432,7 +445,7 @@ private fun HomeHeader(
                 settingsAngle += 360f
                 onOpenSettings()
             },
-            size = 34.dp,
+            size = 36.dp,
             showBorder = false,
             contentDescription = stringResource(R.string.nav_settings),
         ) {
@@ -441,7 +454,7 @@ private fun HomeHeader(
                 null,
                 tint = VotifyColors.TextSecondary,
                 modifier = Modifier
-                    .size(17.dp)
+                    .size(18.dp)
                     .graphicsLayer { rotationZ = animatedRotation },
             )
         }
@@ -465,8 +478,8 @@ private fun homeLyricLine(
 }
 
 /**
- * The hero of the home screen: «Моя волна» with 3D spiral particle ribbon animation,
- * wave settings, and a prominent Play button.
+ * The hero of the home screen: «Моя волна» with 3D DNA particle animation
+ * and a prominent Play button.
  */
 @Composable
 private fun MyWaveHeroSection(
@@ -481,15 +494,12 @@ private fun MyWaveHeroSection(
     onPlayTrack: (Int) -> Unit,
     onCustomizeWave: () -> Unit,
 ) {
-    val isGlass = LocalLiquidGlass.current
-    val spec = rememberGlassSpec()
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
-        // Wave Header: Title + Subtitle on Left, Action Buttons on Right
+        // Wave Header: Title + Subtitle on Left, Play Button on Right
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -517,32 +527,21 @@ private fun MyWaveHeroSection(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Wave Settings / Preferences Button
-                Surface(
-                    onClick = onCustomizeWave,
-                    shape = CircleShape,
-                    color = Color.Transparent,
-                    modifier = Modifier.size(42.dp).votifyGlass(
-                        shape = CircleShape,
-                        baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
-                        spec = spec,
-                    ),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.Favorite,
-                            contentDescription = stringResource(R.string.settings_title),
-                            tint = VotifyColors.Primary,
-                            modifier = Modifier.size(19.dp),
-                        )
-                    }
-                }
+                // Wave Play/Pause Button:
+                // User requirement: always shows Pause (||) by default, and when tapped,
+                // momentarily switches off for 1 second, then resumes showing Pause.
+                var isMomentaryPause by remember { mutableStateOf(false) }
+                val waveScope = rememberCoroutineScope()
 
-                Spacer(Modifier.width(10.dp))
-
-                // Prominent Circular Play/Pause Button
                 Surface(
-                    onClick = onPlayWave,
+                    onClick = {
+                        onPlayWave()
+                        waveScope.launch {
+                            isMomentaryPause = true
+                            delay(1000)
+                            isMomentaryPause = false
+                        }
+                    },
                     shape = CircleShape,
                     color = VotifyColors.Primary,
                     contentColor = VotifyColors.PitchBlack,
@@ -550,8 +549,8 @@ private fun MyWaveHeroSection(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.home_play_wave),
+                            imageVector = if (isMomentaryPause) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                            contentDescription = stringResource(if (isMomentaryPause) R.string.home_play_wave else R.string.player_pause),
                             tint = VotifyColors.PitchBlack,
                             modifier = Modifier.size(32.dp),
                         )
@@ -562,7 +561,7 @@ private fun MyWaveHeroSection(
 
         Spacer(Modifier.height(14.dp))
 
-        // Center Area: SpiralParticleWave or Loading / Error
+        // Center Area: 3D DNA SpiralParticleWave or Loading / Error
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -582,65 +581,13 @@ private fun MyWaveHeroSection(
                     Text(stringResource(R.string.home_wave_empty), color = VotifyColors.TextSecondary, style = MaterialTheme.typography.titleSmall)
                 }
                 else -> {
-                    // 3D Spiral Particle Wave
+                    // 3D DNA Spiral Particle Wave
                     SpiralParticleWave(
                         size = 280.dp,
                         accentColor = VotifyColors.Primary,
                         isPlaying = isPlaying,
                         onClick = onPlayWave,
                     )
-                }
-            }
-        }
-
-        // Preview track pills under the wave
-        if (tracks.isNotEmpty() && !isLoading && error == null) {
-            Spacer(Modifier.height(8.dp))
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                itemsIndexed(tracks.take(6)) { index, track ->
-                    Surface(
-                        onClick = { onPlayTrack(index) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Transparent,
-                        border = BorderStroke(0.5.dp, VotifyColors.BorderSubtle),
-                        modifier = Modifier.votifyGlass(
-                            shape = RoundedCornerShape(12.dp),
-                            baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainerLow,
-                            spec = spec,
-                        ),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Artwork(
-                                url = track.cover,
-                                size = 28.dp,
-                                shape = RoundedCornerShape(6.dp),
-                                contentDescription = track.title,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = track.title,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = VotifyColors.TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = track.artist,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = VotifyColors.TextMuted,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }

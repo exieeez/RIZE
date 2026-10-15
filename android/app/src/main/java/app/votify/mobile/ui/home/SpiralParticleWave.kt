@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,28 +25,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.votify.mobile.ui.theme.VotifyColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-private class Particle3D(
-    val baseRadius: Float,
-    val theta: Float,
-    val ribbonOffset: Float,
-    val zBase: Float,
+private class DnaParticle(
+    val baseX: Float,
+    val baseY: Float,
+    val baseZ: Float,
     val size: Float,
     val scatterDirX: Float,
     val scatterDirY: Float,
     val scatterDirZ: Float,
     val alphaFactor: Float,
+    val isRung: Boolean,
 )
 
+/**
+ * 3D DNA Double Helix particle animation for "Моя волна".
+ * Features two intertwined helical strands with connecting base pair rungs,
+ * smooth 3D perspective projection, rhythmic pulse, and interactive particle burst.
+ */
 @Composable
 fun SpiralParticleWave(
     modifier: Modifier = Modifier,
@@ -56,50 +60,119 @@ fun SpiralParticleWave(
     isPlaying: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
-    // Generate ~1500 particles for the intertwined 3D ribbons
-    val particleCount = 1400
+    val totalParticles = 1400
     val particles = remember {
-        val list = ArrayList<Particle3D>(particleCount)
+        val list = ArrayList<DnaParticle>(totalParticles)
         val random = Random(42)
-        val arms = 3
-        for (i in 0 until particleCount) {
-            val arm = i % arms
-            val t = (i.toFloat() / particleCount) // 0..1 along spiral
-            val theta = t * (4.5f * 2f * PI.toFloat()) + (arm * (2f * PI.toFloat() / arms))
-            // Spiral radius expanding from center
-            val baseRadius = 15f + t * 115f
-            // Width jitter across the spiral ribbon
-            val ribbonOffset = (random.nextFloat() - 0.5f) * (18f + t * 24f)
-            val zBase = sin(theta * 2f) * (15f + t * 30f) + (random.nextFloat() - 0.5f) * 16f
 
-            // Explosion vector for scatter animation
-            val u = random.nextFloat() * 2f * PI.toFloat()
-            val v = (random.nextFloat() - 0.5f) * PI.toFloat()
-            val dist = 140f + random.nextFloat() * 160f
-            val sX = cos(v) * cos(u) * dist
-            val sY = sin(v) * dist
-            val sZ = cos(v) * sin(u) * dist
+        val height = 210f
+        val radius = 54f
+        val turns = 2.6f // Number of full helical twists
+
+        // 1. Helical Backbone Strands (Strand A and Strand B)
+        val strandParticles = 520
+        for (i in 0 until strandParticles) {
+            val t = i.toFloat() / strandParticles // 0..1
+            val y = (t - 0.5f) * height
+            val theta = t * (turns * 2f * PI.toFloat())
+
+            // Strand A
+            val jitterA = (random.nextFloat() - 0.5f) * 7f
+            val rA = radius + jitterA
+            val xA = rA * cos(theta)
+            val zA = rA * sin(theta) + (random.nextFloat() - 0.5f) * 6f
+
+            // Direction for scatter on tap
+            val uA = random.nextFloat() * 2f * PI.toFloat()
+            val vA = (random.nextFloat() - 0.5f) * PI.toFloat()
+            val distA = 130f + random.nextFloat() * 150f
 
             list.add(
-                Particle3D(
-                    baseRadius = baseRadius,
-                    theta = theta,
-                    ribbonOffset = ribbonOffset,
-                    zBase = zBase,
-                    size = 1.2f + random.nextFloat() * 1.8f,
-                    scatterDirX = sX,
-                    scatterDirY = sY,
-                    scatterDirZ = sZ,
-                    alphaFactor = 0.4f + random.nextFloat() * 0.6f,
+                DnaParticle(
+                    baseX = xA,
+                    baseY = y,
+                    baseZ = zA,
+                    size = 1.4f + random.nextFloat() * 1.8f,
+                    scatterDirX = cos(vA) * cos(uA) * distA,
+                    scatterDirY = sin(vA) * distA,
+                    scatterDirZ = cos(vA) * sin(uA) * distA,
+                    alphaFactor = 0.55f + random.nextFloat() * 0.45f,
+                    isRung = false,
+                )
+            )
+
+            // Strand B (180 degrees offset)
+            val thetaB = theta + PI.toFloat()
+            val jitterB = (random.nextFloat() - 0.5f) * 7f
+            val rB = radius + jitterB
+            val xB = rB * cos(thetaB)
+            val zB = rB * sin(thetaB) + (random.nextFloat() - 0.5f) * 6f
+
+            val uB = random.nextFloat() * 2f * PI.toFloat()
+            val vB = (random.nextFloat() - 0.5f) * PI.toFloat()
+            val distB = 130f + random.nextFloat() * 150f
+
+            list.add(
+                DnaParticle(
+                    baseX = xB,
+                    baseY = y,
+                    baseZ = zB,
+                    size = 1.4f + random.nextFloat() * 1.8f,
+                    scatterDirX = cos(vB) * cos(uB) * distB,
+                    scatterDirY = sin(vB) * distB,
+                    scatterDirZ = cos(vB) * sin(uB) * distB,
+                    alphaFactor = 0.55f + random.nextFloat() * 0.45f,
+                    isRung = false,
                 )
             )
         }
+
+        // 2. Base Pair Rungs connecting Strand A and Strand B
+        val numRungs = 24
+        val particlesPerRung = 15
+        for (r in 0 until numRungs) {
+            val t = (r + 0.5f) / numRungs
+            val y = (t - 0.5f) * height
+            val theta = t * (turns * 2f * PI.toFloat())
+
+            val xA = radius * cos(theta)
+            val zA = radius * sin(theta)
+
+            val xB = radius * cos(theta + PI.toFloat())
+            val zB = radius * sin(theta + PI.toFloat())
+
+            for (p in 0 until particlesPerRung) {
+                val frac = (p + 1f) / (particlesPerRung + 1f)
+                val rx = xA + (xB - xA) * frac + (random.nextFloat() - 0.5f) * 3f
+                val ry = y + (random.nextFloat() - 0.5f) * 3f
+                val rz = zA + (zB - zA) * frac + (random.nextFloat() - 0.5f) * 3f
+
+                val u = random.nextFloat() * 2f * PI.toFloat()
+                val v = (random.nextFloat() - 0.5f) * PI.toFloat()
+                val dist = 120f + random.nextFloat() * 140f
+
+                list.add(
+                    DnaParticle(
+                        baseX = rx,
+                        baseY = ry,
+                        baseZ = rz,
+                        size = 1.1f + random.nextFloat() * 1.3f,
+                        scatterDirX = cos(v) * cos(u) * dist,
+                        scatterDirY = sin(v) * dist,
+                        scatterDirZ = cos(v) * sin(u) * dist,
+                        alphaFactor = 0.4f + random.nextFloat() * 0.4f,
+                        isRung = true,
+                    )
+                )
+            }
+        }
+
         list
     }
 
-    // Continuous 3D rotation transition
-    val infiniteTransition = rememberInfiniteTransition(label = "wave3d")
-    val rotationSpeed = if (isPlaying) 12_000 else 24_000
+    // Continuous 3D rotation transition around the helix axis
+    val infiniteTransition = rememberInfiniteTransition(label = "dna3d")
+    val rotationSpeed = if (isPlaying) 10_000 else 20_000
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -107,37 +180,36 @@ fun SpiralParticleWave(
             animation = tween(durationMillis = rotationSpeed, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
-        label = "rotation",
+        label = "dna_rotation",
     )
 
-    // Pulse animation when playing
+    // Gentle pulse animation
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.96f,
         targetValue = 1.04f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isPlaying) 800 else 2200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = if (isPlaying) 900 else 2200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "pulse",
+        label = "dna_pulse",
     )
 
-    // Scatter / Gather transition
+    // Scatter / Gather transition on tap
     val scatterAnim = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     var isScattered by remember { mutableStateOf(false) }
 
-    fun toggleScatter() {
+    fun triggerScatter() {
         scope.launch {
             if (scatterAnim.isRunning) return@launch
             if (!isScattered) {
                 isScattered = true
-                scatterAnim.animateTo(1f, animationSpec = tween(700, easing = FastOutSlowInEasing))
-                // Automatically gather back after a brief pause
-                kotlinx.coroutines.delay(400)
-                scatterAnim.animateTo(0f, animationSpec = tween(900, easing = FastOutSlowInEasing))
+                scatterAnim.animateTo(1f, animationSpec = tween(650, easing = FastOutSlowInEasing))
+                delay(350)
+                scatterAnim.animateTo(0f, animationSpec = tween(850, easing = FastOutSlowInEasing))
                 isScattered = false
             } else {
-                scatterAnim.animateTo(0f, animationSpec = tween(800, easing = FastOutSlowInEasing))
+                scatterAnim.animateTo(0f, animationSpec = tween(750, easing = FastOutSlowInEasing))
                 isScattered = false
             }
         }
@@ -149,7 +221,7 @@ fun SpiralParticleWave(
         modifier = modifier
             .size(size)
             .clickable(interactionSource = interactionSource, indication = null) {
-                toggleScatter()
+                triggerScatter()
                 onClick?.invoke()
             },
         contentAlignment = Alignment.Center,
@@ -160,65 +232,71 @@ fun SpiralParticleWave(
             val scatter = scatterAnim.value
             val rotRad = Math.toRadians(rotationAngle.toDouble()).toFloat()
 
-            // Tilt on X axis for isometric 3D view
-            val tiltAngle = Math.toRadians(32.0).toFloat()
+            // Slight tilt of the DNA axis (e.g. 24 degrees) so the double helix angles aesthetically
+            val tiltAngle = Math.toRadians(24.0).toFloat()
             val cosTilt = cos(tiltAngle)
             val sinTilt = sin(tiltAngle)
 
-            // Draw center glow
+            // Radial ambient glow behind the DNA spiral
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        accentColor.copy(alpha = 0.22f * (1f - scatter * 0.5f)),
-                        accentColor.copy(alpha = 0.06f),
+                        accentColor.copy(alpha = 0.20f * (1f - scatter * 0.5f)),
+                        accentColor.copy(alpha = 0.05f),
                         Color.Transparent,
                     ),
                     center = center,
-                    radius = 90f * baseScale,
+                    radius = 95f * baseScale,
                 ),
-                radius = 90f * baseScale,
+                radius = 95f * baseScale,
                 center = center,
             )
 
-            // Project 3D points to 2D
+            // 3D transformation and projection for each DNA particle
+            val cameraDistance = 380f
+
             for (p in particles) {
-                // Current position on the spiral in model coordinates
-                val currentTheta = p.theta + rotRad
-                val r = p.baseRadius + p.ribbonOffset
+                // 1. Rotation around the vertical Y axis
+                val cosR = cos(rotRad)
+                val sinR = sin(rotRad)
+                var xRot = p.baseX * cosR - p.baseZ * sinR
+                var yRot = p.baseY
+                var zRot = p.baseX * sinR + p.baseZ * cosR
 
-                // 3D coordinates in spiral
-                var x = r * cos(currentTheta)
-                var y = r * sin(currentTheta)
-                var z = p.zBase
-
-                // Apply scatter offset if animating
+                // 2. Apply scatter burst offset
                 if (scatter > 0f) {
-                    x += p.scatterDirX * scatter
-                    y += p.scatterDirY * scatter
-                    z += p.scatterDirZ * scatter
+                    xRot += p.scatterDirX * scatter
+                    yRot += p.scatterDirY * scatter
+                    zRot += p.scatterDirZ * scatter
                 }
 
-                // Rotate around X axis (tilt view)
-                val yTilted = y * cosTilt - z * sinTilt
-                val zTilted = y * sinTilt + z * cosTilt
+                // 3. Tilt the DNA axis slightly in 3D
+                val xFinal = xRot * cosTilt - yRot * sinTilt
+                val yFinal = xRot * sinTilt + yRot * cosTilt
+                val zFinal = zRot
 
-                // Perspective projection: scale by depth Z
-                val cameraDistance = 380f
-                val perspective = cameraDistance / (cameraDistance - zTilted)
+                // 4. Perspective projection
+                val perspective = cameraDistance / (cameraDistance - zFinal)
                 if (perspective <= 0f) continue
 
-                val projX = center.x + x * perspective * baseScale
-                val projY = center.y + yTilted * perspective * baseScale
+                val projX = center.x + xFinal * perspective * baseScale
+                val projY = center.y + yFinal * perspective * baseScale
 
-                // Depth-based alpha and size
-                val depthNormalized = ((zTilted + 120f) / 240f).coerceIn(0.15f, 1f)
-                val pointAlpha = (p.alphaFactor * depthNormalized * (1f - scatter * 0.25f)).coerceIn(0.08f, 1f)
-                val pointRadius = (p.size * perspective * (0.8f + depthNormalized * 0.4f)).coerceIn(0.8f, 5f)
+                // 5. Depth shading
+                val depthNorm = ((zFinal + 70f) / 140f).coerceIn(0.18f, 1f)
+                val particleAlpha = (p.alphaFactor * depthNorm * (1f - scatter * 0.25f)).coerceIn(0.08f, 1f)
+                val particleRadius = (p.size * perspective * (0.8f + depthNorm * 0.35f)).coerceIn(0.7f, 4.5f)
 
-                // Draw particle
+                // Rungs have a slightly whiter luminous tint, backbone strands take the accent color
+                val particleColor = if (p.isRung) {
+                    Color.White.copy(alpha = particleAlpha * 0.85f)
+                } else {
+                    accentColor.copy(alpha = particleAlpha)
+                }
+
                 drawCircle(
-                    color = accentColor.copy(alpha = pointAlpha),
-                    radius = pointRadius,
+                    color = particleColor,
+                    radius = particleRadius,
                     center = Offset(projX, projY),
                 )
             }
