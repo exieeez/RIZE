@@ -91,151 +91,32 @@ fun SearchScreen(
     val keyboard = LocalSoftwareKeyboardController.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                top = contentPadding.calculateTopPadding() + 8.dp,
-                bottom = contentPadding.calculateBottomPadding() + 76.dp,
-            ),
-        ) {
-            // --- 1. Search Header ---
-            item {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                    Text(
-                        text = "Поиск",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "Найди что-нибудь новое",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = VotifyColors.TextSecondary,
-                    )
-                }
-            }
-
-            // --- 2. Filter Chips ---
-            item {
-                Spacer(Modifier.height(4.dp))
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(SearchFilter.values()) { f ->
-                        PillChip(
-                            text = f.label,
-                            selected = state.filter == f,
-                            onClick = { viewModel.setFilter(f) },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-            }
-
-        // --- 4. Main Content (Idle vs Results vs Loading) ---
-        if (state.query.isBlank()) {
-            // === IDLE STATE (Rich Discoverable Search) ===
-
-            // Search History
-            if (state.recent.isNotEmpty() || state.historyItems.isNotEmpty()) {
+        // Content list: Only shown when searching (query is not blank)
+        if (state.query.isNotBlank()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 76.dp,
+                ),
+            ) {
+                // Filter Chips
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                    Spacer(Modifier.height(4.dp))
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(
-                            text = "История поиска",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                        )
-                        TextButton(onClick = viewModel::clearRecent) {
-                            Text(
-                                text = "Очистить",
-                                color = VotifyColors.TextMuted,
-                                style = MaterialTheme.typography.bodySmall,
+                        items(SearchFilter.values()) { f ->
+                            PillChip(
+                                text = f.label,
+                                selected = state.filter == f,
+                                onClick = { viewModel.setFilter(f) },
                             )
                         }
                     }
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        if (state.historyItems.isNotEmpty()) {
-                            items(state.historyItems) { h ->
-                                HistoryCard(
-                                    item = h,
-                                    onClick = {
-                                        if (h.track != null) {
-                                            viewModel.addTrackToHistory(h.track)
-                                            onPlay(listOf(h.track), 0)
-                                        } else {
-                                            viewModel.pickRecent(h.query)
-                                        }
-                                    },
-                                )
-                            }
-                        } else {
-                            items(state.recent) { q ->
-                                PillChip(
-                                    text = q,
-                                    selected = false,
-                                    onClick = { viewModel.pickRecent(q) },
-                                    leading = { Icon(Icons.Default.History, null, modifier = Modifier.size(14.dp)) },
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
-            }
-
-            // Popular Queries (Deezer Trending Charts)
-            item {
-                SectionHeader(
-                    title = "Популярные запросы",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
-
-            if (state.isLoadingPopular) {
-                item {
-                    Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = VotifyColors.Primary, strokeWidth = 2.dp)
-                    }
-                }
-            } else if (state.popularItems.isNotEmpty()) {
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(state.popularItems) { item ->
-                            PopularItemCard(
-                                item = item,
-                                onClick = {
-                                    if (item.track != null) {
-                                        viewModel.addTrackToHistory(item.track)
-                                        onPlay(listOf(item.track), 0)
-                                    } else if (item.artistName.isNotBlank()) {
-                                        onOpenArtist(item.artistName)
-                                    } else {
-                                        viewModel.pickRecent(item.title)
-                                    }
-                                },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
-        } else {
             // === SEARCH RESULTS STATE ===
             when {
                 state.isLoading -> item {
@@ -417,39 +298,6 @@ private fun SearchBar(
                     tint = VotifyColors.TextSecondary,
                     modifier = Modifier.size(16.dp),
                 )
-            }
-            Spacer(Modifier.width(4.dp))
-        }
-
-        // Action badges on the right matching media_1792070867694.jpg
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Shuffle,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.45f),
-                modifier = Modifier.size(16.dp),
-            )
-
-            // Red YouTube pill badge
-            Box(
-                modifier = Modifier
-                    .size(width = 28.dp, height = 18.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFFE50914)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(modifier = Modifier.size(7.dp)) {
-                    val path = Path().apply {
-                        moveTo(0.5.dp.toPx(), 0f)
-                        lineTo(size.width, size.height / 2f)
-                        lineTo(0.5.dp.toPx(), size.height)
-                        close()
-                    }
-                    drawPath(path, Color.White)
-                }
             }
         }
     }

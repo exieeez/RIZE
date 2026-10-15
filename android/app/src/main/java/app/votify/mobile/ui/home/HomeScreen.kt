@@ -379,84 +379,112 @@ private fun HomeHeader(
     onOpenAccount: () -> Unit,
     onOpenSite: () -> Unit,
 ) {
-    val isGlass = LocalLiquidGlass.current
-    val spec = rememberGlassSpec()
+    val headerButtonBg = Color(0xFF1E2026)
+    val headerButtonBorder = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f))
+
     Row(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Votify Brand Pill: height 38.dp
         Surface(
             onClick = onOpenSite,
             shape = CircleShape,
-            color = Color.Transparent,
-            modifier = Modifier
-                .height(36.dp)
-                .votifyGlass(
-                    shape = CircleShape,
-                    baseColor = if (isGlass) GlassBaseColor else VotifyColors.SurfaceContainer,
-                    spec = spec,
-                ),
+            color = headerButtonBg,
+            border = headerButtonBorder,
+            modifier = Modifier.height(38.dp),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .padding(horizontal = 11.dp),
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_votify_logo),
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(17.dp),
                 )
-                Spacer(Modifier.width(6.dp))
-                Text("Votify", style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp), color = Color.White, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    text = "Votify",
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp),
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
+
         Spacer(Modifier.weight(1f))
-        // Кнопки шапки: диски 36 dp — точно одна высота с пилюлей «Votify», зазор 10 dp
-        CircleIconButton(
+
+        // Top Header Action Buttons: strictly 38.dp circle disks with matching background & border
+        Surface(
             onClick = onOpenAccount,
-            size = 36.dp,
-            showBorder = false,
-            contentDescription = stringResource(R.string.settings_section_account),
+            shape = CircleShape,
+            color = headerButtonBg,
+            border = headerButtonBorder,
+            modifier = Modifier.size(38.dp),
         ) {
-            Icon(Icons.Outlined.AccountCircle, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.AccountCircle,
+                    contentDescription = stringResource(R.string.settings_section_account),
+                    tint = VotifyColors.TextSecondary,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
         }
+
         Spacer(Modifier.width(10.dp))
-        CircleIconButton(
+
+        Surface(
             onClick = onOpenSearch,
-            size = 36.dp,
-            showBorder = false,
-            contentDescription = stringResource(R.string.nav_search),
+            shape = CircleShape,
+            color = headerButtonBg,
+            border = headerButtonBorder,
+            modifier = Modifier.size(38.dp),
         ) {
-            Icon(Icons.Outlined.Search, null, tint = VotifyColors.TextSecondary, modifier = Modifier.size(18.dp))
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = stringResource(R.string.nav_search),
+                    tint = VotifyColors.TextSecondary,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
         }
+
         Spacer(Modifier.width(10.dp))
+
         var settingsAngle by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val animatedRotation by androidx.compose.animation.core.animateFloatAsState(
             targetValue = settingsAngle,
             animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "settingsSpin",
         )
-        CircleIconButton(
+
+        Surface(
             onClick = {
                 settingsAngle += 360f
                 onOpenSettings()
             },
-            size = 36.dp,
-            showBorder = false,
-            contentDescription = stringResource(R.string.nav_settings),
+            shape = CircleShape,
+            color = headerButtonBg,
+            border = headerButtonBorder,
+            modifier = Modifier.size(38.dp),
         ) {
-            Icon(
-                Icons.Outlined.Settings,
-                null,
-                tint = VotifyColors.TextSecondary,
-                modifier = Modifier
-                    .size(18.dp)
-                    .graphicsLayer { rotationZ = animatedRotation },
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = stringResource(R.string.nav_settings),
+                    tint = VotifyColors.TextSecondary,
+                    modifier = Modifier
+                        .size(19.dp)
+                        .graphicsLayer { rotationZ = animatedRotation },
+                )
+            }
         }
     }
 }
@@ -528,20 +556,9 @@ private fun MyWaveHeroSection(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Wave Play/Pause Button:
-                // User requirement: always shows Pause (||) by default, and when tapped,
-                // momentarily switches off for 1 second, then resumes showing Pause.
-                var isMomentaryPause by remember { mutableStateOf(false) }
-                val waveScope = rememberCoroutineScope()
-
+                // When playing -> Pause (||), when paused/idle -> Play (▶)
                 Surface(
-                    onClick = {
-                        onPlayWave()
-                        waveScope.launch {
-                            isMomentaryPause = true
-                            delay(1000)
-                            isMomentaryPause = false
-                        }
-                    },
+                    onClick = onPlayWave,
                     shape = CircleShape,
                     color = VotifyColors.Primary,
                     contentColor = VotifyColors.PitchBlack,
@@ -549,8 +566,8 @@ private fun MyWaveHeroSection(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (isMomentaryPause) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                            contentDescription = stringResource(if (isMomentaryPause) R.string.home_play_wave else R.string.player_pause),
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.home_play_wave),
                             tint = VotifyColors.PitchBlack,
                             modifier = Modifier.size(32.dp),
                         )

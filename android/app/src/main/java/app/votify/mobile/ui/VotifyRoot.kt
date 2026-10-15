@@ -461,7 +461,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
         var isSearchOpen by remember { mutableStateOf(false) }
         BackHandler(enabled = isSearchOpen) { isSearchOpen = false }
         val searchBlurDp by androidx.compose.animation.core.animateDpAsState(
-            targetValue = if (isSearchOpen) 40.dp else 0.dp,
+            targetValue = if (isSearchOpen) 55.dp else 0.dp,
             animationSpec = tween(280),
             label = "searchBlur",
         )

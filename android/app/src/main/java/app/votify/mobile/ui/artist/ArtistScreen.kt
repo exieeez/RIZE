@@ -513,11 +513,11 @@ private fun ArtistHeader(
             .fillMaxWidth()
             .background(Color.Black),
     ) {
-        // Hero Artwork Area fading into solid black
+        // Hero Artwork Area: large edge-to-edge square reaching the screen boundaries
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp),
+                .aspectRatio(1f),
         ) {
             if (photoUrl.isNotBlank()) {
                 AsyncImage(
