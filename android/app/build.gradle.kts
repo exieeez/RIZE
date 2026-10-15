@@ -24,9 +24,9 @@ android {
         targetSdk = 35
         val runNumber = (project.findProperty("votifyRunNumber") as String?)?.toIntOrNull()
             ?: (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull())
-        val baseRun = runNumber ?: 250
+        val baseRun = runNumber ?: 251
         versionCode = if (baseRun < 1000) 1000 + baseRun else baseRun
-        versionName = "1.1.9"
+        versionName = "1.2.0"
 
         // Backend base URL. 10.0.2.2 = host machine from the Android emulator.
         // Override for a real device: -PvotifyApiBase=http://192.168.1.10:17217
@@ -146,5 +146,6 @@ dependencies {
     // Required by NewPipeExtractor on minSdk < 33
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.2")
 
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

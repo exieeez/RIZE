@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -248,6 +250,14 @@ fun PlayerScreen(
     val topColor by animateColorAsState(palette?.top ?: VotifyColors.SurfaceBase, tween(600), label = "bgTop")
     val bottomColor by animateColorAsState(palette?.bottom ?: VotifyColors.SurfaceBase, tween(600), label = "bgBottom")
 
+    val rawAccentColor = when {
+        visuals.accentFromArt -> palette?.accent ?: VotifyColors.Primary
+        visuals.themedSliderHex.isNotBlank() ->
+            runCatching { Color(android.graphics.Color.parseColor(visuals.themedSliderHex)) }.getOrDefault(VotifyColors.Primary)
+        else -> VotifyColors.Primary
+    }
+    val accentColor by animateColorAsState(rawAccentColor, tween(350), label = "accentColor")
+
     Box(
         Modifier
             .fillMaxSize()
@@ -403,16 +413,17 @@ fun PlayerScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         val queueCount = state.queue.size
+                        val badgeTextColor = if (accentColor.luminance() > 0.5f) Color.Black else Color.White
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFFF5A623),
-                            contentColor = Color.Black,
+                            color = accentColor,
+                            contentColor = badgeTextColor,
                         ) {
                             Text(
                                 text = queueCount.toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Black,
+                                color = badgeTextColor,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             )
                         }
@@ -475,7 +486,7 @@ fun PlayerScreen(
                             val artShape = if (artworkStyle == ArtworkStyle.Circle) CircleShape else RoundedCornerShape(24.dp)
                             when (artworkStyle) {
                                 ArtworkStyle.Vinyl -> Vinyl(coverUrl = hiRes(artworkUrl), spinning = state.isPlaying, loading = state.isBuffering)
-                                ArtworkStyle.Square, ArtworkStyle.Circle, ArtworkStyle.Blur -> Box(
+                                ArtworkStyle.Square, ArtworkStyle.Circle -> Box(
                                     artworkAnimModifier(visuals.artworkAnimation, state.isPlaying),
                                 ) {
                                     SquareArtwork(
@@ -485,6 +496,35 @@ fun PlayerScreen(
                                         shape = artShape,
                                         dim = visuals.artDim.coerceIn(0, 80) / 100f,
                                         loading = state.isBuffering,
+                                    )
+                                }
+                                ArtworkStyle.Blur -> Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .then(effect),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    AsyncImage(
+                                        model = hiRes(artworkUrl),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        colorFilter = grayFilter,
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colorStops = arrayOf(
+                                                        0.0f to Color.Black.copy(alpha = 0.35f),
+                                                        0.35f to Color.Transparent,
+                                                        0.70f to Color.Black.copy(alpha = 0.65f),
+                                                        1.0f to Color.Black.copy(alpha = 0.95f),
+                                                    )
+                                                )
+                                            )
                                     )
                                 }
                             }
@@ -532,12 +572,6 @@ fun PlayerScreen(
                 state.queue[state.currentIndex + 1]
             } else if (state.queue.isNotEmpty()) state.queue.firstOrNull() else null
 
-            val accentColor = when {
-                visuals.themedSliderHex.isNotBlank() ->
-                    runCatching { Color(android.graphics.Color.parseColor(visuals.themedSliderHex)) }.getOrDefault(VotifyColors.Primary)
-                visuals.accentFromArt -> palette?.accent ?: VotifyColors.Primary
-                else -> VotifyColors.Primary
-            }
 
             Scrubber(
                 state = state,
@@ -639,7 +673,7 @@ fun PlayerScreen(
                             Icon(
                                 if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 stringResource(R.string.player_favorite),
-                                tint = if (isFavorite) Color(0xFFFF4081) else Color.White,
+                                tint = if (isFavorite) accentColor else Color.White,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -655,7 +689,7 @@ fun PlayerScreen(
                             Icon(
                                 if (isDownloaded) Icons.Outlined.DownloadDone else Icons.Outlined.Download,
                                 contentDescription = stringResource(R.string.action_download_playlist),
-                                tint = if (isDownloaded) Color(0xFFF5A623) else Color.White,
+                                tint = if (isDownloaded) accentColor else Color.White,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -1133,85 +1167,41 @@ fun Scrubber(
         ) {
             val shown = if (dragging != null) (state.durationMs * value).toLong() else state.positionMs
             Text(formatDuration(shown), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
-            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
-        }
 
-        if (nextTrack != null) {
-            Spacer(Modifier.height(8.dp))
-            Surface(
-                onClick = onOpenQueue,
-                shape = RoundedCornerShape(16.dp),
-                color = Color.Black.copy(alpha = 0.38f),
-                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            if (nextTrack != null) {
+                Surface(
+                    onClick = onOpenQueue,
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White.copy(alpha = 0.12f),
+                    modifier = Modifier.padding(horizontal = 8.dp),
                 ) {
-                    if (!nextTrack.cover.isNullOrBlank()) {
-                        AsyncImage(
-                            model = nextTrack.cover,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop,
-                        )
-                        Spacer(Modifier.width(10.dp))
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.White.copy(alpha = 0.08f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.QueueMusic,
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (!nextTrack.cover.isNullOrBlank()) {
+                            AsyncImage(
+                                model = nextTrack.cover,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                contentScale = ContentScale.Crop,
                             )
-                        }
-                        Spacer(Modifier.width(10.dp))
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "ДАЛЕЕ",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF5A623),
-                            )
+                            Spacer(Modifier.width(6.dp))
                         }
                         Text(
-                            text = nextTrack.title,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            text = "Далее: ${nextTrack.title}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = Color.White.copy(alpha = 0.90f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (nextTrack.artist.isNotBlank()) {
-                            Text(
-                                text = nextTrack.artist,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.60f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = stringResource(R.string.player_queue),
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp),
-                    )
                 }
             }
+
+            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
         }
     }
 }
@@ -1277,7 +1267,9 @@ private fun rememberArtworkPalette(coverUrl: String?, enabled: Boolean, isDark: 
     val context = LocalContext.current
     var palette by remember { mutableStateOf<ArtworkPalette?>(null) }
 
-    LaunchedEffect(coverUrl, enabled) {
+    val primaryColor = VotifyColors.Primary
+
+    LaunchedEffect(coverUrl, enabled, primaryColor) {
         if (coverUrl.isNullOrBlank()) {
             palette = null
             return@LaunchedEffect
@@ -1289,15 +1281,24 @@ private fun rememberArtworkPalette(coverUrl: String?, enabled: Boolean, isDark: 
             palette = null
             return@LaunchedEffect
         }
-        val swatches = withContext(Dispatchers.Default) { Palette.from(bitmap).maximumColorCount(24).generate() }
+        val swatches = withContext(Dispatchers.Default) { Palette.from(bitmap).maximumColorCount(32).generate() }
         val dominant = swatches.dominantSwatch?.let { Color(it.rgb) }
         if (dominant == null) {
             palette = null
         } else {
-            val accent = swatches.vibrantSwatch?.let { Color(it.rgb) }
+            val allSwatches = swatches.swatches
+            val rawAccent = swatches.vibrantSwatch?.let { Color(it.rgb) }
                 ?: swatches.lightVibrantSwatch?.let { Color(it.rgb) }
+                ?: swatches.darkVibrantSwatch?.let { Color(it.rgb) }
+                ?: allSwatches.maxByOrNull { s ->
+                    val hsv = FloatArray(3)
+                    android.graphics.Color.colorToHSV(s.rgb, hsv)
+                    hsv[1] * 2f + hsv[2]
+                }?.let { Color(it.rgb) }
                 ?: swatches.mutedSwatch?.let { Color(it.rgb) }
                 ?: dominant
+
+            val accent = boostAccentVibrance(rawAccent, primaryColor)
             // Dark theme: tint toward black (classic tinted player). Light theme: keep the
             // background light so dark text from the light palette stays readable.
             palette = if (isDark) {
@@ -1317,6 +1318,17 @@ private fun rememberArtworkPalette(coverUrl: String?, enabled: Boolean, isDark: 
     }
 
     return palette
+}
+
+private fun boostAccentVibrance(base: Color, fallback: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(base.toArgb(), hsv)
+    if (hsv[1] < 0.12f && (hsv[2] < 0.35f || hsv[2] > 0.95f)) {
+        return fallback
+    }
+    hsv[1] = hsv[1].coerceIn(0.60f, 1.0f)
+    hsv[2] = hsv[2].coerceIn(0.75f, 1.0f)
+    return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

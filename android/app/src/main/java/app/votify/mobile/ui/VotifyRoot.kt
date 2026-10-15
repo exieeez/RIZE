@@ -1128,6 +1128,8 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
             onGuest = { settingsVm.updatePrefs { it.copy(welcomeDone = true) } },
             onRegister = { email, uname, pass ->
                 accountVm.register(email, uname, pass)
+            },
+            onRegisterSuccess = {
                 settingsVm.updatePrefs { it.copy(welcomeDone = true) }
             },
             onImport = {

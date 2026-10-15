@@ -78,7 +78,7 @@ jobs:
           } > README.md
           RUN_NUM=${{ github.run_number }}
           V_CODE=$((1000 + RUN_NUM))
-          V_NAME="1.1.9"
+          V_NAME="1.2.0"
           cat <<EOF > version.json
           {
             "versionCode": $V_CODE,

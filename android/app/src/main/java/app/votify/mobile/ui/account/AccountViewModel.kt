@@ -185,6 +185,17 @@ class AccountViewModel(
         }
     }
 
+    suspend fun registerAsync(email: String, username: String, password: String): Result<Unit> {
+        val trimmedEmail = email.trim()
+        val trimmedUname = username.trim()
+        val client = firebase ?: FirebaseRest.effectiveConfig("")?.let { FirebaseRest(it) }
+            ?: return Result.failure(IllegalStateException("Сервис авторизации недоступен"))
+        return runCatching {
+            val acct = client.register(trimmedEmail, trimmedUname, password)
+            onFirebaseAccount(acct.email, acct.username, acct.idToken, acct.uid, acct.refreshToken)
+        }
+    }
+
     /** Step 1 of password recovery. */
     fun sendResetCode(email: String) {
         when (_state.value.backend) {

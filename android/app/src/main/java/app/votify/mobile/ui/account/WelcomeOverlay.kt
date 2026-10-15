@@ -124,6 +124,7 @@ fun WelcomeOverlay(
     onSignIn: () -> Unit,
     onGuest: () -> Unit,
     onRegister: ((email: String, username: String, pass: String) -> Unit)? = null,
+    onRegisterSuccess: (() -> Unit)? = null,
     onImport: (() -> Unit)? = null,
     onGoogleSignIn: (() -> Unit)? = null,
     accountVm: AccountViewModel? = null,
@@ -137,6 +138,10 @@ fun WelcomeOverlay(
     var gender by remember { mutableStateOf("Не указывать") }
     var hasUsedOtherApp by remember { mutableStateOf<Boolean?>(null) }
     val selectedArtists = remember { mutableStateListOf<DeezerArtist>() }
+
+    var isRegistering by remember { mutableStateOf(false) }
+    var registerError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     Box(
         Modifier
@@ -189,9 +194,34 @@ fun WelcomeOverlay(
                 OnboardingStep.IDENTITY -> IdentityStep(
                     selectedGender = gender,
                     onSelectGender = { gender = it },
+                    isRegistering = isRegistering,
+                    registerError = registerError,
+                    onGoToEmail = {
+                        registerError = null
+                        step = OnboardingStep.EMAIL
+                    },
+                    onSignIn = onSignIn,
                     onSubmit = {
-                        onRegister?.invoke(email, username, password)
-                        step = OnboardingStep.PRIOR_APP
+                        if (isRegistering) return@IdentityStep
+                        scope.launch {
+                            isRegistering = true
+                            registerError = null
+                            if (accountVm != null) {
+                                val res = accountVm.registerAsync(email, username, password)
+                                isRegistering = false
+                                if (res.isSuccess) {
+                                    onRegisterSuccess?.invoke()
+                                    step = OnboardingStep.PRIOR_APP
+                                } else {
+                                    registerError = res.exceptionOrNull()?.message ?: "Ошибка регистрации"
+                                }
+                            } else {
+                                onRegister?.invoke(email, username, password)
+                                onRegisterSuccess?.invoke()
+                                isRegistering = false
+                                step = OnboardingStep.PRIOR_APP
+                            }
+                        }
                     },
                     onBack = { step = OnboardingStep.AGE },
                 )
@@ -918,6 +948,10 @@ private fun IdentityStep(
     onSelectGender: (String) -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit,
+    isRegistering: Boolean = false,
+    registerError: String? = null,
+    onGoToEmail: () -> Unit = {},
+    onSignIn: () -> Unit = {},
 ) {
     val genders = listOf("Мужской", "Женский", "Не указывать")
 
@@ -980,9 +1014,60 @@ private fun IdentityStep(
 
         Spacer(Modifier.weight(1f))
 
+        if (registerError != null) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = VotifyColors.Error.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, VotifyColors.Error.copy(alpha = 0.40f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = null,
+                            tint = VotifyColors.Error,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = registerError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VotifyColors.Error,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text(
+                            text = "Войти в аккаунт",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = DeezerPurple,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(onClick = onSignIn)
+                                .padding(vertical = 4.dp, horizontal = 2.dp),
+                        )
+                        Text(
+                            text = "Изменить email",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(onClick = onGoToEmail)
+                                .padding(vertical = 4.dp, horizontal = 2.dp),
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
         PrimaryButton(
-            text = "Создать аккаунт",
-            enabled = true,
+            text = if (isRegistering) "Создание аккаунта..." else "Создать аккаунт",
+            enabled = !isRegistering,
             onClick = onSubmit,
         )
 
