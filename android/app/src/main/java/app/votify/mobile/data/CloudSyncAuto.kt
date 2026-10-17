@@ -40,16 +40,19 @@ object CloudSyncAuto {
     fun start(app: VotifyApp) {
         if (started) return
         started = true
+        val db = app.database
+        val repo = app.settings
+
+        // 1. Auto-push: observe local changes (favorites, playlists, history, settings) and push to cloud
         app.appScope.launch {
-            val db = app.database
-            val repo = app.settings
             var armed = false
             combine(
                 repo.account,                        // sign-in / sign-out
                 db.favorites().observeCount(),       // any favorite change
                 db.playlists().observeSummaries(),   // any playlist change
+                db.history().observeDistinctCount(), // any history change
                 repo.settings,                       // theme / customization changes
-            ) { acct, _, _, _ -> acct }
+            ) { acct, _, _, _, _ -> acct }
                 .collectLatest { acct ->
                     if (acct == null || !acct.isFirebase) {
                         armed = false
@@ -61,13 +64,66 @@ object CloudSyncAuto {
                         armed = true
                         return@collectLatest
                     }
-                    // Debounce: let a burst of changes (playlist import, restore) settle.
-                    delay(4000)
+                    // Debounce: let a burst of changes settle quickly
+                    delay(2000)
                     if (System.currentTimeMillis() < suppressUntil) return@collectLatest
                     val sync = CloudSync(db, repo)
                     if (!sync.hasLocalData()) return@collectLatest
                     pushQuietly(app, acct)
                 }
+        }
+
+        // 2. Real-time auto-pull: detect cloud changes from PC / other devices and sync in real time
+        app.appScope.launch {
+            repo.account.collectLatest { acct ->
+                if (acct == null || !acct.isFirebase) return@collectLatest
+                var lastSeenUpdateTime: String? = null
+                val sync = CloudSync(db, repo)
+
+                // Initial baseline fetch on sign-in
+                try {
+                    val cfg = FirebaseRest.effectiveConfig(repo.settings.first().firebaseConfig)
+                    if (cfg != null) {
+                        val client = FirebaseRest(cfg)
+                        val token = token(client, acct)
+                        lastSeenUpdateTime = client.fetchCloudLibraryUpdateTime(token, acct.uid)
+                        if (!sync.hasLocalData() && lastSeenUpdateTime != null) {
+                            val cloud = client.pullFullCloudSync(token, acct.uid)
+                            if (cloud != null && (cloud.favorites.isNotEmpty() || cloud.playlists.isNotEmpty() || cloud.history.isNotEmpty())) {
+                                suppressFor(6000)
+                                sync.importBlob(cloud)
+                            }
+                        }
+                    }
+                } catch (ignored: Exception) {}
+
+                // Polling loop: checks if Firestore updateTime changed (from PC actions)
+                while (true) {
+                    delay(3500)
+                    if (System.currentTimeMillis() < suppressUntil) continue
+                    try {
+                        val cfg = FirebaseRest.effectiveConfig(repo.settings.first().firebaseConfig) ?: continue
+                        val client = FirebaseRest(cfg)
+                        val token = token(client, acct)
+                        val currentUpdateTime = client.fetchCloudLibraryUpdateTime(token, acct.uid)
+                        if (currentUpdateTime != null && currentUpdateTime != lastSeenUpdateTime) {
+                            if (lastSeenUpdateTime != null) {
+                                // Cloud updated from PC! Pull and update local Room DB immediately
+                                val cloud = client.pullFullCloudSync(token, acct.uid)
+                                if (cloud != null) {
+                                    suppressFor(6000)
+                                    sync.importBlob(cloud)
+                                }
+                            }
+                            lastSeenUpdateTime = currentUpdateTime
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (ignored: Exception) {
+                        // Offline or transient network issue
+                    }
+                }
+            }
         }
     }
 

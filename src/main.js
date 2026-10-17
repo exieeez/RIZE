@@ -1479,6 +1479,99 @@ window.addEventListener('votify:cloud-library-updated', event => {
   }
 });
 
+// Real-time listener for listening history changes
+window.addEventListener('votify:cloud-history-updated', event => {
+  if (cloudSyncApplying) return;
+  const newHistory = event.detail?.history;
+  if (Array.isArray(newHistory)) {
+    const currentHist = JSON.parse(localStorage.getItem('listeningHistory') || '[]');
+    const curIds = currentHist.map(t => t.id || t.title).join(',');
+    const newIds = newHistory.map(t => t.id || t.title).join(',');
+    if (curIds !== newIds) {
+      localStorage.setItem('listeningHistory', JSON.stringify(newHistory));
+      if (typeof loadHomeContent === 'function') loadHomeContent();
+      if (typeof renderRecentArtistsHome === 'function') renderRecentArtistsHome();
+      window.dispatchEvent(new CustomEvent('votify:history-updated', { detail: { history: newHistory } }));
+    }
+  }
+});
+
+// Real-time listener for mobile sync blob changes (direct phone -> PC sync)
+window.addEventListener('votify:cloud-sync-blob-updated', event => {
+  if (cloudSyncApplying) return;
+  const blob = event.detail?.blob;
+  if (!blob || typeof blob !== 'object') return;
+  let changed = false;
+
+  // Restore favorites and playlists from mobile
+  const restored = { 'Избранное': [] };
+  if (Array.isArray(blob.favorites)) {
+    restored['Избранное'] = blob.favorites.map(f => ({
+      id: f.track?.id,
+      title: f.track?.t,
+      artist: f.track?.a,
+      cover: f.track?.c,
+      duration: f.track?.d,
+    }));
+  }
+  if (Array.isArray(blob.playlists)) {
+    blob.playlists.forEach(p => {
+      if (p && p.name) {
+        restored[p.name] = (p.tracks || []).map(t => ({
+          id: t.id,
+          title: t.t,
+          artist: t.a,
+          cover: t.c,
+          duration: t.d,
+        }));
+      }
+    });
+  }
+  const curPlaylistsJson = JSON.stringify(playlists);
+  const newPlaylistsJson = JSON.stringify(restored);
+  if (curPlaylistsJson !== newPlaylistsJson && (restored['Избранное'].length > 0 || Object.keys(restored).length > 1)) {
+    cloudSyncApplying = true;
+    try {
+      playlists = restored;
+      window.playlists = playlists;
+      localStorage.setItem('votify-playlists', JSON.stringify(playlists));
+      renderSidebarPlaylists();
+      const foldersScreen = document.getElementById('folders-screen');
+      if (foldersScreen && foldersScreen.style.display !== 'none') renderPlaylists();
+      refreshFavoriteStates();
+      window.dispatchEvent(new CustomEvent('votify:playlists-updated', { detail: { playlists } }));
+      changed = true;
+    } finally {
+      cloudSyncApplying = false;
+    }
+  }
+
+  // Restore history from mobile
+  if (Array.isArray(blob.history) && blob.history.length > 0) {
+    const histRestored = blob.history.map(h => ({
+      id: h.track?.id,
+      title: h.track?.t,
+      artist: h.track?.a,
+      cover: h.track?.c,
+      duration: h.track?.d,
+      playedAt: h.playedAt,
+    }));
+    const curHistJson = localStorage.getItem('listeningHistory') || '[]';
+    const newHistJson = JSON.stringify(histRestored);
+    if (curHistJson !== newHistJson) {
+      localStorage.setItem('listeningHistory', newHistJson);
+      if (typeof loadHomeContent === 'function') loadHomeContent();
+      if (typeof renderRecentArtistsHome === 'function') renderRecentArtistsHome();
+      window.dispatchEvent(new CustomEvent('votify:history-updated', { detail: { history: histRestored } }));
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    setCloudSyncLabel('Синхронизировано со смартфоном');
+  }
+});
+
 window.addEventListener('votify:auth-changed', event => {
   const uid = event.detail?.user?.uid || null;
   if (!uid) {
@@ -2813,6 +2906,8 @@ function renderPlaylistTableRows(container, tracks, options = {}) {
     return;
   }
 
+  const isPlaybackActive = Boolean(state.isPlaying);
+
   container.innerHTML = validTracks
     .map((track, idx) => {
       const title = escapeHtml(track.title);
@@ -2822,39 +2917,43 @@ function renderPlaylistTableRows(container, tracks, options = {}) {
       const isDownloaded = isTrackDownloaded(track);
       const coverUrl = track.cover || 'assets/logo.png';
       const durationStr = formatTrackDuration(track);
-      const addedDateStr = track.addedDate || '4 апр. 2024 г.';
+      const isCurrent = Boolean(state.currentTrack && (state.currentTrack.id === track.id || (state.currentTrack.title === track.title && state.currentTrack.artist === track.artist)));
+      const isPlayingTrack = isCurrent && isPlaybackActive;
 
       return `
-      <div class="pl-table-row" data-track-id="${escapeHtml(track.id || '')}" style="display: grid !important; grid-template-columns: 48px 4fr 3fr 2.5fr 80px !important; align-items: center !important; padding: 10px 16px !important; border-radius: 6px !important; margin-bottom: 2px !important; color: #ffffff !important; background: transparent;">
-        <div class="pl-col-num" style="font-size: 14px; color: #b3b3b3;">
-          <span class="pl-row-idx">${idx + 1}</span>
-          <button class="pl-row-play-btn play-track-btn" data-index="${idx}" title="Воспроизвести" style="background: transparent; border: none; color: #ffffff; cursor: pointer;">
-            <i class="material-icons">play_arrow</i>
+      <div class="pl-table-row pl-track-row ${isCurrent ? 'is-current' : ''}" data-track-id="${escapeHtml(track.id || '')}" data-index="${idx}">
+        <div class="pl-track-artwork-box">
+          <img class="pl-track-thumb" src="${escapeHtml(coverUrl)}" alt="${title}" onerror="this.src='assets/logo.png'" />
+          ${isDownloaded ? `
+          <div class="pl-track-download-badge" title="Скачано">
+            <i class="material-icons">download_done</i>
+          </div>` : ''}
+          <div class="pl-track-overlay play-track-btn ${isCurrent ? 'is-active-overlay' : ''}" data-index="${idx}" title="${isPlayingTrack ? 'Пауза' : 'Воспроизвести'}">
+            <i class="material-icons">${isPlayingTrack ? 'pause' : 'play_arrow'}</i>
+          </div>
+        </div>
+        <div class="pl-track-info-col">
+          <div class="pl-track-title-text" title="${title}">${title}</div>
+          <div class="pl-track-subtitle-text">
+            <span class="clickable-artist pl-track-artist-text" data-artist="${artist}">${artist}</span>
+            ${durationStr ? `<span class="pl-sub-sep">•</span><span class="pl-duration-text pl-sub-duration">${durationStr}</span>` : ''}
+            ${album && album !== title ? `<span class="pl-sub-sep">•</span><span class="pl-col-album pl-sub-album" title="${album}">${album}</span>` : ''}
+          </div>
+        </div>
+        <div class="pl-track-actions pl-row-hover-actions">
+          <button class="pl-mini-btn download-offline-btn ${isDownloaded ? 'is-downloaded' : ''}" data-index="${idx}" title="${isDownloaded ? 'Скачано для офлайн' : 'Скачать для офлайн'}">
+            <i class="material-icons">${isDownloaded ? 'download_done' : 'download'}</i>
           </button>
-        </div>
-        <div class="pl-col-title" style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
-          <img class="pl-track-thumb" src="${escapeHtml(coverUrl)}" alt="${title}" onerror="this.src='assets/logo.png'" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" />
-          <div class="pl-track-name-col" style="display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
-            <span class="pl-track-title-text" style="font-size: 14px; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
-            <span class="pl-track-artist-text clickable-artist" style="font-size: 12px; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${artist}</span>
-          </div>
-        </div>
-        <div class="pl-col-album" style="font-size: 13px; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${album}</div>
-        <div class="pl-col-date" style="font-size: 13px; color: #b3b3b3;">${addedDateStr}</div>
-        <div class="pl-col-duration" style="font-size: 13px; color: #b3b3b3; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-          <span class="pl-duration-text">${durationStr}</span>
-          <div class="pl-row-hover-actions">
-            <button class="pl-mini-btn download-offline-btn ${isDownloaded ? 'is-downloaded' : ''}" data-index="${idx}" title="${isDownloaded ? 'Скачано для офлайн' : 'Скачать для офлайн'}" style="background: transparent; border: none; color: ${isDownloaded ? 'var(--accent, #1db954)' : '#b3b3b3'}; cursor: pointer; padding: 4px;">
-              <i class="material-icons">${isDownloaded ? 'download_done' : 'download'}</i>
-            </button>
-            <button class="pl-mini-btn fav-btn ${isFav ? 'is-fav' : ''}" data-index="${idx}" title="В избранное" style="background: transparent; border: none; color: #b3b3b3; cursor: pointer; padding: 4px;">
-              <i class="material-icons">${isFav ? 'favorite' : 'favorite_border'}</i>
-            </button>
-            <button class="pl-mini-btn add-to-playlist-btn" data-index="${idx}" title="Добавить в плейлист" style="background: transparent; border: none; color: #b3b3b3; cursor: pointer; padding: 4px;">
-              <i class="material-icons">playlist_add</i>
-            </button>
-            ${playlistName !== 'Избранное' ? `<button class="pl-mini-btn delete-track-btn" data-index="${idx}" title="Удалить из плейлиста" style="background: transparent; border: none; color: #b3b3b3; cursor: pointer; padding: 4px;"><i class="material-icons">close</i></button>` : ''}
-          </div>
+          <button class="pl-mini-btn fav-btn ${isFav ? 'is-fav' : ''}" data-index="${idx}" title="${isFav ? 'Удалить из любимых' : 'В любимые'}">
+            <i class="material-icons">${isFav ? 'favorite' : 'favorite_border'}</i>
+          </button>
+          <button class="pl-mini-btn add-to-playlist-btn" data-index="${idx}" title="Добавить в плейлист">
+            <i class="material-icons">playlist_add</i>
+          </button>
+          ${playlistName !== 'Избранное' && playlistName !== 'Любимые треки' ? `
+          <button class="pl-mini-btn delete-track-btn" data-index="${idx}" title="Удалить из плейлиста">
+            <i class="material-icons">close</i>
+          </button>` : ''}
         </div>
       </div>`;
     })
@@ -3083,7 +3182,9 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
 
   const titleEl = document.getElementById('pl-screen-title');
   const metaEl = document.getElementById('pl-screen-meta');
+  const topBarTitle = document.getElementById('pl-screen-top-bar-title');
   if (titleEl) titleEl.textContent = title;
+  if (topBarTitle) topBarTitle.textContent = title;
   if (metaEl) {
     const authorPrefix = author ? `${author} • ` : '';
     metaEl.textContent = totalSec > 0
@@ -3100,21 +3201,44 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
   const backdrop = document.getElementById('pl-screen-backdrop');
   const vinylLabelImg = document.getElementById('pl-vinyl-label-img');
 
+  const isLikedPlaylist = name === 'Избранное' || name === 'Любимые треки';
+  const coverIcon = document.getElementById('pl-screen-cover-icon');
+
   if (coverUrl && coverUrl !== 'assets/logo.png') {
     if (coverImg) {
       coverImg.src = coverUrl;
       coverImg.style.display = 'block';
     }
     if (coverFallback) coverFallback.style.display = 'none';
-    if (backdrop) backdrop.style.backgroundImage = `url("${coverUrl}")`;
+    if (backdrop) {
+      backdrop.style.backgroundImage = `url("${coverUrl}")`;
+      backdrop.style.background = '';
+    }
     if (vinylLabelImg) {
       vinylLabelImg.src = coverUrl;
       vinylLabelImg.style.display = 'block';
     }
   } else {
     if (coverImg) coverImg.style.display = 'none';
-    if (coverFallback) coverFallback.style.display = 'flex';
-    if (backdrop) backdrop.style.backgroundImage = 'none';
+    if (coverFallback) {
+      coverFallback.style.display = 'flex';
+      if (isLikedPlaylist && coverIcon) {
+        coverIcon.textContent = 'favorite';
+        coverIcon.style.color = 'var(--accent, #e91e63)';
+      } else if (coverIcon) {
+        coverIcon.textContent = 'queue_music';
+        coverIcon.style.color = '';
+      }
+    }
+    if (backdrop) {
+      if (isLikedPlaylist) {
+        backdrop.style.backgroundImage = 'none';
+        backdrop.style.background = 'radial-gradient(ellipse at 50% 20%, rgba(233, 30, 99, 0.35) 0%, rgba(28, 18, 32, 0.85) 50%, #0c0d10 100%)';
+      } else {
+        backdrop.style.backgroundImage = 'none';
+        backdrop.style.background = '';
+      }
+    }
     if (vinylLabelImg) vinylLabelImg.style.display = 'none';
   }
 
@@ -3216,8 +3340,13 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
       if (typeof publishLocalPlaylistsToPublic === 'function') publishLocalPlaylistsToPublic();
     };
   }
+  const isSpecialPlaylist = isLikedPlaylist || name === '__OFFLINE__';
   if (deleteBtn) {
-    deleteBtn.style.display = isPublicCommunity ? 'none' : 'inline-flex';
+    deleteBtn.style.display = (isPublicCommunity || isSpecialPlaylist) ? 'none' : 'inline-flex';
+  }
+  const coverBtn = document.getElementById('pl-screen-cover-btn');
+  if (coverBtn) {
+    coverBtn.style.display = (isPublicCommunity || isSpecialPlaylist) ? 'none' : 'inline-flex';
   }
 
   safeClick('pl-screen-delete-btn', async () => {
@@ -4413,7 +4542,16 @@ const navigationHistory = {
 window.navigationHistory = navigationHistory;
 
 function switchScreen(screenId, activeBtnId, extraState = null) {
+  const targetScreen = document.getElementById(screenId);
+  if (!targetScreen) return;
+
+  // No-op if already on this screen and visible
+  if (currentScreenId === screenId && targetScreen.style.display !== 'none' && !targetScreen.classList.contains('hidden')) {
+    return;
+  }
+
   navigationHistory.pushState(screenId, activeBtnId, extraState);
+
   // Auto-close fullscreen player if open
   const fsPlayer = document.getElementById('fullscreen-player');
   if (fsPlayer && fsPlayer.classList.contains('open')) {
@@ -4445,17 +4583,17 @@ function switchScreen(screenId, activeBtnId, extraState = null) {
     'playlist-screen',
   ];
   screens.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.style.display = 'none';
-      el.classList.add('hidden');
+    if (id !== screenId) {
+      const el = document.getElementById(id);
+      if (el && (el.style.display !== 'none' || !el.classList.contains('hidden'))) {
+        el.style.display = 'none';
+        el.classList.add('hidden');
+      }
     }
   });
-  const targetScreen = document.getElementById(screenId);
-  if (targetScreen) {
-    targetScreen.style.display = 'block';
-    targetScreen.classList.remove('hidden');
-  }
+
+  targetScreen.style.display = 'block';
+  targetScreen.classList.remove('hidden');
 
   const mainContent =
     document.getElementById('main-content') || document.querySelector('.main-content');
@@ -4514,25 +4652,34 @@ function switchScreen(screenId, activeBtnId, extraState = null) {
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) pageTitle.innerText = screenPageTitles[screenId] || '';
 
-  if (screenId === 'folders-screen') renderPlaylists();
+  // Defer heavy updates so switching screens happens instantly without frame drops
+  if (screenId === 'folders-screen') {
+    requestAnimationFrame(() => renderPlaylists());
+  }
   if (screenId === 'workshop-screen') {
     window.dispatchEvent(new CustomEvent('votify:workshop-open'));
   }
-  // Recommendations are supplementary. Never block the first usable screen
-  // behind a network request during launch.
-  if (screenId === 'home-screen') loadRecommendations(false, { showLoading: !isBooting });
-  if (screenId === 'home-screen') loadHomeContent();
+  if (screenId === 'home-screen') {
+    requestAnimationFrame(() => {
+      loadRecommendations(false, { showLoading: !isBooting });
+      loadHomeContent();
+    });
+  }
   if (screenId === 'search-screen') {
-    if (searchInput) searchInput.focus();
-    renderSearchHistory();
+    requestAnimationFrame(() => {
+      if (searchInput) searchInput.focus();
+      renderSearchHistory();
+    });
   }
   if (screenId === 'player-screen') {
-    if (typeof applyPlayerCoverShape === 'function') applyPlayerCoverShape();
-    if (state.currentTrack) emit('state:currentTrack', state.currentTrack);
+    requestAnimationFrame(() => {
+      if (typeof applyPlayerCoverShape === 'function') applyPlayerCoverShape();
+      if (state.currentTrack) emit('state:currentTrack', state.currentTrack);
+    });
   }
 }
 
-// Nav button handlers & event delegation
+// Nav button handlers & event delegation (unified single listener)
 function bindNavButtons() {
   const btnMap = {
     'nav-home-btn': 'home-screen',
@@ -4545,15 +4692,23 @@ function bindNavButtons() {
   Object.keys(btnMap).forEach(btnId => {
     const btn = document.getElementById(btnId);
     if (btn) {
-      btn.addEventListener('click', e => {
+      btn.onclick = e => {
         e.preventDefault();
         e.stopPropagation();
-        const settingsOverlay = document.getElementById('settings-overlay');
-        if (settingsOverlay) settingsOverlay.style.display = 'none';
+        closeSettings();
         switchScreen(btnMap[btnId], btnId);
-      });
+      };
     }
   });
+
+  const settingsNavBtn = document.getElementById('nav-settings-btn');
+  if (settingsNavBtn) {
+    settingsNavBtn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSettingsOverlay();
+    };
+  }
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bindNavButtons);
@@ -4561,31 +4716,6 @@ if (document.readyState === 'loading') {
   bindNavButtons();
 }
 
-document.addEventListener('click', e => {
-  const navBtn = e.target.closest('.nav-btn');
-  if (navBtn && navBtn.id) {
-    if (navBtn.id === 'nav-settings-btn') {
-      e.stopPropagation();
-      toggleSettingsOverlay();
-      return;
-    }
-    closeSettings();
-
-    if (navBtn.id === 'nav-home-btn') switchScreen('home-screen', 'nav-home-btn');
-    else if (navBtn.id === 'nav-folders-btn') switchScreen('folders-screen', 'nav-folders-btn');
-    else if (navBtn.id === 'nav-player-btn') switchScreen('player-screen', 'nav-player-btn');
-    else if (navBtn.id === 'nav-workshop-btn') switchScreen('workshop-screen', 'nav-workshop-btn');
-    else if (navBtn.id === 'nav-search-btn') switchScreen('search-screen', 'nav-search-btn');
-    else if (navBtn.id === 'nav-profile-btn') switchScreen('profile-screen', 'nav-profile-btn');
-  }
-});
-
-safeClick('nav-home-btn', () => switchScreen('home-screen', 'nav-home-btn'));
-safeClick('nav-player-btn', () => switchScreen('player-screen', 'nav-player-btn'));
-safeClick('nav-search-btn', () => switchScreen('search-screen', 'nav-search-btn'));
-safeClick('nav-folders-btn', () => switchScreen('folders-screen', 'nav-folders-btn'));
-safeClick('nav-workshop-btn', () => switchScreen('workshop-screen', 'nav-workshop-btn'));
-safeClick('nav-profile-btn', () => switchScreen('profile-screen', 'nav-profile-btn'));
 window.switchScreen = switchScreen;
 safeClick('back-from-artist-btn', () => {
   artistRequestId++;
@@ -6046,6 +6176,72 @@ document.addEventListener('keydown', e => {
         if (typeof saveSettings === 'function') saveSettings();
       }
     });
+
+    // Vertical drag & click on .fi-volume-popup for PC WebKitGTK & mouse
+    const fiVolumePopup = document.getElementById('fi-volume-popup');
+    const fiVolumeWrap = document.getElementById('fi-volume-wrap');
+
+    function setFiVolumeFromClientY(clientY) {
+      if (!fiVolumePopup || !fiVolume) return;
+      const rect = fiVolumePopup.getBoundingClientRect();
+      const pad = 16;
+      const top = rect.top + pad;
+      const bottom = rect.bottom - pad;
+      const height = bottom - top;
+      if (height <= 0) return;
+      const clampedY = Math.max(top, Math.min(bottom, clientY));
+      const pct = Math.round((1 - (clampedY - top) / height) * 100);
+      fiVolume.value = pct;
+      fiVolume.dispatchEvent(new Event('input'));
+      fiVolume.dispatchEvent(new Event('change'));
+    }
+
+    let isFiVolDragging = false;
+    if (fiVolumePopup) {
+      fiVolumePopup.addEventListener('mousedown', e => {
+        e.stopPropagation();
+        isFiVolDragging = true;
+        setFiVolumeFromClientY(e.clientY);
+      });
+      fiVolumePopup.addEventListener('touchstart', e => {
+        e.stopPropagation();
+        isFiVolDragging = true;
+        const touchY = e.touches[0].clientY;
+        setFiVolumeFromClientY(touchY);
+      }, { passive: false });
+    }
+
+    document.addEventListener('mousemove', e => {
+      if (isFiVolDragging) {
+        setFiVolumeFromClientY(e.clientY);
+      }
+    });
+    document.addEventListener('touchmove', e => {
+      if (isFiVolDragging && e.touches[0]) {
+        setFiVolumeFromClientY(e.touches[0].clientY);
+      }
+    }, { passive: false });
+
+    document.addEventListener('mouseup', () => {
+      if (isFiVolDragging) isFiVolDragging = false;
+    });
+    document.addEventListener('touchend', () => {
+      if (isFiVolDragging) isFiVolDragging = false;
+    });
+
+    // Mouse wheel over volume button or popup
+    if (fiVolumeWrap) {
+      fiVolumeWrap.addEventListener('wheel', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = e.deltaY < 0 ? 5 : -5;
+        const current = Number(fiVolume ? fiVolume.value : (audio.volume * 100));
+        const next = Math.max(0, Math.min(100, current + delta));
+        fiVolume.value = next;
+        fiVolume.dispatchEvent(new Event('input'));
+        fiVolume.dispatchEvent(new Event('change'));
+      }, { passive: false });
+    }
   }
 
   // --- Sync state: track info ---
@@ -6224,14 +6420,30 @@ document.addEventListener('keydown', e => {
   }
 
   // Timeline seeking
+  let isPpDragging = false;
   if (ppProgress) {
+    ppProgress.addEventListener('mousedown', () => { isPpDragging = true; });
+    ppProgress.addEventListener('touchstart', () => { isPpDragging = true; }, { passive: true });
     ppProgress.addEventListener('input', e => {
-      if (!isNaN(audio.duration) && audio.duration > 0) {
+      const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
+      if (dur > 0) {
         const pct = Number(e.target.value);
-        audio.currentTime = (pct / 100) * audio.duration;
+        audio.currentTime = (pct / 100) * dur;
+        updateSliderFill(ppProgress);
+        if (ppCurrent) ppCurrent.textContent = formatTime((pct / 100) * dur);
+      }
+    });
+    ppProgress.addEventListener('change', e => {
+      isPpDragging = false;
+      const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
+      if (dur > 0) {
+        const pct = Number(e.target.value);
+        audio.currentTime = (pct / 100) * dur;
         updateSliderFill(ppProgress);
       }
     });
+    document.addEventListener('mouseup', () => { if (isPpDragging) isPpDragging = false; });
+    document.addEventListener('touchend', () => { if (isPpDragging) isPpDragging = false; });
   }
 
   // Volume
@@ -6382,14 +6594,15 @@ window.populatePlayerLyrics = populatePlayerLyrics;
   });
 
   on('state:currentTime', time => {
-    if (isNaN(audio.duration) || audio.duration <= 0) return;
-    const pct = (time / audio.duration) * 100;
-    if (ppProgress) {
+    const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
+    if (dur <= 0) return;
+    const pct = (time / dur) * 100;
+    if (ppProgress && !isPpDragging) {
       ppProgress.value = pct;
       updateSliderFill(ppProgress);
     }
-    if (ppCurrent) ppCurrent.textContent = formatTime(time);
-    if (ppTotal) ppTotal.textContent = formatTime(audio.duration);
+    if (ppCurrent && !isPpDragging) ppCurrent.textContent = formatTime(time);
+    if (ppTotal) ppTotal.textContent = formatTime(dur);
   });
 
   on('state:isPlaying', playing => {
@@ -6624,6 +6837,21 @@ function initCustomEQ(prefix) {
         db.toFixed(1) +
         '</span>';
       lbl.id = prefix + '-eq-lbl-' + i;
+      lbl.title = `${p.label}: кликните для переключения усиления`;
+      lbl.addEventListener('click', e => {
+        e.stopPropagation();
+        let curDb = Math.round(yToDb(p.y));
+        let nextDb = 0;
+        if (curDb < 0) nextDb = 0;
+        else if (curDb === 0) nextDb = 4;
+        else if (curDb >= 10) nextDb = -6;
+        else nextDb = curDb + 4;
+        p.gain = nextDb;
+        p.y = dbToY(nextDb);
+        if (nodesEl.children[i]) nodesEl.children[i].style.top = p.y * 100 + '%';
+        applyGains();
+        drawCurve();
+      });
       labelsEl.appendChild(lbl);
     });
   }
@@ -6729,10 +6957,41 @@ function initCustomEQ(prefix) {
   document.addEventListener('touchcancel', stopDrag);
   window.addEventListener('resize', () => requestAnimationFrame(drawCurve));
 
+  function findClosestBand(clientX) {
+    const rect = graphEl.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    const xPct = ((clientX - rect.left) / rect.width) * 100;
+    let closestIndex = 0;
+    let minDiff = Infinity;
+    eqData.forEach((p, i) => {
+      const diff = Math.abs(p.x - xPct);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = i;
+      }
+    });
+    return closestIndex;
+  }
+
+  function handleGraphPointerStart(e) {
+    e.stopPropagation();
+    if (e.target.closest('.custom-eq-node')) return;
+    const clientX = e.type && e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type && e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    const closest = findClosestBand(clientX);
+    const rect = graphEl.getBoundingClientRect();
+    let yPos = (clientY - rect.top) / rect.height;
+    yPos = Math.max(0.05, Math.min(0.95, yPos));
+    eqData[closest].y = yPos;
+    if (nodesEl.children[closest]) nodesEl.children[closest].style.top = yPos * 100 + '%';
+    applyGains();
+    drawCurve();
+    startDrag(e, closest);
+  }
+
   if (graphEl) {
-    graphEl.addEventListener('click', e => e.stopPropagation());
-    graphEl.addEventListener('mousedown', e => e.stopPropagation());
-    graphEl.addEventListener('pointerdown', e => e.stopPropagation());
+    graphEl.addEventListener('mousedown', handleGraphPointerStart);
+    graphEl.addEventListener('touchstart', handleGraphPointerStart, { passive: false });
   }
 
   // Preset buttons
@@ -11038,14 +11297,18 @@ audio.ontimeupdate = () => {
   const fiBgTimelineFill = document.getElementById('fi-bg-timeline-fill');
   const fiBgProgressOverlay = document.getElementById('fi-bg-progress-overlay');
   const fiTopLine = document.getElementById('fi-top-timeline-bar');
+  const fiTimelineThumb = document.getElementById('fi-timeline-thumb');
   if (fiBgTimelineFill && !isNaN(pct)) {
     fiBgTimelineFill.style.width = pct + '%';
   }
-  if (fiBgProgressOverlay && !isNaN(pct)) {
+  if (fiBgProgressOverlay && !isNaN(pct) && !window._fiDragging) {
     fiBgProgressOverlay.style.width = pct + '%';
   }
-  if (fiTopLine && !isNaN(pct)) {
+  if (fiTopLine && !isNaN(pct) && !window._fiDragging) {
     fiTopLine.style.width = pct + '%';
+  }
+  if (fiTimelineThumb && !isNaN(pct) && !window._fiDragging) {
+    fiTimelineThumb.style.left = pct + '%';
   }
   if (currentTimeEl) currentTimeEl.innerText = formatTime(audio.currentTime);
   if (appSettings.resumePosition && state.currentTrack?.id && audio.currentTime > 2) {
@@ -11101,11 +11364,13 @@ function drawBarTimeline(pct) {
 }
 
 function barTlSeek(e) {
-  if (!barTimelineTrack || !audio.src || isNaN(audio.duration)) return;
+  if (!barTimelineTrack) return;
+  const dur = getGlobalTrackDuration();
+  if (dur <= 0) return;
   const rect = barTimelineTrack.getBoundingClientRect();
   let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
   let pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-  audio.currentTime = pct * audio.duration;
+  audio.currentTime = pct * dur;
 }
 
 if (barTimelineTrack) {
@@ -11143,24 +11408,137 @@ if (barTimelineTrack) {
     barTimelineTrack?.classList.remove('dragging');
   });
   window.addEventListener('resize', () => {
-    if (state.duration > 0) drawBarTimeline((audio.currentTime / state.duration) * 100);
+    const dur = getGlobalTrackDuration();
+    if (dur > 0) drawBarTimeline((audio.currentTime / dur) * 100);
   });
   drawBarTimeline(0);
 }
 
+// ==========================================
+// FLOATING ISLAND TIMELINE — Interactive Bottom Seeker for PC & Mouse
+// ==========================================
+window._fiDragging = false;
+const fiTimelineSeeker = document.getElementById('fi-timeline-seeker');
+const fiTimelineThumb = document.getElementById('fi-timeline-thumb');
+const fiHoverTime = document.getElementById('fi-timeline-hover-time');
+
+function getGlobalTrackDuration() {
+  return (audio.duration && !isNaN(audio.duration) && audio.duration > 0)
+    ? audio.duration
+    : (state.duration || 0);
+}
+
+function updateFiTimelineDisplay(pct) {
+  if (isNaN(pct)) return;
+  const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
+  const fiTopLine = document.getElementById('fi-top-timeline-bar');
+  const fiOverlay = document.getElementById('fi-bg-progress-overlay');
+  if (fiTopLine) fiTopLine.style.width = safePct + '%';
+  if (fiOverlay) fiOverlay.style.width = safePct + '%';
+  if (fiTimelineThumb && !window._fiDragging) fiTimelineThumb.style.left = safePct + '%';
+}
+
+function fiSeekFromMouse(e) {
+  if (!fiTimelineSeeker) return;
+  const rect = fiTimelineSeeker.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const clientX = e.type && e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+  const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  const dur = getGlobalTrackDuration();
+  if (dur > 0) {
+    audio.currentTime = pct * dur;
+    if (currentTimeEl) currentTimeEl.textContent = formatTime(pct * dur);
+  }
+  updateFiTimelineDisplay(pct * 100);
+  if (fiTimelineThumb) fiTimelineThumb.style.left = (pct * 100) + '%';
+}
+
+function fiHoverFromMouse(e) {
+  if (!fiTimelineSeeker || !fiHoverTime) return;
+  const rect = fiTimelineSeeker.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const clientX = e.clientX;
+  const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  const dur = getGlobalTrackDuration();
+  fiHoverTime.style.left = (pct * 100) + '%';
+  fiHoverTime.textContent = formatTime(pct * dur) + (dur > 0 ? ' / ' + formatTime(dur) : '');
+  if (!window._fiDragging && fiTimelineThumb) {
+    fiTimelineThumb.style.left = (pct * 100) + '%';
+  }
+}
+
+if (fiTimelineSeeker) {
+  fiTimelineSeeker.addEventListener('mouseenter', fiHoverFromMouse);
+  fiTimelineSeeker.addEventListener('mousemove', fiHoverFromMouse);
+  fiTimelineSeeker.addEventListener('mousedown', e => {
+    e.stopPropagation();
+    window._fiDragging = true;
+    fiTimelineSeeker.classList.add('is-dragging');
+    fiSeekFromMouse(e);
+  });
+  fiTimelineSeeker.addEventListener('touchstart', e => {
+    e.stopPropagation();
+    window._fiDragging = true;
+    fiTimelineSeeker.classList.add('is-dragging');
+    fiSeekFromMouse(e);
+  }, { passive: false });
+
+  fiTimelineSeeker.addEventListener('wheel', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dur = getGlobalTrackDuration();
+    if (dur > 0) {
+      const step = e.deltaY < 0 ? 5 : -5;
+      audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + step));
+      if (currentTimeEl) currentTimeEl.textContent = formatTime(audio.currentTime);
+      const pct = (audio.currentTime / dur) * 100;
+      updateFiTimelineDisplay(pct);
+    }
+  }, { passive: false });
+
+  document.addEventListener('mousemove', e => {
+    if (window._fiDragging) {
+      fiSeekFromMouse(e);
+      fiHoverFromMouse(e);
+    }
+  });
+  document.addEventListener('touchmove', e => {
+    if (window._fiDragging) {
+      fiSeekFromMouse(e);
+    }
+  }, { passive: false });
+
+  document.addEventListener('mouseup', () => {
+    if (window._fiDragging) {
+      window._fiDragging = false;
+      fiTimelineSeeker?.classList.remove('is-dragging');
+    }
+  });
+  document.addEventListener('touchend', () => {
+    if (window._fiDragging) {
+      window._fiDragging = false;
+      fiTimelineSeeker?.classList.remove('is-dragging');
+    }
+  });
+}
+
+
 // Update bar timeline progress
 on('state:currentTime', time => {
-  if (state.duration > 0) {
-    const pct = (time / state.duration) * 100;
-    barTimelineThumb.style.left = pct + '%';
+  const dur = getGlobalTrackDuration();
+  if (dur > 0) {
+    const pct = (time / dur) * 100;
+    if (barTimelineThumb) barTimelineThumb.style.left = pct + '%';
     drawBarTimeline(pct);
+    updateFiTimelineDisplay(pct);
     if (currentTimeEl) currentTimeEl.textContent = formatTime(time);
-    if (totalTimeEl) totalTimeEl.textContent = formatTime(state.duration);
+    if (totalTimeEl) totalTimeEl.textContent = formatTime(dur);
   }
 });
 
 on('state:currentTrack', () => {
   drawBarTimeline(0);
+  updateFiTimelineDisplay(0);
 });
 
 // Morphing sidebar controls — apply to settings panel
@@ -11411,8 +11789,9 @@ on('state:isPlaying', playing => {
 });
 
 on('state:currentTime', time => {
-  if (state.duration > 0) {
-    const pct = Math.max(0, Math.min(100, (time / state.duration) * 100));
+  const dur = getGlobalTrackDuration();
+  if (dur > 0 && !tlDragging) {
+    const pct = Math.max(0, Math.min(100, (time / dur) * 100));
     if (fsTimelineThumb) fsTimelineThumb.style.left = pct + '%';
     if (typeof drawTimelineCurve === 'function') drawTimelineCurve(pct);
     const fsProg = document.getElementById('fs-progress');
@@ -11421,8 +11800,8 @@ on('state:currentTime', time => {
       fsProg.style.setProperty('--r', pct + '%');
     }
   }
-  if (fsCurrent) fsCurrent.textContent = formatTime(time);
-  if (fsTotal) fsTotal.textContent = formatTime(state.duration);
+  if (fsCurrent && !tlDragging) fsCurrent.textContent = formatTime(time);
+  if (fsTotal) fsTotal.textContent = formatTime(dur);
   updateFullscreenLyrics(time);
 });
 
@@ -11449,9 +11828,10 @@ function tlSeekFromEvent(e) {
   let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
   let pct = ((clientX - rect.left) / rect.width) * 100;
   pct = Math.max(0, Math.min(100, pct));
-  if (state.duration > 0) {
+  const dur = getGlobalTrackDuration();
+  if (dur > 0) {
     if (abLoopSelecting) {
-      const point = (pct / 100) * state.duration;
+      const point = (pct / 100) * dur;
       if (abLoopStart == null) {
         abLoopStart = point;
         audio.currentTime = point;
@@ -11460,7 +11840,7 @@ function tlSeekFromEvent(e) {
       } else {
         abLoopEnd = point;
         if (abLoopEnd < abLoopStart) [abLoopStart, abLoopEnd] = [abLoopEnd, abLoopStart];
-        if (abLoopEnd - abLoopStart < 0.5) abLoopEnd = Math.min(state.duration, abLoopStart + 0.5);
+        if (abLoopEnd - abLoopStart < 0.5) abLoopEnd = Math.min(dur, abLoopStart + 0.5);
         abLoopSelecting = false;
         abLoopActive = true;
         rightPlayerRepeatBtn?.classList.remove('selecting');
@@ -11476,7 +11856,7 @@ function tlSeekFromEvent(e) {
       updateAbLoopMarkers();
       return;
     }
-    audio.currentTime = (pct / 100) * state.duration;
+    audio.currentTime = (pct / 100) * dur;
   }
   fsTimelineThumb.style.left = pct + '%';
   drawTimelineCurve(pct);
@@ -11498,6 +11878,19 @@ if (fsTimelineTrack) {
     },
     { passive: false }
   );
+  fsTimelineTrack.addEventListener('wheel', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dur = getGlobalTrackDuration();
+    if (dur > 0) {
+      const step = e.deltaY < 0 ? 5 : -5;
+      audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + step));
+      if (fsCurrent) fsCurrent.textContent = formatTime(audio.currentTime);
+      const pct = (audio.currentTime / dur) * 100;
+      if (fsTimelineThumb) fsTimelineThumb.style.left = pct + '%';
+      drawTimelineCurve(pct);
+    }
+  }, { passive: false });
   document.addEventListener('mousemove', e => {
     if (tlDragging && !abLoopSelecting) tlSeekFromEvent(e);
   });
@@ -11517,7 +11910,8 @@ if (fsTimelineTrack) {
     fsTimelineTrack?.classList.remove('dragging');
   });
   window.addEventListener('resize', () => {
-    if (state.duration > 0) drawTimelineCurve((audio.currentTime / state.duration) * 100);
+    const dur = getGlobalTrackDuration();
+    if (dur > 0) drawTimelineCurve((audio.currentTime / dur) * 100);
   });
   // Initial draw
   drawTimelineCurve(0);
@@ -11690,12 +12084,19 @@ function syncVolumeBars() {
   const floatingIsland = document.getElementById('floating-island');
   if (floatingIsland) {
     floatingIsland.addEventListener('click', e => {
-      if (e.target.closest('button, input, a, label, .fi-btn, .fi-cover-wrap, .fi-volume-wrap, .fi-volume-popup, .fi-eq-popup, .custom-eq, .custom-eq-preset, .custom-eq-presets, .custom-eq-graph, .custom-eq-node, .custom-eq-labels, [role="button"]')) return;
-      if (!audio.duration || isNaN(audio.duration)) return;
+      if (e.target.closest('button, input, a, label, .fi-btn, .fi-cover-wrap, .fi-volume-wrap, .fi-volume-popup, .fi-eq-popup, .custom-eq, .custom-eq-preset, .custom-eq-presets, .custom-eq-graph, .custom-eq-node, .custom-eq-labels, .fi-timeline-seeker, [role="button"]')) return;
+      if (e.target.closest('.fi-info, .fi-center, #fi-title, #fi-artist')) {
+        if (typeof switchScreen === 'function') {
+          switchScreen('player-screen', 'nav-player-btn');
+        }
+        return;
+      }
+      const dur = getGlobalTrackDuration();
+      if (dur <= 0) return;
       const rect = floatingIsland.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-      audio.currentTime = ratio * audio.duration;
+      audio.currentTime = ratio * dur;
     });
   }
 });

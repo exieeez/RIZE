@@ -289,11 +289,13 @@
       let profileUnsub = null;
       let usersUnsub = null;
       let libraryUnsub = null;
+      let historyUnsub = null;
 
       state.auth.onAuthStateChanged(async user => {
         if (profileUnsub) { profileUnsub(); profileUnsub = null; }
         if (usersUnsub) { usersUnsub(); usersUnsub = null; }
         if (libraryUnsub) { libraryUnsub(); libraryUnsub = null; }
+        if (historyUnsub) { historyUnsub(); historyUnsub = null; }
 
         state.user = user || null;
         state.profile = user ? await ensureProfile(user).catch(() => null) : null;
@@ -329,6 +331,16 @@
             } catch (e) {}
             dispatchAuthState();
             updateAccountUi();
+
+            // Real-time sync blob check from mobile
+            if (d.sync) {
+              try {
+                const blob = JSON.parse(d.sync);
+                window.dispatchEvent(new CustomEvent('votify:cloud-sync-blob-updated', {
+                  detail: { blob, updatedAt: d.updatedAt }
+                }));
+              } catch (e) {}
+            }
           };
 
           try {
@@ -339,6 +351,13 @@
               const d = snap.data() || {};
               window.dispatchEvent(new CustomEvent('votify:cloud-library-updated', {
                 detail: { playlists: d.playlists, updatedAt: d.updatedAt }
+              }));
+            }, () => {});
+            historyUnsub = syncRef(user.uid, 'history').onSnapshot(snap => {
+              if (!snap || !snap.exists) return;
+              const d = snap.data() || {};
+              window.dispatchEvent(new CustomEvent('votify:cloud-history-updated', {
+                detail: { history: d.history, updatedAt: d.updatedAt }
               }));
             }, () => {});
           } catch (e) {}
@@ -1041,11 +1060,30 @@
         } catch (e) {}
       }
     }
+    let history = historyDoc?.exists ? historyDoc.data()?.history || null : null;
+    if ((!history || history.length === 0) && userDoc?.exists) {
+      const syncStr = userDoc.data()?.sync;
+      if (syncStr) {
+        try {
+          const blob = JSON.parse(syncStr);
+          if (Array.isArray(blob.history) && blob.history.length > 0) {
+            history = blob.history.map(h => ({
+              id: h.track?.id,
+              title: h.track?.t,
+              artist: h.track?.a,
+              cover: h.track?.c,
+              duration: h.track?.d,
+              playedAt: h.playedAt,
+            }));
+          }
+        } catch (e) {}
+      }
+    }
     return {
       settings: settingsDoc?.exists ? settingsDoc.data()?.value || null : null,
       playlists,
-      history: historyDoc?.exists ? historyDoc.data()?.history || null : null,
-      exists: (settingsDoc && settingsDoc.exists) || (libraryDoc && libraryDoc.exists) || (historyDoc && historyDoc.exists) || !!playlists,
+      history,
+      exists: (settingsDoc && settingsDoc.exists) || (libraryDoc && libraryDoc.exists) || (historyDoc && historyDoc.exists) || !!playlists || !!history,
     };
   }
 
@@ -1104,6 +1142,16 @@
             })),
           };
         });
+      const androidHistory = (history || []).map((t, idx) => ({
+        playedAt: t.playedAt || (Date.now() - idx * 1000),
+        track: {
+          id: String(t.id || ''),
+          t: String(t.title || t.name || t.t || 'Трек'),
+          a: String(t.artist || t.artistName || t.a || 'Неизвестный исполнитель'),
+          c: String(t.cover || t.thumbnail || t.c || ''),
+          d: Number(t.duration || t.d || 180),
+        },
+      }));
       const androidSyncBlob = JSON.stringify({
         v: 1,
         theme: settings?.theme || '',
@@ -1111,6 +1159,7 @@
         backgroundUrl: settings?.bgUrl || '',
         favorites: androidFavorites,
         playlists: androidPlaylists,
+        history: androidHistory,
       });
       batch.set(profileRef(user.uid), {
         playlists: playlistSummaries,

@@ -89,8 +89,14 @@ interface HistoryDao {
     @Query("SELECT COUNT(DISTINCT trackId) FROM history")
     fun observeDistinctCount(): Flow<Int>
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: HistoryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entries: List<HistoryEntity>)
+
+    @Query("SELECT * FROM history ORDER BY playedAt DESC LIMIT :limit")
+    suspend fun getRecent(limit: Int): List<HistoryEntity>
 
     @Query("DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY playedAt DESC LIMIT :keep)")
     suspend fun trim(keep: Int)
@@ -112,6 +118,9 @@ interface PlaylistDao {
 
     @Query("SELECT * FROM playlists WHERE id = :id")
     fun observe(id: Long): Flow<PlaylistEntity?>
+
+    @Query("SELECT * FROM playlists WHERE name = :name LIMIT 1")
+    suspend fun byName(name: String): PlaylistEntity?
 
     @Query(
         """SELECT t.* FROM tracks t INNER JOIN playlist_tracks pt ON pt.trackId = t.id
@@ -139,6 +148,9 @@ interface PlaylistDao {
 
     @Query("DELETE FROM playlist_tracks")
     suspend fun clearAllTracks()
+
+    @Query("DELETE FROM playlist_tracks WHERE playlistId = :playlistId")
+    suspend fun clearTracks(playlistId: Long)
 
     @Query("DELETE FROM tracks")
     suspend fun clearAllTracksData()

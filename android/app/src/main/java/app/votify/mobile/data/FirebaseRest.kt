@@ -740,6 +740,23 @@ class FirebaseRest(private val config: FirebaseConfig) {
             val customThemeStr = fStr(setVal, "customTheme").ifBlank { blob?.customTheme ?: "" }
             val bgUrlStr = fStr(setVal, "backgroundUrl").ifBlank { blob?.backgroundUrl ?: "" }
 
+            // 4. PC sync history from users/$uid/sync/history
+            val histDoc = httpGetJsonOrNull(docUrl("users/$uid/sync/history"), idToken)?.jsonObject?.get("fields")?.jsonObject
+            val histArr = histDoc?.get("history")?.jsonObject?.get("arrayValue")?.jsonObject?.get("values")?.jsonArray
+            val pcHistory = histArr?.mapNotNull { item ->
+                val tf = item.jsonObject["mapValue"]?.jsonObject?.get("fields")?.jsonObject ?: return@mapNotNull null
+                val id = fStr(tf, "id")
+                val title = fStr(tf, "title").ifBlank { fStr(tf, "t") }
+                val artist = fStr(tf, "artist").ifBlank { fStr(tf, "a") }
+                val cover = fStr(tf, "cover").ifBlank { fStr(tf, "c") }
+                val duration = fInt(tf, "duration").let { if (it > 0) it else fInt(tf, "d") }
+                val playedAt = fInt(tf, "playedAt").let { if (it > 0) it.toLong() else System.currentTimeMillis() }
+                if (id.isBlank() && title.isBlank()) null else SyncHistoryItem(playedAt, SyncTrack(id, title, artist, cover, duration))
+            } ?: emptyList()
+
+            val baseHistory = blob?.history.orEmpty()
+            val mergedHistory = (baseHistory + pcHistory).distinctBy { it.track.id }.sortedByDescending { it.playedAt }
+
             if (blob != null) {
                 val mergedFavs = (blob.favorites + favs).distinctBy { it.track.id }
                 val mergedPls = (blob.playlists + pls).distinctBy { it.name }
@@ -751,14 +768,16 @@ class FirebaseRest(private val config: FirebaseConfig) {
                     backgroundUrl = bgUrlStr.ifBlank { blob.backgroundUrl },
                     favorites = mergedFavs,
                     playlists = mergedPls,
+                    history = mergedHistory,
                 )
-            } else if (favs.isNotEmpty() || pls.isNotEmpty()) {
+            } else if (favs.isNotEmpty() || pls.isNotEmpty() || mergedHistory.isNotEmpty()) {
                 SyncBlob(
                     theme = themeStr,
                     customTheme = customThemeStr,
                     backgroundUrl = bgUrlStr,
                     favorites = favs,
                     playlists = pls,
+                    history = mergedHistory,
                 )
             } else null
         }.getOrNull()
@@ -989,7 +1008,70 @@ class FirebaseRest(private val config: FirebaseConfig) {
                 .patch(setBody.toString().toRequestBody(JSON))
                 .build()
             http.newCall(setRequest).execute().use { }
+
+            // Веб-формат истории: users/{uid}/sync/history
+            val historyArr = buildJsonArray {
+                blob.history.forEach { item ->
+                    add(buildJsonObject {
+                        put("mapValue", buildJsonObject {
+                            put("fields", buildJsonObject {
+                                put("id", str(item.track.id))
+                                put("title", str(item.track.t))
+                                put("artist", str(item.track.a))
+                                put("cover", str(item.track.c))
+                                put("duration", int(item.track.d))
+                                put("playedAt", int(item.playedAt.toInt()))
+                            })
+                        })
+                    })
+                }
+            }
+            val histBody = buildJsonObject {
+                put("fields", buildJsonObject {
+                    put("history", buildJsonObject {
+                        put("arrayValue", buildJsonObject {
+                            put("values", historyArr)
+                        })
+                    })
+                    put("updatedAt", serverTs())
+                })
+            }
+            val histRequest = Request.Builder().url(docUrl("users/$uid/sync/history"))
+                .header("Authorization", "Bearer $idToken")
+                .patch(histBody.toString().toRequestBody(JSON))
+                .build()
+            http.newCall(histRequest).execute().use { }
         }
+
+    /** Returns the updateTime string of the user's sync library or user document to detect external changes. */
+    suspend fun fetchCloudLibraryUpdateTime(idToken: String, uid: String): String? = withContext(Dispatchers.IO) {
+        val url = "https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents/users/$uid/sync/library?mask.fieldPaths=updatedAt&key=${config.apiKey}"
+        val req = Request.Builder().url(url).header("Authorization", "Bearer $idToken").get().build()
+        http.newCall(req).execute().use { resp ->
+            if (resp.isSuccessful) {
+                val body = resp.body?.string().orEmpty()
+                runCatching {
+                    val elem = json.parseToJsonElement(body).jsonObject
+                    elem["updateTime"]?.jsonPrimitive?.content
+                        ?: elem["fields"]?.jsonObject?.get("updatedAt")?.jsonObject?.get("timestampValue")?.jsonPrimitive?.content
+                }.getOrNull()
+            } else if (resp.code == 404) {
+                val userUrl = "https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents/users/$uid?mask.fieldPaths=updatedAt&key=${config.apiKey}"
+                val userReq = Request.Builder().url(userUrl).header("Authorization", "Bearer $idToken").get().build()
+                http.newCall(userReq).execute().use { userResp ->
+                    if (!userResp.isSuccessful) return@withContext null
+                    val userBody = userResp.body?.string().orEmpty()
+                    runCatching {
+                        val elem = json.parseToJsonElement(userBody).jsonObject
+                        elem["updateTime"]?.jsonPrimitive?.content
+                            ?: elem["fields"]?.jsonObject?.get("updatedAt")?.jsonObject?.get("timestampValue")?.jsonPrimitive?.content
+                    }.getOrNull()
+                }
+            } else {
+                null
+            }
+        }
+    }
 
     /** Поиск публичных пользователей: profiles + users (первые 40) и точный юзернейм. */
     suspend fun searchUsers(idToken: String, query: String, excludeUid: String): List<ProfileInfo> =

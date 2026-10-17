@@ -44,6 +44,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.height
@@ -1939,46 +1941,34 @@ private fun EqualizerBottomSheet(
                         val usableH = (h - 2 * tbPadPx).coerceAtLeast(1f)
                         val yZero = h / 2f
 
-                        fun updateGainAt(touchX: Float, touchY: Float) {
-                            val index = ((touchX - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
-                            val gainDb = (-(touchY - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
-                            val roundedGain = (kotlin.math.round(gainDb * 10f) / 10f)
-                            bands = bands.toMutableList().also { it[index] = roundedGain }
-                            currentPreset = "custom"
-                            onBandsChange(bands)
-                        }
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            down.consume()
+                            var activeIndex = ((down.position.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
 
-                        detectTapGestures { offset ->
-                            updateGainAt(offset.x, offset.y)
-                        }
-                    }
-                    .pointerInput(canvasWidth) {
-                        if (canvasWidth <= 0f) return@pointerInput
-                        val padPx = paddingX.toPx()
-                        val tbPadPx = topBottomPad.toPx()
-                        val usableW = (canvasWidth - 2 * padPx).coerceAtLeast(1f)
-                        val stepW = usableW / 5f
-                        val h = size.height.toFloat()
-                        val usableH = (h - 2 * tbPadPx).coerceAtLeast(1f)
-                        val yZero = h / 2f
-
-                        detectHorizontalDragGestures(
-                            onDragStart = { offset ->
-                                val index = ((offset.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
-                                val gainDb = (-(offset.y - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
+                            fun updateAt(pos: Offset) {
+                                val gainDb = (-(pos.y - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
                                 val roundedGain = (kotlin.math.round(gainDb * 10f) / 10f)
-                                bands = bands.toMutableList().also { it[index] = roundedGain }
+                                bands = bands.toMutableList().also { it[activeIndex] = roundedGain }
                                 currentPreset = "custom"
                                 onBandsChange(bands)
-                            },
-                        ) { change, _ ->
-                            change.consume()
-                            val index = ((change.position.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
-                            val gainDb = (-(change.position.y - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
-                            val roundedGain = (kotlin.math.round(gainDb * 10f) / 10f)
-                            bands = bands.toMutableList().also { it[index] = roundedGain }
-                            currentPreset = "custom"
-                            onBandsChange(bands)
+                            }
+
+                            updateAt(down.position)
+
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (change.pressed) {
+                                    change.consume()
+                                    val currentX = change.position.x
+                                    val nearestIdx = ((currentX - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
+                                    if (kotlin.math.abs(currentX - (padPx + nearestIdx * stepW)) < stepW * 0.45f) {
+                                        activeIndex = nearestIdx
+                                    }
+                                    updateAt(change.position)
+                                }
+                            } while (event.changes.any { it.pressed })
                         }
                     },
             ) {
@@ -2094,7 +2084,19 @@ private fun EqualizerBottomSheet(
                     val gainText = if (gain > 0f) "+%.1f".format(java.util.Locale.US, gain) else "%.1f".format(java.util.Locale.US, gain)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.width(46.dp),
+                        modifier = Modifier
+                            .width(46.dp)
+                            .clickable {
+                                val nextGain = when {
+                                    gain == 0f -> 4.0f
+                                    gain > 0f -> -4.0f
+                                    else -> 0.0f
+                                }
+                                bands = bands.toMutableList().also { it[i] = nextGain }
+                                currentPreset = "custom"
+                                onBandsChange(bands)
+                            }
+                            .padding(vertical = 4.dp),
                     ) {
                         Text(
                             text = label,

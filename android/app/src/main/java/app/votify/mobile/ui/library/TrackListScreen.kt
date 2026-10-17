@@ -209,6 +209,8 @@ private fun TrackList(
 fun FavoritesScreen(
     viewModel: LibraryViewModel,
     currentTrackId: String?,
+    isPlaying: Boolean = false,
+    onTogglePlay: () -> Unit = {},
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onPlay: (List<Track>, Int) -> Unit,
@@ -217,28 +219,102 @@ fun FavoritesScreen(
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val downloadedIds by viewModel.downloadedIds.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
-    TrackList(
-        tracks = favorites,
-        currentTrackId = currentTrackId,
-        contentPadding = contentPadding,
-        emptyText = stringResource(R.string.library_favorites_empty),
-        onPlay = onPlay,
-        onMore = { viewModel.openMenu(it) },
-        downloadedIds = downloadedIds,
-        downloadProgress = downloadProgress,
-        header = {
-            CollectionHeader(
-                title = stringResource(R.string.library_favorites),
-                subtitle = pluralTracks(favorites.size),
-                cover = favorites.firstOrNull()?.cover,
-                icon = Icons.Filled.Favorite,
-                tracks = favorites,
-                onBack = onBack,
-                onPlay = onPlay,
-                onShufflePlay = onShufflePlay,
+
+    val coverUrl = favorites.firstOrNull { !it.cover.isNullOrBlank() }?.cover
+    val isCurrentPlaylist = favorites.any { it.id == currentTrackId }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0c0d10))
+    ) {
+        // Heavily blurred background cover image
+        val bgModel = remember(coverUrl) { resolveCoverModel(coverUrl) }
+        if (bgModel != null) {
+            SubcomposeAsyncImage(
+                model = bgModel,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(45.dp)
+                    .alpha(0.55f),
             )
-        },
-    )
+        } else {
+            // Ambient subtle fallback gradient with rich tint when no cover is present
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF3b1227),
+                                Color(0xFF1c1220),
+                                Color(0xFF0c0d10),
+                                Color(0xFF0c0d10),
+                            )
+                        )
+                    )
+            )
+        }
+
+        // Gradient overlay fading smoothly into deep opaque surface
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Black.copy(alpha = 0.40f),
+                        0.22f to Color.Black.copy(alpha = 0.20f),
+                        0.48f to Color(0xFF0c0d10).copy(alpha = 0.65f),
+                        0.72f to Color(0xFF0c0d10).copy(alpha = 0.92f),
+                        0.88f to Color(0xFF0c0d10),
+                        1.0f to Color(0xFF0c0d10),
+                    )
+                )
+        )
+
+        // Tracklist with the vinyl header
+        TrackList(
+            tracks = favorites,
+            currentTrackId = currentTrackId,
+            contentPadding = contentPadding,
+            emptyText = stringResource(R.string.library_favorites_empty),
+            onPlay = onPlay,
+            onMore = { viewModel.openMenu(it) },
+            downloadedIds = downloadedIds,
+            downloadProgress = downloadProgress,
+            header = {
+                PlaylistVinylHeader(
+                    title = stringResource(R.string.library_favorites),
+                    tracks = favorites,
+                    coverUrl = coverUrl,
+                    isPlaying = isPlaying,
+                    isCurrentPlaylist = isCurrentPlaylist,
+                    topPadding = contentPadding.calculateTopPadding(),
+                    onBack = onBack,
+                    onPlayAll = {
+                        if (favorites.isNotEmpty()) {
+                            if (isCurrentPlaylist) {
+                                onTogglePlay()
+                            } else {
+                                onPlay(favorites, 0)
+                            }
+                        }
+                    },
+                    onShuffle = {
+                        if (favorites.isNotEmpty()) onShufflePlay(favorites)
+                    },
+                    onDownloadAll = {
+                        favorites.forEach { tr ->
+                            if (tr.id !in downloadedIds) viewModel.downloadTrack(tr)
+                        }
+                    },
+                    trailingActions = {},
+                )
+            },
+        )
+    }
 }
 
 @Composable

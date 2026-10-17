@@ -15,6 +15,18 @@ const { handleMusicRoutes } = require('./routes/music.js');
 const { handlePlaylistRoutes } = require('./routes/playlists.js');
 const { handleSmtpRoutes } = require('./routes/smtp.js');
 const { handleSyncRoutes } = require('./routes/sync.js');
+const { DiscordPresence } = require('./discord-presence.js');
+
+let discordPresence = null;
+try {
+  discordPresence = new DiscordPresence({
+    clientId: process.env.VOTIFY_DISCORD_CLIENT_ID || '1536826368615256146',
+    applicationName: 'Votify',
+    fallbackImageKey: process.env.VOTIFY_DISCORD_LARGE_IMAGE_KEY,
+  });
+} catch (e) {
+  /* discord optional */
+}
 
 const PKG_VERSION = (() => {
   try {
@@ -137,6 +149,18 @@ const server = http.createServer(async (req, res) => {
     if (u.pathname === '/api/debug-log' && req.method === 'POST') {
       const body = await parseBody(req);
       console.log('=== [RENDERER DEBUG LOG] ===\n', JSON.stringify(body, null, 2));
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+    if (u.pathname === '/api/discord-presence' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (discordPresence) {
+        if (body && body.action === 'clear') {
+          discordPresence.clear();
+        } else if (body && body.playback) {
+          discordPresence.update(body.playback);
+        }
+      }
       sendJson(res, 200, { ok: true });
       return;
     }

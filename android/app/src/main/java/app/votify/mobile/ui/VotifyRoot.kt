@@ -579,6 +579,8 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                             FavoritesScreen(
                                 viewModel = libraryVm,
                                 currentTrackId = playerState.current?.id,
+                                isPlaying = playerState.isPlaying,
+                                onTogglePlay = { player.togglePlayPause() },
                                 contentPadding = contentPadding,
                                 onBack = { navController.popBackStack() },
                                 onPlay = play,

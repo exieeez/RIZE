@@ -1284,11 +1284,13 @@
         <!-- STANDALONE PLAYLIST SCREEN -->
         <section id="playlist-screen" class="screen hidden" style="display:none">
           <div class="pl-screen-backdrop" id="pl-screen-backdrop"></div>
+          <div class="pl-screen-gradient-overlay" id="pl-screen-gradient-overlay"></div>
           <div class="library-modern-wrap">
-            <div class="screen-header" style="margin-bottom: 16px;">
-              <button class="library-action-btn secondary" id="back-from-playlist-btn" style="display: inline-flex; align-items: center; gap: 8px;">
-                <i class="material-icons" style="font-size:18px;">arrow_back</i> <span>Назад</span>
+            <div class="screen-header pl-screen-top-bar">
+              <button class="pl-back-circle-btn" id="back-from-playlist-btn" title="Назад">
+                <i class="material-icons">arrow_back</i>
               </button>
+              <span class="pl-top-bar-title" id="pl-screen-top-bar-title">Плейлист</span>
             </div>
 
             <div class="library-active-playlist-view" style="display:block;">
@@ -1301,22 +1303,24 @@
                   </div>
                   <div class="lib-detail-cover is-empty" id="pl-screen-cover">
                     <div class="cover-fallback lib-detail-cover-fallback" id="pl-screen-cover-fallback">
-                      <i class="material-icons" id="pl-screen-cover-icon">queue_music</i>
+                      <i class="material-icons" id="pl-screen-cover-icon">favorite</i>
                     </div>
                     <img id="pl-screen-cover-img" src="" alt="Cover" style="display:none;" />
                   </div>
                 </div>
                 <div class="lib-detail-info">
-                  <h2 class="lib-detail-title" id="pl-screen-title">Плейлист</h2>
+                  <h2 class="lib-detail-title" id="pl-screen-title">Любимые треки</h2>
                   <div class="lib-detail-sub" id="pl-screen-meta">0 треков</div>
                 </div>
                 <div class="lib-detail-actions">
-                  <button class="lib-action-circle-btn" id="pl-screen-play-btn" title="Воспроизвести"><i class="material-icons">play_arrow</i></button>
-                  <button class="lib-action-circle-btn" id="pl-screen-shuffle-btn" title="Перемешать"><i class="material-icons">shuffle</i></button>
-                  <button class="lib-action-circle-btn secondary" id="pl-screen-cover-btn" title="Сменить обложку"><i class="material-icons">image</i></button>
                   <button class="lib-action-circle-btn secondary" id="pl-screen-download-all-btn" title="Скачать весь плейлист"><i class="material-icons">download</i></button>
+                  <div class="pl-detail-actions-right">
+                    <button class="lib-action-circle-btn secondary" id="pl-screen-shuffle-btn" title="Перемешать"><i class="material-icons">shuffle</i></button>
+                    <button class="lib-action-circle-btn" id="pl-screen-play-btn" title="Воспроизвести"><i class="material-icons">play_arrow</i></button>
+                  </div>
+                  <button class="lib-action-circle-btn secondary" id="pl-screen-cover-btn" title="Сменить обложку" style="display:none;"><i class="material-icons">image</i></button>
                   <button class="lib-action-circle-btn secondary" id="pl-screen-save-btn" title="Добавить в мою медиатеку" style="display:none;"><i class="material-icons">bookmark_add</i></button>
-                  <button class="lib-action-circle-btn secondary" id="pl-screen-delete-btn" title="Удалить плейлист"><i class="material-icons">delete_outline</i></button>
+                  <button class="lib-action-circle-btn secondary" id="pl-screen-delete-btn" title="Удалить плейлист" style="display:none;"><i class="material-icons">delete_outline</i></button>
                   <input type="file" id="pl-screen-cover-input" accept="image/*" style="display:none;" />
                 </div>
               </div>
@@ -1435,6 +1439,11 @@
         <div class="fi-progress-clip-container" id="fi-progress-clip-container" style="position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 1;">
           <div class="fi-bg-progress-overlay" id="fi-bg-progress-overlay" style="position: absolute; inset: 0; width: 0%; background: rgba(255, 255, 255, 0.16); border-radius: inherit; pointer-events: none; z-index: 1; transition: width 0.15s linear;"></div>
           <div class="fi-top-timeline-bar" id="fi-top-timeline-bar" style="position: absolute; bottom: 0; left: 0; height: 3px; width: 0%; background: var(--accent, #ffffff); border-radius: 999px; z-index: 2; transition: width 0.15s linear; box-shadow: 0 0 8px var(--accent-alpha, rgba(255, 255, 255, 0.6));"></div>
+        </div>
+        <!-- Interactive Seeker & Hover Track for PC / Mouse -->
+        <div class="fi-timeline-seeker" id="fi-timeline-seeker" title="Перемотка трека">
+          <div class="fi-timeline-hover-time" id="fi-timeline-hover-time">0:00</div>
+          <div class="fi-timeline-thumb" id="fi-timeline-thumb"></div>
         </div>
         <!-- LEFT: cover + info + like -->
         <div class="fi-left" style="position: relative; z-index: 20; pointer-events: auto;">
