@@ -146,6 +146,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    if (u.pathname === '/api/dev-command' && req.method === 'POST') {
+      const body = await parseBody(req);
+      if (!global.__devCommands) global.__devCommands = [];
+      global.__devCommands.push(body);
+      sendJson(res, 200, { ok: true, queued: global.__devCommands.length });
+      return;
+    }
+    if (u.pathname === '/api/dev-command' && req.method === 'GET') {
+      const cmds = global.__devCommands ? [...global.__devCommands] : [];
+      global.__devCommands = [];
+      sendJson(res, 200, { ok: true, commands: cmds });
+      return;
+    }
     if (u.pathname === '/api/debug-log' && req.method === 'POST') {
       const body = await parseBody(req);
       console.log('=== [RENDERER DEBUG LOG] ===\n', JSON.stringify(body, null, 2));

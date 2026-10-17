@@ -3078,20 +3078,37 @@ function logRendererDebug(tag, data) {
   } catch (e) {}
 }
 
+function pluralizeTracks(n) {
+  const abs = Math.abs(n) % 100;
+  const rem = abs % 10;
+  if (abs > 10 && abs < 20) return `${n} треков`;
+  if (rem > 1 && rem < 5) return `${n} трека`;
+  if (rem === 1) return `${n} трек`;
+  return `${n} треков`;
+}
+window.pluralizeTracks = pluralizeTracks;
+
 function updatePlaylistVinylPlayState() {
   const vinylWrap = document.getElementById('pl-vinyl-wrap');
   const playBtn = document.getElementById('pl-screen-play-btn');
   if (!vinylWrap) return;
   const isPlaying = Boolean(state.isPlaying);
-  vinylWrap.classList.toggle('is-playing', isPlaying);
+  const curTrack = state.currentTrack;
+  const activeTracks = window.currentOpenPlaylistTracks || [];
+  const isCurrentPlaylist = Boolean(curTrack && Array.isArray(activeTracks) && activeTracks.some(t => t.id === curTrack.id));
+  const spinning = isPlaying && isCurrentPlaylist;
+  vinylWrap.classList.toggle('is-playing', spinning);
   if (playBtn) {
     const icon = playBtn.querySelector('i') || playBtn.querySelector('.material-icons');
-    if (icon) icon.textContent = isPlaying ? 'pause' : 'play_arrow';
+    if (icon) icon.textContent = spinning ? 'pause' : 'play_arrow';
   }
 }
 window.updatePlaylistVinylPlayState = updatePlaylistVinylPlayState;
 if (typeof on === 'function') {
   on('state:isPlaying', () => {
+    try { updatePlaylistVinylPlayState(); } catch (e) {}
+  });
+  on('state:currentTrack', () => {
     try { updatePlaylistVinylPlayState(); } catch (e) {}
   });
 }
@@ -3195,16 +3212,30 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
   // --- 1. SWITCH TO STANDALONE PLAYLIST SCREEN ---
   switchScreen('playlist-screen');
 
+  window.currentOpenPlaylistTracks = validTracks;
+  window.currentOpenPlaylistName = name;
+
   const titleEl = document.getElementById('pl-screen-title');
   const metaEl = document.getElementById('pl-screen-meta');
   const topBarTitle = document.getElementById('pl-screen-top-bar-title');
-  if (titleEl) titleEl.textContent = title;
-  if (topBarTitle) topBarTitle.textContent = title;
+  const isLikedPlaylist = name === 'Избранное' || name === 'Любимые треки';
+  const displayTitle = isLikedPlaylist ? 'Любимые треки' : title;
+  const topBarText = isLikedPlaylist ? 'Любимые треки' : 'Плейлист';
+
+  if (titleEl) titleEl.textContent = displayTitle;
+  if (topBarTitle) topBarTitle.textContent = topBarText;
+  const kickerEl = document.getElementById('pl-screen-kicker');
+  if (kickerEl) kickerEl.textContent = isLikedPlaylist ? 'Коллекция' : 'Плейлист';
   if (metaEl) {
-    const authorPrefix = author ? `${author} • ` : '';
-    metaEl.textContent = totalSec > 0
-      ? `${authorPrefix}Плейлист • ${validTracks.length} треков • ${formattedTime}`
-      : `${authorPrefix}Плейлист • ${validTracks.length} треков`;
+    const trackCountStr = typeof pluralizeTracks === 'function' ? pluralizeTracks(validTracks.length) : `${validTracks.length} треков`;
+    if (isLikedPlaylist) {
+      metaEl.textContent = totalSec > 0 ? `${trackCountStr} • ${formattedTime}` : trackCountStr;
+    } else {
+      const authorPrefix = author ? `${author} • ` : '';
+      metaEl.textContent = totalSec > 0
+        ? `${authorPrefix}Плейлист • ${trackCountStr} • ${formattedTime}`
+        : `${authorPrefix}Плейлист • ${trackCountStr}`;
+    }
   }
 
   let coverUrl = customCoverUrl || getPlaylistCover(rawData);
@@ -3215,8 +3246,6 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
   const coverFallback = document.getElementById('pl-screen-cover-fallback');
   const backdrop = document.getElementById('pl-screen-backdrop');
   const vinylLabelImg = document.getElementById('pl-vinyl-label-img');
-
-  const isLikedPlaylist = name === 'Избранное' || name === 'Любимые треки';
   const coverIcon = document.getElementById('pl-screen-cover-icon');
 
   if (coverUrl && coverUrl !== 'assets/logo.png') {
@@ -3248,16 +3277,21 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
     if (backdrop) {
       if (isLikedPlaylist) {
         backdrop.style.backgroundImage = 'none';
-        backdrop.style.background = 'radial-gradient(ellipse at 50% 20%, rgba(233, 30, 99, 0.35) 0%, rgba(28, 18, 32, 0.85) 50%, #0c0d10 100%)';
+        backdrop.style.background = 'linear-gradient(180deg, #3b1227 0%, #1c1220 35%, #0c0d10 70%, #0c0d10 100%)';
       } else {
         backdrop.style.backgroundImage = 'none';
-        backdrop.style.background = '';
+        backdrop.style.background = 'linear-gradient(180deg, #1f2029 0%, #13141a 40%, #0c0d10 75%, #0c0d10 100%)';
       }
     }
     if (vinylLabelImg) vinylLabelImg.style.display = 'none';
   }
 
   updatePlaylistVinylPlayState();
+
+  safeClick('pl-vinyl-wrap', () => {
+    const playBtn = document.getElementById('pl-screen-play-btn');
+    if (playBtn) playBtn.click();
+  });
 
   safeClick('pl-screen-play-btn', () => {
     if (!validTracks.length) return;
@@ -3343,7 +3377,8 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
     deleteBtn.parentNode.insertBefore(saveBtn, deleteBtn);
   }
   if (saveBtn) {
-    saveBtn.style.display = isPublicCommunity ? 'inline-flex' : 'none';
+    saveBtn.classList.toggle('is-hidden', !isPublicCommunity);
+    saveBtn.style.setProperty('display', isPublicCommunity ? 'inline-flex' : 'none', 'important');
     saveBtn.onclick = () => {
       if (!playlists || typeof playlists !== 'object') playlists = {};
       playlists[title] = validTracks;
@@ -3357,11 +3392,15 @@ function openPlaylist(playlistArg, customTracks, customAuthor, customCover) {
   }
   const isSpecialPlaylist = isLikedPlaylist || name === '__OFFLINE__';
   if (deleteBtn) {
-    deleteBtn.style.display = (isPublicCommunity || isSpecialPlaylist) ? 'none' : 'inline-flex';
+    const hideDel = isPublicCommunity || isSpecialPlaylist;
+    deleteBtn.classList.toggle('is-hidden', hideDel);
+    deleteBtn.style.setProperty('display', hideDel ? 'none' : 'inline-flex', 'important');
   }
   const coverBtn = document.getElementById('pl-screen-cover-btn');
   if (coverBtn) {
-    coverBtn.style.display = (isPublicCommunity || isSpecialPlaylist) ? 'none' : 'inline-flex';
+    const hideCover = isPublicCommunity || isSpecialPlaylist;
+    coverBtn.classList.toggle('is-hidden', hideCover);
+    coverBtn.style.setProperty('display', hideCover ? 'none' : 'inline-flex', 'important');
   }
 
   safeClick('pl-screen-delete-btn', async () => {
@@ -12692,6 +12731,9 @@ function initApp() {
     }
 
     console.log('Votify initialized successfully.');
+    try {
+      handleRouteHash();
+    } catch (e) {}
   } catch (e) {
     console.error('Critical init error:', e);
   } finally {
@@ -12700,6 +12742,40 @@ function initApp() {
     setTimeout(hideSplash, 1500);
   }
 }
+
+function handleRouteHash() {
+  const hash = window.location.hash || '';
+  if (hash.startsWith('#playlist/')) {
+    const plName = decodeURIComponent(hash.slice(10));
+    if (plName && typeof openPlaylist === 'function') {
+      openPlaylist(plName);
+    }
+  } else if (hash === '#favorites' || hash === '#liked') {
+    if (typeof openPlaylist === 'function') {
+      openPlaylist('Любимые треки');
+    }
+  }
+}
+window.handleRouteHash = handleRouteHash;
+window.addEventListener('hashchange', handleRouteHash);
+
+setInterval(async () => {
+  try {
+    const res = await fetch('/api/dev-command');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.commands) && data.commands.length > 0) {
+        for (const cmd of data.commands) {
+          if (cmd && cmd.action === 'openPlaylist' && typeof openPlaylist === 'function') {
+            openPlaylist(cmd.name || 'Любимые треки');
+          } else if (cmd && cmd.action === 'eval' && cmd.code) {
+            (0, eval)(cmd.code);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+}, 800);
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);

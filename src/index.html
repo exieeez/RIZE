@@ -1291,10 +1291,12 @@
           <div class="pl-screen-gradient-overlay" id="pl-screen-gradient-overlay"></div>
           <div class="library-modern-wrap">
             <div class="screen-header pl-screen-top-bar">
-              <button class="pl-back-circle-btn" id="back-from-playlist-btn" title="Назад">
-                <i class="material-icons">arrow_back</i>
-              </button>
-              <span class="pl-top-bar-title" id="pl-screen-top-bar-title">Плейлист</span>
+              <div class="pl-top-bar-left">
+                <button class="pl-back-circle-btn" id="back-from-playlist-btn" title="Назад" aria-label="Назад">
+                  <i class="material-icons">arrow_back</i>
+                </button>
+                <span class="pl-top-bar-title" id="pl-screen-top-bar-title">Плейлист</span>
+              </div>
             </div>
 
             <div class="library-active-playlist-view" style="display:block;">
@@ -1313,20 +1315,20 @@
                   </div>
                 </div>
                 <div class="lib-detail-info">
-                  <h2 class="lib-detail-title" id="pl-screen-title">Любимые треки</h2>
+                  <span class="pl-screen-kicker" id="pl-screen-kicker">Плейлист</span>
+                  <h1 class="lib-detail-title" id="pl-screen-title">Любимые треки</h1>
                   <div class="lib-detail-sub" id="pl-screen-meta">0 треков</div>
                 </div>
-                <div class="lib-detail-actions">
-                  <button class="lib-action-circle-btn secondary" id="pl-screen-download-all-btn" title="Скачать весь плейлист"><i class="material-icons">download</i></button>
-                  <div class="pl-detail-actions-right">
-                    <button class="lib-action-circle-btn secondary" id="pl-screen-shuffle-btn" title="Перемешать"><i class="material-icons">shuffle</i></button>
-                    <button class="lib-action-circle-btn" id="pl-screen-play-btn" title="Воспроизвести"><i class="material-icons">play_arrow</i></button>
-                  </div>
-                  <button class="lib-action-circle-btn secondary" id="pl-screen-cover-btn" title="Сменить обложку" style="display:none;"><i class="material-icons">image</i></button>
-                  <button class="lib-action-circle-btn secondary" id="pl-screen-save-btn" title="Добавить в мою медиатеку" style="display:none;"><i class="material-icons">bookmark_add</i></button>
-                  <button class="lib-action-circle-btn secondary" id="pl-screen-delete-btn" title="Удалить плейлист" style="display:none;"><i class="material-icons">delete_outline</i></button>
-                  <input type="file" id="pl-screen-cover-input" accept="image/*" style="display:none;" />
-                </div>
+              </div>
+
+              <div class="lib-detail-actions">
+                <button class="lib-action-circle-btn pl-action-play-btn" id="pl-screen-play-btn" title="Воспроизвести"><i class="material-icons">play_arrow</i></button>
+                <button class="lib-action-circle-btn secondary" id="pl-screen-shuffle-btn" title="Перемешать"><i class="material-icons">shuffle</i></button>
+                <button class="lib-action-circle-btn secondary" id="pl-screen-download-all-btn" title="Скачать весь плейлист"><i class="material-icons">download</i></button>
+                <button class="lib-action-circle-btn secondary" id="pl-screen-cover-btn" title="Сменить обложку" style="display:none;"><i class="material-icons">image</i></button>
+                <button class="lib-action-circle-btn secondary" id="pl-screen-delete-btn" title="Удалить плейлист" style="display:none;"><i class="material-icons">delete_outline</i></button>
+                <button class="lib-action-circle-btn secondary" id="pl-screen-save-btn" title="Добавить в мою медиатеку" style="display:none;"><i class="material-icons">bookmark_add</i></button>
+                <input type="file" id="pl-screen-cover-input" accept="image/*" style="display:none;" />
               </div>
 
               <div class="lib-detail-content">
