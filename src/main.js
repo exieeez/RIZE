@@ -10900,6 +10900,10 @@ on('state:isPlaying', playing => {
     heroToggle.classList.toggle('playing', playing);
     const wavePlayIcon = heroToggle.querySelector('.wave-play-icon') || heroToggle.querySelector('.material-icons');
     if (wavePlayIcon) wavePlayIcon.textContent = playing ? 'pause' : 'play_arrow';
+    const svgPath = heroToggle.querySelector('.wave-play-svg path');
+    if (svgPath) {
+      svgPath.setAttribute('d', playing ? 'M6 19h4V5H6v14zm8-14v14h4V5h-4z' : 'M8 5.14v13.72a1.5 1.5 0 0 0 2.28 1.28l10.8-6.86a1.5 1.5 0 0 0 0-2.56l-10.8-6.86A1.5 1.5 0 0 0 8 5.14z');
+    }
   }
   if (playing) {
     skiper25Interval = setInterval(skiper25RandomHeights, 100);
@@ -11154,9 +11158,18 @@ function initMyWaveGalaxy() {
 
     ctx.clearRect(0, 0, width, height);
 
-    // Galaxy center: placed on the right side of the card, harmoniously behind the play button & thumbs
-    const centerX = width * 0.74;
-    const centerY = height * 0.50;
+    // Galaxy center: precisely locked to the center of the play button in the core!
+    const playBtn = document.getElementById('home-play-wave-btn');
+    let centerX = width * 0.72;
+    let centerY = height * 0.50;
+    if (playBtn) {
+      const cardRect = card.getBoundingClientRect();
+      const btnRect = playBtn.getBoundingClientRect();
+      if (cardRect.width > 0 && btnRect.width > 0) {
+        centerX = btnRect.left + btnRect.width / 2 - cardRect.left;
+        centerY = btnRect.top + btnRect.height / 2 - cardRect.top;
+      }
+    }
 
     // Breathing pulse
     pulsePhase += dt * (isPlaying ? 3.0 : 1.4);

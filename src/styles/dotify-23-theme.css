@@ -798,60 +798,35 @@ body {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 220px;
+  width: 55%;
+  min-width: 320px;
+  max-width: 600px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   z-index: 3;
   pointer-events: none;
 }
 
 .wave-floating-thumb {
-  position: absolute;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #1c1c1f;
-  z-index: 3;
-  pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.wave-floating-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.wave-floating-thumb.thumb-top {
-  top: 60px;
-  right: 36px;
-  transform: rotate(0deg);
-}
-
-.wave-floating-thumb.thumb-mid {
-  top: 124px;
-  right: 68px;
-  transform: rotate(0deg);
+  display: none !important;
 }
 
 .my-wave-hero-play,
 .dotify-hero-play-btn {
   position: absolute;
-  right: 32px;
-  top: 186px;
+  top: 50%;
+  left: 50%;
+  right: auto;
   bottom: auto;
-  width: 58px;
-  height: 58px;
+  transform: translate(-50%, -50%);
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 18%, rgba(24, 24, 28, 0.85));
+  background: color-mix(in srgb, var(--accent) 20%, rgba(24, 24, 28, 0.88));
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.16));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 50%, rgba(255, 255, 255, 0.2));
   color: var(--accent);
   fill: var(--accent);
   display: flex;
@@ -859,22 +834,28 @@ body {
   justify-content: center;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 28px color-mix(in srgb, var(--accent) 35%, transparent);
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, background 0.3s ease, border-color 0.3s ease;
-  z-index: 4;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65), 0 0 36px color-mix(in srgb, var(--accent) 60%, transparent);
+  z-index: 5;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .my-wave-hero-play:hover,
 .dotify-hero-play-btn:hover {
-  transform: scale(1.08);
-  background: color-mix(in srgb, var(--accent) 28%, rgba(30, 30, 36, 0.92));
-  border-color: color-mix(in srgb, var(--accent) 65%, rgba(255, 255, 255, 0.25));
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 38px color-mix(in srgb, var(--accent) 55%, transparent);
+  transform: translate(-50%, -50%) scale(1.10);
+  background: color-mix(in srgb, var(--accent) 30%, rgba(32, 32, 40, 0.94));
+  border-color: color-mix(in srgb, var(--accent) 75%, rgba(255, 255, 255, 0.35));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.75), 0 0 48px color-mix(in srgb, var(--accent) 80%, transparent);
 }
 
 .my-wave-hero-play:active,
 .dotify-hero-play-btn:active {
-  transform: scale(0.96);
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+.my-wave-hero-play .wave-play-svg,
+.dotify-hero-play-btn .wave-play-svg {
+  fill: var(--accent);
+  color: var(--accent);
 }
 
 .my-wave-hero-play .wave-play-svg,
