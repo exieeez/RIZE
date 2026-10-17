@@ -29,7 +29,74 @@ function loadSmtpConfig() {
 }
 loadSmtpConfig();
 
+let googleAuthPromise = null;
+
+function getGoogleDesktopCredentials() {
+  let clientId = process.env.VOTIFY_GOOGLE_DESKTOP_CLIENT_ID || '';
+  let clientSecret = process.env.VOTIFY_GOOGLE_DESKTOP_CLIENT_SECRET || '';
+  let config = null;
+  if (process.env.VOTIFY_FIREBASE_CONFIG) {
+    try {
+      config = JSON.parse(process.env.VOTIFY_FIREBASE_CONFIG);
+    } catch (e) {}
+  }
+  if (!config) {
+    try {
+      const configPath = path.join(__dirname, '..', 'firebase-config.json');
+      if (fs.existsSync(configPath)) {
+        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      }
+    } catch (e) {}
+  }
+  clientId = clientId || config?.googleDesktopClientId || '';
+  clientSecret = clientSecret || config?.googleDesktopClientSecret || '';
+  const { isGoogleClientId } = require('../google-oauth.js');
+  const normalizedClientId = String(clientId).trim();
+  return {
+    clientId: isGoogleClientId(normalizedClientId) ? normalizedClientId : '',
+    clientSecret: String(clientSecret).trim(),
+  };
+}
+
 async function handleAuthRoutes(req, res, u) {
+  // --- GOOGLE OAUTH ---
+  if (u.pathname === '/api/auth/google' && req.method === 'POST') {
+    const { startGoogleOAuth } = require('../google-oauth.js');
+    const { clientId, clientSecret } = getGoogleDesktopCredentials();
+    if (!clientId) {
+      sendJson(res, 400, {
+        error: 'Добавьте googleDesktopClientId из Google Cloud в firebase-config.json',
+      });
+      return true;
+    }
+
+    if (!googleAuthPromise) {
+      googleAuthPromise = startGoogleOAuth({
+        clientId,
+        clientSecret,
+        openExternal: url => {
+          const { exec } = require('child_process');
+          const isWindows = process.platform === 'win32';
+          const isMac = process.platform === 'darwin';
+          const cmd = isWindows ? `start "" "${url}"` : isMac ? `open "${url}"` : `xdg-open "${url}"`;
+          exec(cmd, err => {
+            if (err) console.warn('[google-auth] Failed to open external browser:', err.message);
+          });
+        },
+      }).finally(() => {
+        googleAuthPromise = null;
+      });
+    }
+
+    try {
+      const tokens = await googleAuthPromise;
+      sendJson(res, 200, { tokens });
+    } catch (error) {
+      sendJson(res, 500, { error: error.message || 'Не удалось выполнить вход через Google' });
+    }
+    return true;
+  }
+
   // --- REGISTER ---
   if (u.pathname === '/api/auth/register' && req.method === 'POST') {
     const { email, password, username } = await parseBody(req);

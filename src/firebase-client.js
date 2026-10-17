@@ -11,7 +11,22 @@
     profile: null,
   };
   const authListeners = new Set();
-  let initialAuthStateHandled = false;
+  if (typeof window !== 'undefined' && !window.electronAPI) {
+    window.electronAPI = {
+      signInWithGoogle: async () => {
+        try {
+          const resp = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          return await resp.json();
+        } catch (e) {
+          return { error: e.message || 'Ошибка подключения к серверу авторизации' };
+        }
+      },
+      openExternal: url => window.open(url, '_blank'),
+    };
+  }
 
   const ready = initialize();
 
@@ -619,10 +634,31 @@
 
   async function signInWithGoogle() {
     await requireCloud();
-    if (!window.electronAPI?.signInWithGoogle) {
-      throw new Error('Вход через Google доступен только в приложении Votify');
+    let oauthResult = null;
+    if (window.electronAPI?.signInWithGoogle) {
+      oauthResult = await window.electronAPI.signInWithGoogle();
+    } else {
+      try {
+        const resp = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        oauthResult = await resp.json();
+      } catch (err) {
+        if (window.firebase?.auth?.GoogleAuthProvider) {
+          try {
+            const provider = new window.firebase.auth.GoogleAuthProvider();
+            const credential = await state.auth.signInWithPopup(provider);
+            state.profile = await ensureProfile(credential.user);
+            dispatchAuthState();
+            return publicUser(credential.user);
+          } catch (popupErr) {
+            throw new Error(popupErr.message || err.message);
+          }
+        }
+        throw err;
+      }
     }
-    const oauthResult = await window.electronAPI.signInWithGoogle();
     if (oauthResult?.error) throw new Error(oauthResult.error);
     if (!oauthResult?.tokens?.idToken) throw new Error('Google не вернул данные аккаунта');
 
