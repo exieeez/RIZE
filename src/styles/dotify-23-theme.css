@@ -234,6 +234,56 @@ body {
   display: none !important;
 }
 
+/* --- TOP NAV ACTIONS GROUP & SETTINGS BUTTON --- */
+.top-nav-actions-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-shrink: 0 !important;
+  -webkit-app-region: no-drag !important;
+}
+
+.top-nav-settings-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  -webkit-app-region: no-drag !important;
+}
+
+.top-nav-settings-btn svg {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+  transition: transform 0.3s ease !important;
+}
+
+.top-nav-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+.top-nav-settings-btn:hover svg {
+  transform: rotate(30deg) !important;
+}
+
+.top-nav-settings-btn:active {
+  transform: translateY(0) scale(0.96) !important;
+}
+
 /* --- TOP NAV PROFILE PILL (REPLACING YOUTUBE/SC) --- */
 .top-nav-profile-container {
   display: flex !important;
@@ -3165,7 +3215,11 @@ body.transparency-enabled #home-screen .home-quick-banner-card:hover {
 /* ============================================================
    SPOTIFY 1-IN-1 PLAYLIST SCREEN STYLING & COLORS
    ============================================================ */
-#playlist-screen {
+#playlist-screen,
+body.transparency-enabled #playlist-screen,
+body:not(.transparency-enabled) #playlist-screen {
+  background: #000000 !important;
+  background-color: #000000 !important;
   padding: 16px 20px 40px 20px !important;
   box-sizing: border-box !important;
   color: #ffffff !important;
@@ -4038,6 +4092,101 @@ body:not(.transparency-enabled) #home-screen .track-item:hover {
   border: none !important;
 }
 
+/* Full Page Player Timeline Track & Thumb (Visible, Interactive & Seekable) */
+#page-player-progress {
+  width: 100% !important;
+  height: 20px !important;
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+}
+
+#page-player-progress::-webkit-slider-runnable-track {
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    to right,
+    #ffffff 0%,
+    #ffffff var(--r, 0%),
+    rgba(255, 255, 255, 0.25) var(--r, 0%),
+    rgba(255, 255, 255, 0.25) 100%
+  ) !important;
+  cursor: pointer !important;
+  border: none !important;
+  transition: height 0.15s ease, background 0.15s ease !important;
+}
+
+.pp-timeline-bar:hover #page-player-progress::-webkit-slider-runnable-track,
+#page-player-progress:hover::-webkit-slider-runnable-track {
+  height: 6px !important;
+  background: linear-gradient(
+    to right,
+    var(--accent, #1ed760) 0%,
+    var(--accent, #1ed760) var(--r, 0%),
+    rgba(255, 255, 255, 0.3) var(--r, 0%),
+    rgba(255, 255, 255, 0.3) 100%
+  ) !important;
+}
+
+#page-player-progress::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  margin-top: -4px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+  opacity: 0 !important;
+  transition: opacity 0.15s ease, transform 0.15s ease !important;
+  cursor: pointer !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+.pp-timeline-bar:hover #page-player-progress::-webkit-slider-thumb,
+#page-player-progress:hover::-webkit-slider-thumb,
+#page-player-progress:active::-webkit-slider-thumb {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: scale(1.15) !important;
+}
+
+#page-player-progress::-moz-range-track {
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: none !important;
+}
+
+#page-player-progress::-moz-range-progress {
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+}
+
+.pp-timeline-bar:hover #page-player-progress::-moz-range-progress,
+#page-player-progress:hover::-moz-range-progress {
+  background: var(--accent, #1ed760) !important;
+}
+
+#page-player-progress::-moz-range-thumb {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+  opacity: 0 !important;
+}
+
+.pp-timeline-bar:hover #page-player-progress::-moz-range-thumb,
+#page-player-progress:hover::-moz-range-thumb,
+#page-player-progress:active::-moz-range-thumb {
+  opacity: 1 !important;
+}
+
 /* Universal Volume Sliders Styling with Visible Thumb */
 #fs-sound-volume-slider::-webkit-slider-runnable-track,
 #volume-bar::-webkit-slider-runnable-track,
@@ -4187,9 +4336,7 @@ body[data-player-slider-type="default"] .bar-timeline-svg,
 body[data-player-slider-type="default"] .right-timeline-svg {
   height: 4px !important;
 }
-body[data-player-slider-type="normal"] #page-player-progress::-webkit-slider-thumb,
 body[data-player-slider-type="normal"] #fs-progress::-webkit-slider-thumb,
-body[data-player-slider-type="default"] #page-player-progress::-webkit-slider-thumb,
 body[data-player-slider-type="default"] #fs-progress::-webkit-slider-thumb,
 body[data-player-slider-type="normal"] .fs-timeline-thumb,
 body[data-player-slider-type="normal"] .bar-timeline-thumb,
@@ -5597,7 +5744,6 @@ body.transparency-enabled #home-screen,
 body.transparency-enabled .home-screen,
 body.transparency-enabled #player-screen,
 body.transparency-enabled .player-page-container,
-body.transparency-enabled #playlist-screen,
 body.transparency-enabled #folders-screen,
 body.transparency-enabled #artist-screen,
 body.transparency-enabled #album-screen,

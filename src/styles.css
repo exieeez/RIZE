@@ -11682,7 +11682,8 @@ body {
   position: relative !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  background: #0c0d10 !important;
+  background: #000000 !important;
+  background-color: #000000 !important;
   min-height: 100% !important;
 }
 
@@ -11711,10 +11712,10 @@ body {
   height: 520px !important;
   background: linear-gradient(
     180deg,
-    rgba(12, 13, 16, 0.25) 0%,
-    rgba(12, 13, 16, 0.45) 45%,
-    rgba(12, 13, 16, 0.85) 75%,
-    #0c0d10 100%
+    rgba(0, 0, 0, 0.25) 0%,
+    rgba(0, 0, 0, 0.45) 45%,
+    rgba(0, 0, 0, 0.85) 75%,
+    #000000 100%
   ) !important;
   z-index: 0 !important;
   pointer-events: none !important;

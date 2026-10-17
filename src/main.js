@@ -4729,6 +4729,10 @@ function switchScreen(screenId, activeBtnId, extraState = null) {
     requestAnimationFrame(() => {
       if (typeof applyPlayerCoverShape === 'function') applyPlayerCoverShape();
       if (state.currentTrack) emit('state:currentTrack', state.currentTrack);
+      const cur = (audio.currentTime && !isNaN(audio.currentTime)) ? audio.currentTime : (state.currentTime || 0);
+      const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
+      emit('state:currentTime', cur);
+      if (dur > 0) emit('state:duration', dur);
     });
   }
 }
@@ -4877,6 +4881,17 @@ window.toggleSettingsOverlay = toggleSettingsOverlay;
 const tbGearEl = document.getElementById('tb-gear-btn');
 if (tbGearEl) {
   tbGearEl.onclick = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    toggleSettingsOverlay();
+  };
+}
+
+const tbSettingsEl = document.getElementById('tb-settings-btn');
+if (tbSettingsEl) {
+  tbSettingsEl.onclick = (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -6476,28 +6491,73 @@ document.addEventListener('keydown', e => {
   // Timeline seeking
   let isPpDragging = false;
   if (ppProgress) {
-    ppProgress.addEventListener('mousedown', () => { isPpDragging = true; });
-    ppProgress.addEventListener('touchstart', () => { isPpDragging = true; }, { passive: true });
+    const handleDragStart = () => { isPpDragging = true; };
+    const handleDragEnd = () => {
+      if (isPpDragging) {
+        isPpDragging = false;
+        const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
+        if (dur > 0) {
+          const pct = Number(ppProgress.value);
+          audio.currentTime = (pct / 100) * dur;
+          state.currentTime = audio.currentTime;
+          updateSliderFill(ppProgress);
+          emit('state:currentTime', audio.currentTime);
+        }
+      }
+    };
+
+    ppProgress.addEventListener('mousedown', handleDragStart);
+    ppProgress.addEventListener('touchstart', handleDragStart, { passive: true });
+    ppProgress.addEventListener('pointerdown', handleDragStart);
+
     ppProgress.addEventListener('input', e => {
+      isPpDragging = true;
       const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
       if (dur > 0) {
         const pct = Number(e.target.value);
         audio.currentTime = (pct / 100) * dur;
+        state.currentTime = audio.currentTime;
         updateSliderFill(ppProgress);
-        if (ppCurrent) ppCurrent.textContent = formatTime((pct / 100) * dur);
+        if (ppCurrent) ppCurrent.textContent = formatTime(audio.currentTime);
       }
     });
+
     ppProgress.addEventListener('change', e => {
       isPpDragging = false;
       const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
       if (dur > 0) {
         const pct = Number(e.target.value);
         audio.currentTime = (pct / 100) * dur;
+        state.currentTime = audio.currentTime;
         updateSliderFill(ppProgress);
+        if (ppCurrent) ppCurrent.textContent = formatTime(audio.currentTime);
+        emit('state:currentTime', audio.currentTime);
       }
     });
-    document.addEventListener('mouseup', () => { if (isPpDragging) isPpDragging = false; });
-    document.addEventListener('touchend', () => { if (isPpDragging) isPpDragging = false; });
+
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
+    document.addEventListener('pointerup', handleDragEnd);
+
+    const ppTimelineBar = document.querySelector('.pp-timeline-bar');
+    if (ppTimelineBar) {
+      ppTimelineBar.addEventListener('click', (e) => {
+        if (e.target === ppProgress) return;
+        const rect = ppTimelineBar.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const clickX = e.clientX - rect.left;
+        const pct = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+        ppProgress.value = pct;
+        updateSliderFill(ppProgress);
+        const dur = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration : (state.duration || 0);
+        if (dur > 0) {
+          audio.currentTime = (pct / 100) * dur;
+          state.currentTime = audio.currentTime;
+          if (ppCurrent) ppCurrent.textContent = formatTime(audio.currentTime);
+          emit('state:currentTime', audio.currentTime);
+        }
+      });
+    }
   }
 
   // Volume
@@ -6657,6 +6717,18 @@ window.populatePlayerLyrics = populatePlayerLyrics;
     }
     if (ppCurrent && !isPpDragging) ppCurrent.textContent = formatTime(time);
     if (ppTotal) ppTotal.textContent = formatTime(dur);
+  });
+
+  on('state:duration', dur => {
+    if (dur && !isNaN(dur) && dur > 0) {
+      if (ppTotal) ppTotal.textContent = formatTime(dur);
+      const cur = (audio.currentTime && !isNaN(audio.currentTime)) ? audio.currentTime : (state.currentTime || 0);
+      const pct = Math.max(0, Math.min(100, (cur / dur) * 100));
+      if (ppProgress && !isPpDragging) {
+        ppProgress.value = pct;
+        updateSliderFill(ppProgress);
+      }
+    }
   });
 
   on('state:isPlaying', playing => {
