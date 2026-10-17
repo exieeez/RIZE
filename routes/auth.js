@@ -97,6 +97,20 @@ async function handleAuthRoutes(req, res, u) {
     return true;
   }
 
+  // --- CHECK EMAIL ---
+  if (u.pathname === '/api/auth/check-email' && req.method === 'POST') {
+    const { email } = await parseBody(req);
+    const cleanEmail = (email || '').toLowerCase().trim();
+    if (!cleanEmail) {
+      sendJson(res, 400, { error: 'Email required' });
+      return true;
+    }
+    const users = loadUsers();
+    const exists = !!users.find(u => u.email === cleanEmail);
+    sendJson(res, 200, { exists });
+    return true;
+  }
+
   // --- REGISTER ---
   if (u.pathname === '/api/auth/register' && req.method === 'POST') {
     const { email, password, username } = await parseBody(req);

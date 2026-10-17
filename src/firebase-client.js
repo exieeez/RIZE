@@ -1350,22 +1350,78 @@
     };
   }
 
-  function updateQuickLoginUi() {
-    const user = getSavedLoginUser();
+  async function checkEmailExists(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Введите корректный email');
+    }
+
+    // 1. Check local saved user
+    const saved = getSavedLoginUser();
+    if (saved && saved.email && saved.email.toLowerCase() === cleanEmail) {
+      return true;
+    }
+
+    // 2. Check Firebase Auth
+    if (state.auth && typeof state.auth.fetchSignInMethodsForEmail === 'function') {
+      try {
+        const methods = await state.auth.fetchSignInMethodsForEmail(cleanEmail);
+        if (Array.isArray(methods) && methods.length > 0) {
+          return true;
+        }
+      } catch (e) {
+        if (e.code === 'auth/invalid-email') {
+          throw new Error('Некорректный адрес электронной почты');
+        }
+      }
+    }
+
+    // 3. Check server endpoint
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.exists) return true;
+      }
+    } catch (e) {}
+
+    // 4. Check Firestore profiles if db is available
+    if (state.db) {
+      try {
+        const snap = await state.db.collection('profiles').where('email', '==', cleanEmail).limit(1).get();
+        if (!snap.empty) return true;
+      } catch (e) {}
+    }
+
+    return false;
+  }
+
+  function updateQuickLoginUi(customEmail) {
+    const saved = getSavedLoginUser();
+    const emailToUse = (customEmail || saved.email || 'vovan232012s@gmail.com').trim();
+    const isSavedMatch = saved.email && saved.email.toLowerCase() === emailToUse.toLowerCase();
+
+    const displayName = isSavedMatch ? (saved.displayName || 'exieeez') : emailToUse.split('@')[0];
+    const photoUrl = isSavedMatch ? (saved.photoUrl || '') : '';
+
     const nameEl = document.getElementById('quick-login-name');
     const emailEl = document.getElementById('quick-login-email');
     const initEl = document.getElementById('quick-login-initial');
     const imgEl = document.getElementById('quick-login-avatar-img');
 
-    if (nameEl) nameEl.textContent = user.displayName;
-    if (emailEl) emailEl.textContent = user.email;
+    if (nameEl) nameEl.textContent = displayName;
+    if (emailEl) emailEl.textContent = emailToUse;
     if (initEl) {
-      const initial = (user.displayName || user.email || 'E').trim().charAt(0).toUpperCase();
-      initEl.textContent = initial || 'E';
+      const initial = displayName.trim().charAt(0).toUpperCase() || 'E';
+      initEl.textContent = initial;
     }
     if (imgEl) {
-      if (user.photoUrl && !user.photoUrl.startsWith('data:image/svg')) {
-        imgEl.src = user.photoUrl;
+      if (photoUrl && !photoUrl.startsWith('data:image/svg')) {
+        imgEl.src = photoUrl;
         imgEl.style.display = 'block';
         if (initEl) initEl.style.display = 'none';
       } else {
@@ -1376,7 +1432,7 @@
   }
 
   function showAuthForm(formId) {
-    ['auth-quick-login', 'auth-login', 'auth-register', 'auth-forgot'].forEach(id => {
+    ['auth-email-step', 'auth-quick-login', 'auth-login', 'auth-register', 'auth-forgot'].forEach(id => {
       const element = document.getElementById(id);
       if (element) element.style.display = id === formId ? 'block' : 'none';
     });
@@ -1393,11 +1449,21 @@
     button.classList.toggle('busy', busy);
   }
 
-  function openAuth(formId = 'auth-quick-login') {
+  function openAuth(formId = 'auth-email-step') {
     if (formId === 'auth-login') {
-      formId = 'auth-quick-login';
+      formId = 'auth-email-step';
     }
-    updateQuickLoginUi();
+
+    // Pre-fill email in step 1 if saved profile exists
+    const emailInput = document.getElementById('auth-initial-email');
+    if (emailInput && !emailInput.value) {
+      const saved = getSavedLoginUser();
+      if (saved && saved.email) {
+        emailInput.value = saved.email;
+      }
+    }
+    setMessage('auth-email-error', '');
+
     const passInput = document.getElementById('quick-login-password');
     if (passInput) {
       passInput.value = '';
@@ -2154,21 +2220,86 @@
       if (e.target.id === 'auth-overlay') closeAuth();
     });
 
-    // Auth screen transitions
+    // Auth screen transitions & Two-Step Verification
+    async function handleEmailNext() {
+      const emailInput = document.getElementById('auth-initial-email');
+      const email = (emailInput?.value || '').trim();
+      setMessage('auth-email-error');
+      if (!email) {
+        setMessage('auth-email-error', 'Введите адрес электронной почты');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setMessage('auth-email-error', 'Некорректный адрес электронной почты');
+        return;
+      }
+
+      const btn = document.getElementById('auth-email-next-btn');
+      setBusy(btn, true);
+      try {
+        const exists = await checkEmailExists(email);
+        if (exists) {
+          // Email exists -> Show Spotify-style quick login with avatar, name & password
+          updateQuickLoginUi(email);
+          showAuthForm('auth-quick-login');
+          window.setTimeout(() => {
+            const passInput = document.getElementById('quick-login-password');
+            if (passInput) {
+              passInput.value = '';
+              passInput.focus();
+            }
+          }, 60);
+        } else {
+          // Email does NOT exist -> Go directly to registration with pre-filled email
+          const regEmail = document.getElementById('register-email');
+          if (regEmail) regEmail.value = email;
+          setMessage('register-error');
+          showAuthForm('auth-register');
+          window.setTimeout(() => {
+            document.getElementById('register-username')?.focus();
+          }, 60);
+        }
+      } catch (err) {
+        setMessage('auth-email-error', err.message || friendlyError(err));
+      } finally {
+        setBusy(btn, false);
+      }
+    }
+
+    document.getElementById('auth-email-next-btn')?.addEventListener('click', handleEmailNext);
+    document.getElementById('auth-initial-email')?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleEmailNext();
+      }
+    });
+
     document.getElementById('quick-login-switch')?.addEventListener('click', event => {
       event.preventDefault();
-      showAuthForm('auth-login');
+      showAuthForm('auth-email-step');
       window.setTimeout(() => {
-        document.getElementById('login-email')?.focus();
+        const emailInput = document.getElementById('auth-initial-email');
+        if (emailInput) {
+          emailInput.focus();
+          emailInput.select();
+        }
       }, 60);
     });
     document.getElementById('show-quick-login-from-login')?.addEventListener('click', event => {
       event.preventDefault();
-      updateQuickLoginUi();
-      showAuthForm('auth-quick-login');
+      showAuthForm('auth-email-step');
       window.setTimeout(() => {
-        document.getElementById('quick-login-password')?.focus();
+        document.getElementById('auth-initial-email')?.focus();
       }, 60);
+    });
+    document.getElementById('show-register-from-email')?.addEventListener('click', event => {
+      event.preventDefault();
+      const email = (document.getElementById('auth-initial-email')?.value || '').trim();
+      if (email) {
+        const regEmail = document.getElementById('register-email');
+        if (regEmail) regEmail.value = email;
+      }
+      showAuthForm('auth-register');
     });
     document.getElementById('show-register')?.addEventListener('click', event => {
       event.preventDefault();
@@ -2180,11 +2311,11 @@
     });
     document.getElementById('show-login-from-register')?.addEventListener('click', event => {
       event.preventDefault();
-      showAuthForm('auth-login');
+      showAuthForm('auth-email-step');
     });
     document.getElementById('show-login-from-forgot')?.addEventListener('click', event => {
       event.preventDefault();
-      showAuthForm('auth-login');
+      showAuthForm('auth-email-step');
     });
 
     // Quick Login Password & Submit
