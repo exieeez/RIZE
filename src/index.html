@@ -126,74 +126,110 @@
       </div>
     </div>
 
-    <!-- AUTH -->
+    <!-- AUTH OVERLAY (SPOTIFY DESKTOP STYLE FAST LOGIN) -->
     <div class="auth-overlay" id="auth-overlay" style="display:none">
-      <div class="auth-card">
-        <button class="auth-close-btn" id="auth-close-btn" aria-label="Закрыть"><i class="material-icons">close</i></button>
-        <div class="auth-logo">
-          <img src="assets/logo.png" alt="Music" class="auth-logo-icon" />
-          <h1>Votify</h1>
-        </div>
-        <div class="auth-form" id="auth-login">
-          <h2>Вход</h2>
-          <div class="auth-field-wrap">
-            <label for="login-email">Эл. почта</label>
-            <div class="auth-field"><input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" /></div>
-          </div>
-          <div class="auth-field-wrap">
-            <label for="login-password">Пароль</label>
-            <div class="auth-field"><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" /></div>
-          </div>
-          <div class="auth-error" id="login-error"></div>
-          <button class="auth-btn" id="login-btn">Войти</button>
-          <div class="auth-links"><a href="#" id="show-forgot">Забыли пароль?</a></div>
-          <div class="auth-divider"><span>или</span></div>
-          <button class="auth-btn auth-btn-google google-login-btn" data-error-target="login-error">
-            <svg class="google-icon" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285f4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z"/><path fill="#34a853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.59-5.04-3.72H.95v2.33A9 9 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.96 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.16.28-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.82.95 4.03l3.01-2.33Z"/><path fill="#ea4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.65 8.65 0 0 0 9 0 9 9 0 0 0 .95 4.97L3.96 7.3C4.67 5.17 6.66 3.58 9 3.58Z"/></svg>
-            Войти через Google
+      <!-- Titlebar row for auth window controls (NO logo on top-left) -->
+      <div class="auth-top-bar" id="auth-top-bar" data-tauri-drag-region>
+        <div class="auth-top-left"></div>
+        <div class="auth-top-drag" data-tauri-drag-region></div>
+        <div class="auth-top-controls">
+          <button class="titlebar-btn" id="auth-tb-min" title="Свернуть" aria-label="Свернуть">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </button>
-          <button class="auth-btn auth-btn-secondary guest-login-btn" id="guest-login-btn"><i class="material-icons">person_outline</i> Продолжить как гость</button>
-          <p class="auth-switch-line">Нет аккаунта? <a href="#" id="show-register">Создать аккаунт</a></p>
-        </div>
-        <div class="auth-form" id="auth-register" style="display:none">
-          <h2>Создайте аккаунт</h2>
-          <div class="auth-field-wrap">
-            <label for="register-username">Имя профиля</label>
-            <div class="auth-field"><input type="text" id="register-username" placeholder="Как вас зовут?" autocomplete="username" maxlength="40" /></div>
-          </div>
-          <div class="auth-field-wrap">
-            <label for="register-email">Эл. почта</label>
-            <div class="auth-field"><input type="email" id="register-email" placeholder="you@example.com" autocomplete="email" /></div>
-          </div>
-          <div class="auth-field-wrap">
-            <label for="register-password">Пароль</label>
-            <div class="auth-field"><input type="password" id="register-password" placeholder="Минимум 6 символов" autocomplete="new-password" /></div>
-          </div>
-          <div class="auth-field-wrap">
-            <label for="register-password2">Повторите пароль</label>
-            <div class="auth-field"><input type="password" id="register-password2" placeholder="Ещё раз пароль" autocomplete="new-password" /></div>
-          </div>
-          <div class="auth-error" id="register-error"></div>
-          <button class="auth-btn" id="register-btn">Создать аккаунт</button>
-          <div class="auth-divider"><span>или</span></div>
-          <button class="auth-btn auth-btn-google google-login-btn" data-error-target="register-error">
-            <svg class="google-icon" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285f4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z"/><path fill="#34a853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.59-5.04-3.72H.95v2.33A9 9 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.96 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.16.28-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.82.95 4.03l3.01-2.33Z"/><path fill="#ea4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.65 8.65 0 0 0 9 0 9 9 0 0 0 .95 4.97L3.96 7.3C4.67 5.17 6.66 3.58 9 3.58Z"/></svg>
-            Продолжить через Google
+          <button class="titlebar-btn" id="auth-tb-max" title="Развернуть" aria-label="Развернуть">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
           </button>
-          <button class="auth-btn auth-btn-secondary guest-login-btn" id="guest-register-btn"><i class="material-icons">person_outline</i> Продолжить как гость</button>
-          <p class="auth-switch-line">Уже есть аккаунт? <a href="#" id="show-login-from-register">Войти</a></p>
+          <button class="titlebar-btn titlebar-btn-close close-btn" id="auth-tb-close" title="Закрыть" aria-label="Закрыть">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
         </div>
-        <div class="auth-form" id="auth-forgot" style="display:none">
-          <h2>Сброс пароля</h2>
-          <p class="auth-desc">Введите адрес электронной почты — мы отправим ссылку для восстановления пароля.</p>
-          <div class="auth-field-wrap">
-            <label for="forgot-email">Эл. почта</label>
-            <div class="auth-field"><input type="email" id="forgot-email" placeholder="you@example.com" autocomplete="email" /></div>
+      </div>
+
+      <div class="auth-body">
+        <div class="auth-card">
+          <button class="auth-close-btn" id="auth-close-btn" aria-label="Закрыть" style="display:none;"><i class="material-icons">close</i></button>
+
+          <!-- 1. SPOTIFY FAST LOGIN FORM (DEFAULT) -->
+          <div class="auth-form" id="auth-quick-login">
+            <div class="auth-quick-avatar" id="quick-login-avatar">
+              <span id="quick-login-initial">E</span>
+              <img id="quick-login-avatar-img" src="" alt="Avatar" style="display:none;" />
+            </div>
+            <h2 class="auth-quick-username" id="quick-login-name">exieeez</h2>
+            <div class="auth-quick-email" id="quick-login-email">vovan232012s@gmail.com</div>
+
+            <div class="auth-quick-input-wrap">
+              <svg class="auth-quick-lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <input type="password" id="quick-login-password" placeholder="Пароль" autocomplete="current-password" />
+            </div>
+            <div class="auth-error auth-quick-error" id="quick-login-error"></div>
+            <button class="auth-btn auth-quick-btn" id="quick-login-btn">Войти</button>
+            <a href="#" class="auth-quick-switch" id="quick-login-switch">Войти в другой аккаунт</a>
           </div>
-          <div class="auth-error" id="forgot-error"></div>
-          <div class="auth-success" id="forgot-success"></div>
-          <button class="auth-btn" id="forgot-btn">Отправить ссылку</button>
-          <div class="auth-links"><a href="#" id="show-login-from-forgot">Вернуться ко входу</a></div>
+
+          <!-- 2. FULL STANDARD LOGIN -->
+          <div class="auth-form" id="auth-login" style="display:none">
+            <h2 class="auth-form-title">Вход в аккаунт</h2>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="email" id="login-email" placeholder="Эл. почта" autocomplete="email" /></div>
+            </div>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password" /></div>
+            </div>
+            <div class="auth-error" id="login-error"></div>
+            <button class="auth-btn auth-quick-btn" id="login-btn">Войти</button>
+            <div class="auth-links"><a href="#" id="show-forgot">Забыли пароль?</a></div>
+            <div class="auth-divider"><span>или</span></div>
+            <button class="auth-btn auth-btn-google google-login-btn" data-error-target="login-error">
+              <svg class="google-icon" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285f4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z"/><path fill="#34a853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.59-5.04-3.72H.95v2.33A9 9 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.96 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.16.28-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.82.95 4.03l3.01-2.33Z"/><path fill="#ea4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.65 8.65 0 0 0 9 0 9 9 0 0 0 .95 4.97L3.96 7.3C4.67 5.17 6.66 3.58 9 3.58Z"/></svg>
+              Войти через Google
+            </button>
+            <button class="auth-btn auth-btn-secondary guest-login-btn" id="guest-login-btn"><i class="material-icons">person_outline</i> Продолжить как гость</button>
+            <p class="auth-switch-line">Нет аккаунта? <a href="#" id="show-register">Создать аккаунт</a></p>
+            <p class="auth-switch-line" style="margin-top: 14px;"><a href="#" id="show-quick-login-from-login">← Войти в сохранённый аккаунт</a></p>
+          </div>
+
+          <!-- 3. REGISTER -->
+          <div class="auth-form" id="auth-register" style="display:none">
+            <h2 class="auth-form-title">Создайте аккаунт</h2>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="text" id="register-username" placeholder="Имя профиля" autocomplete="username" maxlength="40" /></div>
+            </div>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="email" id="register-email" placeholder="Эл. почта" autocomplete="email" /></div>
+            </div>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="password" id="register-password" placeholder="Пароль (мин. 6 символов)" autocomplete="new-password" /></div>
+            </div>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="password" id="register-password2" placeholder="Повторите пароль" autocomplete="new-password" /></div>
+            </div>
+            <div class="auth-error" id="register-error"></div>
+            <button class="auth-btn auth-quick-btn" id="register-btn">Создать аккаунт</button>
+            <div class="auth-divider"><span>или</span></div>
+            <button class="auth-btn auth-btn-google google-login-btn" data-error-target="register-error">
+              <svg class="google-icon" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285f4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z"/><path fill="#34a853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.59-5.04-3.72H.95v2.33A9 9 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.96 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.16.28-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.82.95 4.03l3.01-2.33Z"/><path fill="#ea4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.65 8.65 0 0 0 9 0 9 9 0 0 0 .95 4.97L3.96 7.3C4.67 5.17 6.66 3.58 9 3.58Z"/></svg>
+              Продолжить через Google
+            </button>
+            <button class="auth-btn auth-btn-secondary guest-login-btn" id="guest-register-btn"><i class="material-icons">person_outline</i> Продолжить как гость</button>
+            <p class="auth-switch-line">Уже есть аккаунт? <a href="#" id="show-login-from-register">Войти</a></p>
+          </div>
+
+          <!-- 4. FORGOT PASSWORD -->
+          <div class="auth-form" id="auth-forgot" style="display:none">
+            <h2 class="auth-form-title">Сброс пароля</h2>
+            <p class="auth-desc">Введите эл. почту для получения ссылки восстановления.</p>
+            <div class="auth-field-wrap">
+              <div class="auth-field"><input type="email" id="forgot-email" placeholder="you@example.com" autocomplete="email" /></div>
+            </div>
+            <div class="auth-error" id="forgot-error"></div>
+            <div class="auth-success" id="forgot-success"></div>
+            <button class="auth-btn auth-quick-btn" id="forgot-btn">Отправить ссылку</button>
+            <div class="auth-links"><a href="#" id="show-login-from-forgot">Вернуться ко входу</a></div>
+          </div>
         </div>
       </div>
     </div>

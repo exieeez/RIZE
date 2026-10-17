@@ -1329,8 +1329,54 @@
     return messages[code] || error?.message || 'Неизвестная ошибка';
   }
 
+  function getSavedLoginUser() {
+    try {
+      const local = localStorage.getItem('votifyLocalProfile');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed && (parsed.email || parsed.displayName || parsed.name)) {
+          return {
+            displayName: parsed.displayName || parsed.name || 'exieeez',
+            email: parsed.email || 'vovan232012s@gmail.com',
+            photoUrl: parsed.photoUrl || parsed.avatar || '',
+          };
+        }
+      }
+    } catch (e) {}
+    return {
+      displayName: 'exieeez',
+      email: 'vovan232012s@gmail.com',
+      photoUrl: '',
+    };
+  }
+
+  function updateQuickLoginUi() {
+    const user = getSavedLoginUser();
+    const nameEl = document.getElementById('quick-login-name');
+    const emailEl = document.getElementById('quick-login-email');
+    const initEl = document.getElementById('quick-login-initial');
+    const imgEl = document.getElementById('quick-login-avatar-img');
+
+    if (nameEl) nameEl.textContent = user.displayName;
+    if (emailEl) emailEl.textContent = user.email;
+    if (initEl) {
+      const initial = (user.displayName || user.email || 'E').trim().charAt(0).toUpperCase();
+      initEl.textContent = initial || 'E';
+    }
+    if (imgEl) {
+      if (user.photoUrl && !user.photoUrl.startsWith('data:image/svg')) {
+        imgEl.src = user.photoUrl;
+        imgEl.style.display = 'block';
+        if (initEl) initEl.style.display = 'none';
+      } else {
+        imgEl.style.display = 'none';
+        if (initEl) initEl.style.display = 'block';
+      }
+    }
+  }
+
   function showAuthForm(formId) {
-    ['auth-login', 'auth-register', 'auth-forgot'].forEach(id => {
+    ['auth-quick-login', 'auth-login', 'auth-register', 'auth-forgot'].forEach(id => {
       const element = document.getElementById(id);
       if (element) element.style.display = id === formId ? 'block' : 'none';
     });
@@ -1347,7 +1393,18 @@
     button.classList.toggle('busy', busy);
   }
 
-  function openAuth(formId = 'auth-login') {
+  function openAuth(formId = 'auth-quick-login') {
+    if (formId === 'auth-login') {
+      formId = 'auth-quick-login';
+    }
+    updateQuickLoginUi();
+    const passInput = document.getElementById('quick-login-password');
+    if (passInput) {
+      passInput.value = '';
+      document.getElementById('quick-login-btn')?.classList.remove('ready');
+    }
+    setMessage('quick-login-error', '');
+
     showAuthForm(formId);
     const overlay = document.getElementById('auth-overlay');
     if (overlay) overlay.style.display = 'flex';
@@ -2098,6 +2155,21 @@
     });
 
     // Auth screen transitions
+    document.getElementById('quick-login-switch')?.addEventListener('click', event => {
+      event.preventDefault();
+      showAuthForm('auth-login');
+      window.setTimeout(() => {
+        document.getElementById('login-email')?.focus();
+      }, 60);
+    });
+    document.getElementById('show-quick-login-from-login')?.addEventListener('click', event => {
+      event.preventDefault();
+      updateQuickLoginUi();
+      showAuthForm('auth-quick-login');
+      window.setTimeout(() => {
+        document.getElementById('quick-login-password')?.focus();
+      }, 60);
+    });
     document.getElementById('show-register')?.addEventListener('click', event => {
       event.preventDefault();
       showAuthForm('auth-register');
@@ -2113,6 +2185,58 @@
     document.getElementById('show-login-from-forgot')?.addEventListener('click', event => {
       event.preventDefault();
       showAuthForm('auth-login');
+    });
+
+    // Quick Login Password & Submit
+    const quickPassInput = document.getElementById('quick-login-password');
+    const quickBtn = document.getElementById('quick-login-btn');
+    if (quickPassInput) {
+      quickPassInput.addEventListener('input', () => {
+        if (quickBtn) {
+          quickBtn.classList.toggle('ready', quickPassInput.value.length > 0);
+        }
+      });
+      quickPassInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          quickBtn?.click();
+        }
+      });
+    }
+
+    quickBtn?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      setMessage('quick-login-error');
+      const email = (document.getElementById('quick-login-email')?.textContent || '').trim();
+      const password = document.getElementById('quick-login-password')?.value || '';
+      if (!password) {
+        setMessage('quick-login-error', 'Введите пароль');
+        return;
+      }
+      setBusy(button, true);
+      try {
+        await signIn(email, password);
+        closeAuth();
+      } catch (error) {
+        setMessage('quick-login-error', friendlyError(error));
+      } finally {
+        setBusy(button, false);
+      }
+    });
+
+    // Window controls for auth top bar
+    document.getElementById('auth-tb-min')?.addEventListener('click', () => {
+      document.getElementById('tb-minimize')?.click();
+    });
+    document.getElementById('auth-tb-max')?.addEventListener('click', () => {
+      document.getElementById('tb-maximize')?.click();
+    });
+    document.getElementById('auth-tb-close')?.addEventListener('click', () => {
+      if (state.auth?.currentUser) {
+        closeAuth();
+      } else {
+        document.getElementById('tb-close')?.click();
+      }
     });
 
     document.querySelectorAll('.google-login-btn').forEach(button => {
