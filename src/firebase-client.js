@@ -1130,8 +1130,7 @@
     batch.set(syncRef(user.uid, 'settings'), { value: settings || {}, updatedAt }, { merge: true });
     batch.set(
       syncRef(user.uid, 'library'),
-      { playlists: playlists || { Избранное: [] }, updatedAt },
-      { merge: true }
+      { playlists: playlists || { Избранное: [] }, updatedAt }
     );
     batch.set(syncRef(user.uid, 'history'), { history: history || [], updatedAt }, { merge: true });
 
@@ -2602,6 +2601,30 @@
     return { ok: true, count: playlistArray.length };
   }
 
+  async function deletePublicPlaylist(playlistName) {
+    if (!playlistName) return;
+    try {
+      await fetch('/api/playlists/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: playlistName,
+          author: state.user?.displayName || 'Пользователь Votify',
+          ownerId: state.user?.uid || ''
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    if (state.db && state.user && !state.user.isAnonymous) {
+      try {
+        const docId = `${state.user.uid}_${encodeURIComponent(playlistName).replace(/%/g, '_')}`;
+        await state.db.collection('publicPlaylists').doc(docId).delete().catch(() => {});
+      } catch (e) {
+        console.warn('[firestore] delete public playlist error:', e);
+      }
+    }
+  }
+
   window.VotifyCloud = {
     whenReady: () => ready,
     isAvailable: () => state.available,
@@ -2619,6 +2642,7 @@
     saveProfile,
     pullState,
     pushState,
+    deletePublicPlaylist,
     listWorkshopThemes,
     publishWorkshopTheme,
     deleteWorkshopTheme,

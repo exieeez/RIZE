@@ -150,3 +150,44 @@ test('Client main.js integrates public and local playlist search with track disp
   assert.match(main, /['"]pl-screen-save-btn['"]/);
   assert.match(main, /Плейлист «\$\{title\}» добавлен в медиатеку!/);
 });
+
+test('POST /api/playlists/delete removes playlist and firebase-client replaces library without merge:true', async () => {
+  const root = path.join(__dirname, '..');
+  const { handlePlaylistRoutes } = require('../routes/playlists.js');
+  const firebaseClient = fs.readFileSync(path.join(root, 'src/firebase-client.js'), 'utf8');
+  const main = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
+  const themeCss = fs.readFileSync(path.join(root, 'src/styles/dotify-23-theme.css'), 'utf8');
+
+  // 1. Verify delete endpoint removes playlist from public playlists
+  const delTitle = 'Удаляемый Плейлист Тест';
+  const reqDel = {
+    method: 'POST',
+    on(event, handler) {
+      if (event === 'data') {
+        handler(Buffer.from(JSON.stringify({ title: delTitle, author: 'Тестовый Автор' })));
+      }
+      if (event === 'end') handler();
+    }
+  };
+  const resDel = mockRes();
+  const urlDel = new URL('http://localhost:17217/api/playlists/delete');
+  const handledDel = await handlePlaylistRoutes(reqDel, resDel, urlDel);
+  assert.equal(handledDel, true);
+  assert.equal(resDel.statusCode, 200);
+
+  // 2. Verify firebase-client overwrites library doc without merge:true so deleted keys do not persist
+  assert.match(firebaseClient, /syncRef\(user\.uid,\s*['"]library['"]\),\s*\{\s*playlists:\s*playlists/);
+  // Verify it does NOT have { merge: true } right after library doc
+  const librarySetMatch = firebaseClient.match(/syncRef\(user\.uid,\s*['"]library['"]\),\s*\{[\s\S]*?\}\s*(\,\s*\{[\s\S]*?\})?\s*\);/);
+  assert.ok(librarySetMatch, 'Found library doc batch.set');
+  assert.ok(!librarySetMatch[0].includes('merge: true'), 'library doc batch.set must not have merge: true');
+
+  // 3. Verify deletePlaylist in main.js calls syncWithCloud push immediately
+  assert.match(main, /async function deletePlaylist\(name\)/);
+  assert.match(main, /syncWithCloud\(['"]push['"]\)/);
+
+  // 4. Verify play button triangle centering in dotify-23-theme.css (no margin-left: 3px)
+  assert.ok(!themeCss.includes('.my-wave-hero-play .wave-play-svg {\n  margin-left: 3px;'), 'margin-left: 3px must be removed');
+  assert.match(themeCss, /\.my-wave-hero-play:not\(\.playing\) \.wave-play-svg/);
+});
+

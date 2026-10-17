@@ -189,6 +189,33 @@ async function handlePlaylistRoutes(req, res, u) {
     return true;
   }
 
+  // 4. POST /api/playlists/delete: Remove playlist by title and author
+  if (u.pathname === '/api/playlists/delete' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const title = (body.title || body.name || '').trim().toLowerCase();
+    const author = (body.author || '').trim().toLowerCase();
+    const ownerId = (body.ownerId || '').trim();
+
+    if (!title) {
+      sendJson(res, 400, { ok: false, error: 'title is required' });
+      return true;
+    }
+
+    const all = loadPublicPlaylists();
+    const filtered = all.filter(p => {
+      const pTitle = (p.title || p.name || '').trim().toLowerCase();
+      if (pTitle !== title) return true;
+      if (ownerId && p.ownerId && p.ownerId === ownerId) return false;
+      if (author && (p.author || '').trim().toLowerCase() === author) return false;
+      if (!ownerId && !author) return false;
+      return true;
+    });
+
+    savePublicPlaylists(filtered);
+    sendJson(res, 200, { ok: true, remaining: filtered.length });
+    return true;
+  }
+
   return false;
 }
 

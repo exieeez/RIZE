@@ -856,6 +856,7 @@ body {
 .dotify-hero-play-btn .wave-play-svg {
   fill: var(--accent);
   color: var(--accent);
+  display: block;
 }
 
 .my-wave-hero-play .wave-play-svg,
@@ -865,8 +866,18 @@ body {
   font-size: 28px;
   color: var(--accent);
   fill: var(--accent);
-  margin-left: 3px;
+  margin: 0;
   transition: transform 0.2s ease, fill 0.2s ease;
+}
+
+.my-wave-hero-play:not(.playing) .wave-play-svg,
+.dotify-hero-play-btn:not(.playing) .wave-play-svg {
+  transform: translateX(-1.5px);
+}
+
+.my-wave-hero-play.playing .wave-play-svg,
+.dotify-hero-play-btn.playing .wave-play-svg {
+  transform: none;
 }
 
 /* --- MIDDLE ROW: ИСТОРИЯ & ЛЮБИМЫЕ ТРЕКИ (WIDE PILL CARDS) --- */

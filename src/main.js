@@ -2794,19 +2794,34 @@ async function deletePlaylist(name) {
   const confirmed = await confirmModal('Удалить плейлист', `Удалить плейлист «${name}»?`);
   if (!confirmed) return false;
 
-  delete playlists[name];
-  if (window.playlists && typeof window.playlists === 'object') {
-    delete window.playlists[name];
+  cloudSyncApplying = true;
+  try {
+    delete playlists[name];
+    if (window.playlists && typeof window.playlists === 'object') {
+      delete window.playlists[name];
+    }
+    savePlaylists();
+    renderPlaylists();
+    renderSidebarPlaylists();
+    if (typeof window.renderPins === 'function') {
+      try { window.renderPins(true); } catch (e) {}
+    }
+    if (currentActiveLibItem === name || currentScreenId === 'playlist-screen') {
+      switchScreen('folders-screen', 'nav-folders-btn');
+    }
+
+    if (window.VotifyCloud && typeof window.VotifyCloud.deletePublicPlaylist === 'function') {
+      try { await window.VotifyCloud.deletePublicPlaylist(name); } catch (e) {}
+    }
+
+    if (isUserAuthenticated()) {
+      if (cloudPushTimer) clearTimeout(cloudPushTimer);
+      await syncWithCloud('push');
+    }
+  } finally {
+    cloudSyncApplying = false;
   }
-  savePlaylists();
-  renderPlaylists();
-  renderSidebarPlaylists();
-  if (typeof window.renderPins === 'function') {
-    try { window.renderPins(true); } catch (e) {}
-  }
-  if (currentActiveLibItem === name || currentScreenId === 'playlist-screen') {
-    switchScreen('folders-screen', 'nav-folders-btn');
-  }
+
   showToast(`Плейлист «${name}» удален`);
   return true;
 }
