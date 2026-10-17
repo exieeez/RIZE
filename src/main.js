@@ -10914,6 +10914,367 @@ on('state:isPlaying', playing => {
 });
 
 // ==========================================
+// 3D Volumetric Spiral Galaxy for "Моя волна"
+// ==========================================
+function initMyWaveGalaxy() {
+  const canvas = document.getElementById('my-wave-galaxy-canvas');
+  if (!canvas) return;
+  const card = document.getElementById('my-wave-hero');
+  if (!card) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  let animId = null;
+  let isPlaying = false;
+  let isVisible = true;
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+
+  // Mouse tilt variables for interactive 3D parallax
+  let mouseTiltX = 0;
+  let mouseTiltY = 0;
+  let targetTiltX = 0;
+  let targetTiltY = 0;
+
+  // Burst / scatter on click
+  let scatter = 0;
+  let targetScatter = 0;
+
+  // Particle data structure
+  const coreCount = 380;
+  const armCount = 820;
+  const haloCount = 250;
+  const numArms = 3;
+
+  const coreRadius = 42;
+  const maxRadius = 185;
+
+  const particles = [];
+
+  // Seeded pseudo-random generator for consistent galaxy structure
+  let seed = 1337;
+  function rnd() {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+
+  // 1. Dense Galactic Bulge / Core
+  for (let i = 0; i < coreCount; i++) {
+    const r = Math.sqrt(rnd()) * coreRadius;
+    const angle = rnd() * 2 * Math.PI;
+    const z = (rnd() - 0.5) * 36 * (1 - r / coreRadius);
+
+    const u = rnd() * 2 * Math.PI;
+    const v = (rnd() - 0.5) * Math.PI;
+    const dist = 100 + rnd() * 140;
+
+    particles.push({
+      radius: r,
+      baseAngle: angle,
+      currentAngle: angle,
+      zOffset: z,
+      speedFactor: 1.3 - (r / coreRadius) * 0.35,
+      size: 1.1 + rnd() * 2.1,
+      scatterX: Math.cos(v) * Math.cos(u) * dist,
+      scatterY: Math.sin(v) * dist,
+      scatterZ: Math.cos(v) * Math.sin(u) * dist,
+      alphaFactor: 0.75 + rnd() * 0.25,
+      variant: rnd() < 0.65 ? 0 : 1, // 0 = white, 1 = accent
+    });
+  }
+
+  // 2. Logarithmic Spiral Arms
+  for (let i = 0; i < armCount; i++) {
+    const armIndex = i % numArms;
+    const armBaseAngle = armIndex * ((2 * Math.PI) / numArms);
+
+    const t = rnd();
+    const r = coreRadius + t * (maxRadius - coreRadius);
+
+    // theta = armBase + 2.8 * (r/maxRadius)^0.72
+    const spiralTheta = armBaseAngle + 2.8 * Math.pow(r / maxRadius, 0.72);
+
+    // Dispersion
+    const r1 = rnd() - 0.5;
+    const r2 = rnd() - 0.5;
+    const dispersion = (r1 + r2) * 0.42 * (1 + (r / maxRadius) * 0.45);
+    const finalAngle = spiralTheta + dispersion;
+
+    // Disk thickness tapering towards edges
+    const diskThickness = (1 - (r / maxRadius) * 0.35) * 26;
+    const z = (rnd() - 0.5) * diskThickness;
+
+    const u = rnd() * 2 * Math.PI;
+    const v = (rnd() - 0.5) * Math.PI;
+    const dist = 110 + rnd() * 150;
+
+    const roll = rnd();
+    const variant = roll < 0.38 ? 0 : roll < 0.82 ? 1 : 2; // 0: White, 1: Accent, 2: Celestial Cyan
+
+    particles.push({
+      radius: r,
+      baseAngle: finalAngle,
+      currentAngle: finalAngle,
+      zOffset: z,
+      speedFactor: 0.85 + (1 - r / maxRadius) * 0.45,
+      size: 1.0 + rnd() * 2.2,
+      scatterX: Math.cos(v) * Math.cos(u) * dist,
+      scatterY: Math.sin(v) * dist,
+      scatterZ: Math.cos(v) * Math.sin(u) * dist,
+      alphaFactor: 0.45 + rnd() * 0.50,
+      variant,
+    });
+  }
+
+  // 3. Ambient Stellar Halo
+  for (let i = 0; i < haloCount; i++) {
+    const r = Math.sqrt(rnd()) * maxRadius;
+    const angle = rnd() * 2 * Math.PI;
+    const z = (rnd() - 0.5) * 24;
+
+    const u = rnd() * 2 * Math.PI;
+    const v = (rnd() - 0.5) * Math.PI;
+    const dist = 90 + rnd() * 130;
+
+    particles.push({
+      radius: r,
+      baseAngle: angle,
+      currentAngle: angle,
+      zOffset: z,
+      speedFactor: 0.8,
+      size: 0.8 + rnd() * 1.4,
+      scatterX: Math.cos(v) * Math.cos(u) * dist,
+      scatterY: Math.sin(v) * dist,
+      scatterZ: Math.cos(v) * Math.sin(u) * dist,
+      alphaFactor: 0.30 + rnd() * 0.35,
+      variant: rnd() < 0.5 ? 0 : 1,
+    });
+  }
+
+  function resize() {
+    const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    dpr = window.devicePixelRatio || 1;
+    width = rect.width;
+    height = rect.height;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(card);
+  } else {
+    window.addEventListener('resize', resize);
+  }
+  resize();
+
+  // Mouse interaction for 3D tilt
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width - 0.5;
+    const ny = (e.clientY - rect.top) / rect.height - 0.5;
+    targetTiltX = ny * 0.22;
+    targetTiltY = -nx * 0.22;
+  });
+
+  card.addEventListener('mouseleave', () => {
+    targetTiltX = 0;
+    targetTiltY = 0;
+  });
+
+  // Soft scatter burst on card click
+  card.addEventListener('click', () => {
+    targetScatter = 1;
+    setTimeout(() => {
+      targetScatter = 0;
+    }, 450);
+  });
+
+  // Track playing state
+  if (typeof on === 'function') {
+    on('state:isPlaying', playing => {
+      isPlaying = !!playing;
+    });
+  }
+
+  let lastTime = performance.now();
+  let pulsePhase = 0;
+
+  function parseCssColor(cssColor, fallback) {
+    if (!cssColor) return fallback;
+    const c = cssColor.trim();
+    if (c.startsWith('#')) {
+      const hex = c.slice(1);
+      if (hex.length === 3) {
+        return {
+          r: parseInt(hex[0] + hex[0], 16),
+          g: parseInt(hex[1] + hex[1], 16),
+          b: parseInt(hex[2] + hex[2], 16),
+        };
+      } else if (hex.length >= 6) {
+        return {
+          r: parseInt(hex.slice(0, 2), 16),
+          g: parseInt(hex.slice(2, 4), 16),
+          b: parseInt(hex.slice(4, 6), 16),
+        };
+      }
+    } else if (c.startsWith('rgb')) {
+      const m = c.match(/\d+/g);
+      if (m && m.length >= 3) {
+        return { r: Number(m[0]), g: Number(m[1]), b: Number(m[2]) };
+      }
+    }
+    return fallback;
+  }
+
+  function frame(now) {
+    if (!isVisible) {
+      animId = requestAnimationFrame(frame);
+      return;
+    }
+
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    // Smooth tilt interpolation
+    mouseTiltX += (targetTiltX - mouseTiltX) * 0.08;
+    mouseTiltY += (targetTiltY - mouseTiltY) * 0.08;
+
+    // Smooth scatter interpolation
+    scatter += (targetScatter - scatter) * (targetScatter > scatter ? 0.18 : 0.08);
+
+    // Dynamic color from CSS --accent
+    const computedAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#1DB954';
+    const accent = parseCssColor(computedAccent, { r: 29, g: 185, b: 84 });
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Galaxy center: placed on the right side of the card, harmoniously behind the play button & thumbs
+    const centerX = width * 0.74;
+    const centerY = height * 0.50;
+
+    // Breathing pulse
+    pulsePhase += dt * (isPlaying ? 3.0 : 1.4);
+    const pulseScale = 1.0 + Math.sin(pulsePhase) * (isPlaying ? 0.045 : 0.025);
+
+    const baseScale = Math.min(width / 340, height / 220, 1.15) * pulseScale;
+
+    // 3D Tilt angles (volumetric tilt 32 degrees + mouse tilt)
+    const tiltX = (32 * Math.PI) / 180 + mouseTiltX;
+    const tiltY = mouseTiltY;
+    const cosX = Math.cos(tiltX);
+    const sinX = Math.sin(tiltX);
+    const cosY = Math.cos(tiltY);
+    const sinY = Math.sin(tiltY);
+
+    const cameraDistance = 420;
+
+    // 1. Cosmic ambient radial glow behind the nucleus
+    const glowRadius = 110 * baseScale;
+    const glowGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, glowRadius);
+    const glowIntensity = 1 - scatter * 0.4;
+    glowGrad.addColorStop(0, `rgba(255, 255, 255, ${0.40 * glowIntensity})`);
+    glowGrad.addColorStop(0.35, `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${0.32 * glowIntensity})`);
+    glowGrad.addColorStop(0.70, `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${0.08 * glowIntensity})`);
+    glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Secondary wide aura
+    const auraRadius = 180 * baseScale;
+    const auraGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, auraRadius);
+    auraGrad.addColorStop(0, `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${0.14 * glowIntensity})`);
+    auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, auraRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Stars
+    const globalSpeed = isPlaying ? 0.38 : 0.22;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+
+      // Orbital differential rotation
+      p.currentAngle += globalSpeed * p.speedFactor * dt;
+
+      let x = p.radius * Math.cos(p.currentAngle);
+      let y = p.radius * Math.sin(p.currentAngle);
+      let z = p.zOffset;
+
+      if (scatter > 0.001) {
+        x += p.scatterX * scatter;
+        y += p.scatterY * scatter;
+        z += p.scatterZ * scatter;
+      }
+
+      // 3D rotation: rotate around Y, then tilt around X
+      const xRot = x * cosY + z * sinY;
+      const zTemp = -x * sinY + z * cosY;
+
+      const yTilted = y * cosX - zTemp * sinX;
+      const zTilted = y * sinX + zTemp * cosX;
+
+      const perspective = cameraDistance / (cameraDistance - zTilted);
+      if (perspective <= 0) continue;
+
+      const projX = centerX + xRot * perspective * baseScale;
+      const projY = centerY + yTilted * perspective * baseScale;
+
+      const depthNorm = Math.max(0.3, Math.min(1.0, (zTilted + 45) / 90));
+      const alpha = Math.max(0.08, Math.min(1.0, p.alphaFactor * depthNorm * (1 - scatter * 0.2)));
+      const radiusPx = Math.max(0.6, Math.min(3.8, p.size * perspective * (0.85 + depthNorm * 0.25)));
+
+      ctx.beginPath();
+      ctx.arc(projX, projY, radiusPx, 0, Math.PI * 2);
+
+      if (p.variant === 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      } else if (p.variant === 1) {
+        ctx.fillStyle = `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${alpha})`;
+      } else {
+        ctx.fillStyle = `rgba(135, 225, 255, ${alpha * 0.9})`;
+      }
+      ctx.fill();
+    }
+
+    animId = requestAnimationFrame(frame);
+  }
+
+  animId = requestAnimationFrame(frame);
+
+  if (window.IntersectionObserver) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        isVisible = entry.isIntersecting && document.visibilityState === 'visible';
+      });
+    });
+    io.observe(card);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    isVisible = document.visibilityState === 'visible';
+  });
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMyWaveGalaxy);
+  } else {
+    initMyWaveGalaxy();
+  }
+}
+
+// ==========================================
 // Audio Player
 // ==========================================
 const playBtn = document.getElementById('play-btn');
