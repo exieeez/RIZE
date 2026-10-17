@@ -10206,7 +10206,8 @@ function renderRecTiles(container, tracks) {
         return `
     <div class="rec-tile ${isCurrentPlaying ? 'is-playing' : ''}" data-idx="${idx}">
       <div class="dotify-card-cover-wrap">
-        <img class="rec-tile-cover" src="${escapeHtml(track.cover || '')}" alt="${escapeHtml(track.title || '')}" onerror="this.style.display='none'">
+        ${track.cover ? `<img class="rec-tile-cover" src="${escapeHtml(track.cover)}" alt="${escapeHtml(track.title || '')}" onerror="this.style.display='none'">` : ''}
+        <div class="playlist-cover-placeholder"><i class="material-icons">music_note</i></div>
         ${isCurrentPlaying ? `
           <div class="dotify-card-playing-eq">
             <span class="dotify-eq-bar"></span>

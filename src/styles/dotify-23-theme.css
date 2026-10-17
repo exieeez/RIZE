@@ -1097,58 +1097,119 @@ body {
   font-size: 18px;
 }
 
-/* For you track cards */
-.rec-grid.for-you-carousel {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 4px 2px 16px;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  scroll-snap-type: x mandatory;
+/* For you & phone home track/playlist cards (Matching HomeScreen.kt TrackCard & PlaylistCard) */
+.rec-grid.for-you-carousel,
+.home-playlists-carousel,
+.home-releases-carousel,
+.home-trending-carousel {
+  display: flex !important;
+  gap: 14px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 2px 16px !important;
+  scroll-behavior: smooth !important;
+  scrollbar-width: none !important;
+  scroll-snap-type: x mandatory !important;
 }
 
-.rec-grid.for-you-carousel::-webkit-scrollbar {
-  display: none;
+.rec-grid.for-you-carousel::-webkit-scrollbar,
+.home-playlists-carousel::-webkit-scrollbar,
+.home-releases-carousel::-webkit-scrollbar,
+.home-trending-carousel::-webkit-scrollbar {
+  display: none !important;
 }
 
-.rec-grid.for-you-carousel .rec-tile {
-  flex: 0 0 148px;
-  width: 148px;
+/* Card column (Modifier.width(135.dp)) */
+.rec-tile,
+.playlist-tile,
+.rec-grid.for-you-carousel .rec-tile,
+.home-playlists-carousel .playlist-tile {
+  flex: 0 0 135px !important;
+  width: 135px !important;
+  min-width: 135px !important;
+  max-width: 135px !important;
   background: transparent !important;
   border: none !important;
+  box-shadow: none !important;
   padding: 0 !important;
-  border-radius: 18px;
-  cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  overflow: visible;
-  scroll-snap-align: start;
+  border-radius: 0 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  overflow: visible !important;
+  scroll-snap-align: start !important;
+  user-select: none !important;
 }
 
-.rec-grid.for-you-carousel .rec-tile:hover {
-  transform: translateY(-4px);
+.rec-tile:hover,
+.playlist-tile:hover,
+.rec-grid.for-you-carousel .rec-tile:hover,
+.home-playlists-carousel .playlist-tile:hover {
+  transform: translateY(-3px) !important;
   background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-.rec-grid.for-you-carousel .dotify-card-cover-wrap {
-  width: 148px;
-  height: 148px;
-  border-radius: 18px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-  background: #1c1c1f;
-  margin-bottom: 10px;
+/* Artwork Box (Modifier.size(135.dp).clip(RoundedCornerShape(16.dp))) */
+.dotify-card-cover-wrap,
+.rec-grid.for-you-carousel .dotify-card-cover-wrap,
+.home-playlists-carousel .dotify-card-cover-wrap {
+  width: 135px !important;
+  height: 135px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.38) !important;
+  background: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  margin-bottom: 8px !important;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.22s ease, border-color 0.22s ease !important;
 }
 
-.rec-grid.for-you-carousel .rec-tile-cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 18px;
-  margin-bottom: 0;
-  display: block;
+.rec-tile:hover .dotify-card-cover-wrap,
+.playlist-tile:hover .dotify-card-cover-wrap {
+  transform: scale(1.025) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Liquid glass & transparency adaptation */
+body.liquid-glass-enabled .dotify-card-cover-wrap,
+body.transparency-enabled .dotify-card-cover-wrap {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* Cover Image */
+.rec-tile-cover,
+.rec-grid.for-you-carousel .rec-tile-cover,
+.home-playlists-carousel .rec-tile-cover {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 16px !important;
+  margin-bottom: 0 !important;
+  display: block !important;
+}
+
+/* Placeholder for playlists without cover */
+.playlist-cover-placeholder {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #1e1e22 !important;
+  border-radius: 16px !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.playlist-cover-placeholder i {
+  font-size: 38px !important;
 }
 
 .rec-grid.for-you-carousel .dotify-source-badge,
@@ -1156,27 +1217,61 @@ body {
   display: none !important;
 }
 
-.rec-grid.for-you-carousel .rec-tile-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #ffffff;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
+/* Title (fontSize = 14.sp, FontWeight.SemiBold, Color.White) */
+.rec-tile-title,
+.rec-grid.for-you-carousel .rec-tile-title,
+.home-playlists-carousel .rec-tile-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  text-align: left !important;
+  transition: color 0.15s ease !important;
 }
 
-.rec-grid.for-you-carousel .rec-tile-artist {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.rec-tile:hover .rec-tile-title,
+.playlist-tile:hover .rec-tile-title {
+  color: var(--accent, #1ed760) !important;
 }
 
-.rec-grid.for-you-carousel .rec-tile-play {
-  display: none;
+/* Subtitle (fontSize = 12.sp, VotifyColors.TextMuted) */
+.rec-tile-artist,
+.rec-grid.for-you-carousel .rec-tile-artist,
+.home-playlists-carousel .rec-tile-artist {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin: 2px 0 0 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+/* NO artificial green hover play button circle */
+.rec-tile-play,
+.rec-grid.for-you-carousel .rec-tile-play,
+.home-playlists-carousel .rec-tile-play {
+  display: none !important;
+}
+
+/* Active playing indicator */
+.rec-tile.is-playing .dotify-card-cover-wrap {
+  border-color: var(--accent, #1ed760) !important;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent, #1ed760) 45%, transparent) !important;
+}
+
+.rec-tile.is-playing .rec-tile-title {
+  color: var(--accent, #1ed760) !important;
 }
 
 /* --- PHONE-STYLE HOME CAROUSELS & ARTISTS --- */
@@ -3594,11 +3689,8 @@ body:not(.transparency-enabled) #home-screen .rz-quick-card,
 body:not(.transparency-enabled) #home-screen .spot-card,
 body:not(.transparency-enabled) #home-screen .card,
 body:not(.transparency-enabled) #home-screen .home-rec-card,
-body:not(.transparency-enabled) #home-screen .playlist-card,
 body:not(.transparency-enabled) #home-screen .result-card,
 body:not(.transparency-enabled) #home-screen .track-card,
-body:not(.transparency-enabled) #home-screen .rec-tile,
-body:not(.transparency-enabled) #home-screen .artist-card,
 body:not(.transparency-enabled) #home-screen .my-wave-card,
 body:not(.transparency-enabled) #home-screen .wave-card,
 body:not(.transparency-enabled) #home-screen #wave-hero-card {
@@ -3630,11 +3722,8 @@ body:not(.transparency-enabled) #home-screen .rz-quick-card:hover,
 body:not(.transparency-enabled) #home-screen .spot-card:hover,
 body:not(.transparency-enabled) #home-screen .card:hover,
 body:not(.transparency-enabled) #home-screen .home-rec-card:hover,
-body:not(.transparency-enabled) #home-screen .playlist-card:hover,
 body:not(.transparency-enabled) #home-screen .result-card:hover,
 body:not(.transparency-enabled) #home-screen .track-card:hover,
-body:not(.transparency-enabled) #home-screen .rec-tile:hover,
-body:not(.transparency-enabled) #home-screen .artist-card:hover,
 body:not(.transparency-enabled) #home-screen .my-wave-card:hover,
 body:not(.transparency-enabled) #home-screen .wave-card:hover,
 body:not(.transparency-enabled) #home-screen #wave-hero-card:hover {
