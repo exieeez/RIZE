@@ -1,7 +1,12 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const test = require('node:test');
+
+// Isolate test database in temporary directory
+const testConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'votify-playlists-test-'));
+process.env.VOTIFY_CONFIG_DIR = testConfigDir;
 
 const { handlePlaylistRoutes, loadPublicPlaylists, savePublicPlaylists } = require('../routes/playlists.js');
 
@@ -124,6 +129,20 @@ test('POST /api/playlists/publish publishes user playlists with tracks and makes
   assert.equal(found.author, 'Тестовый Пользователь');
   assert.equal(found.tracks.length, 2);
   assert.equal(found.tracks[0].title, 'Уникальный Трек Альфа');
+
+  // Clean up published test playlist
+  const reqClean = {
+    method: 'POST',
+    on(event, handler) {
+      if (event === 'data') {
+        handler(Buffer.from(JSON.stringify({ title: uniqueTitle, author: 'Тестовый Пользователь' })));
+      }
+      if (event === 'end') handler();
+    }
+  };
+  const resClean = mockRes();
+  const urlClean = new URL('http://localhost:17217/api/playlists/delete');
+  await handlePlaylistRoutes(reqClean, resClean, urlClean);
 });
 
 test('Client main.js integrates public and local playlist search with track display and library save action', () => {

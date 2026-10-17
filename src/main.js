@@ -10533,6 +10533,7 @@ function formatPluralTracks(count) {
 
 async function loadHomePhonePlaylists() {
   const container = document.getElementById('home-playlists-results');
+  const section = document.getElementById('home-playlists-section');
   if (!container) return;
 
   try {
@@ -10551,30 +10552,13 @@ async function loadHomePhonePlaylists() {
       }
     }
 
-    try {
-      const res = await fetch('/api/playlists?limit=10');
-      if (res.ok) {
-        const data = await res.json();
-        const pub = data.playlists || [];
-        for (const pl of pub) {
-          if (!items.some(i => i.id === pl.id || i.name === (pl.title || pl.name))) {
-            items.push({
-              id: pl.id,
-              name: pl.title || pl.name,
-              subtitle: pl.author ? `Автор: ${pl.author}` : formatPluralTracks((pl.tracks && pl.tracks.length) || 0),
-              cover: pl.cover || '',
-              isLocal: false,
-              tracks: pl.tracks || [],
-            });
-          }
-        }
-      }
-    } catch (_) {}
-
     if (!items.length) {
-      container.innerHTML = '<div class="empty-state">Создайте или добавьте плейлисты, чтобы они появились здесь</div>';
+      if (section) section.style.display = 'none';
+      container.innerHTML = '';
       return;
     }
+
+    if (section) section.style.display = '';
 
     container.innerHTML = items
       .map(
