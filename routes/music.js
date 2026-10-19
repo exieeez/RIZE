@@ -1,5 +1,6 @@
 const {
   sendJson,
+  parseBody,
   searchTracks,
   searchTracksByArtist,
   getRecommendations,
@@ -19,9 +20,58 @@ const {
 
 const { spawn } = require('child_process');
 const path = require('path');
+const os = require('os');
+const fs = require('fs');
 const https = require('https');
 const http = require('http');
 const { URL } = require('url');
+const { getSystemAudioOutputInfo } = require('./audio-output.js');
+
+async function translateTexts(texts, targetLang = 'ru') {
+  if (!Array.isArray(texts) || texts.length === 0) return [];
+  const chunks = [];
+  let curChunk = [];
+  let curLen = 0;
+  for (const text of texts) {
+    const s = String(text || '').trim();
+    if (curChunk.length > 0 && curLen + s.length + 1 > 1500) {
+      chunks.push(curChunk);
+      curChunk = [];
+      curLen = 0;
+    }
+    curChunk.push(s);
+    curLen += s.length + 1;
+  }
+  if (curChunk.length > 0) chunks.push(curChunk);
+
+  const results = [];
+  for (const chunk of chunks) {
+    const query = chunk.join('\n');
+    const encoded = encodeURIComponent(query);
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encoded}`;
+    try {
+      const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(6000) });
+      if (!resp.ok) {
+        results.push(...chunk);
+        continue;
+      }
+      const data = await resp.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translatedJoined = data[0].map(s => s[0] || '').join('');
+        const splitLines = translatedJoined.split('\n');
+        for (let i = 0; i < chunk.length; i++) {
+          results.push(splitLines[i] !== undefined ? splitLines[i].trim() : chunk[i]);
+        }
+      } else {
+        results.push(...chunk);
+      }
+    } catch (e) {
+      console.warn('[translate] API error:', e.message);
+      results.push(...chunk);
+    }
+  }
+  return results;
+}
 
 async function handleMusicRoutes(req, res, u) {
   // --- SEARCH ---
@@ -728,6 +778,76 @@ async function getDeezerArtistData(name) {
       }
     }
 
+    // 3. APPLE MUSIC (Playlist / Album)
+    if (rawUrl.includes('music.apple.com') || rawUrl.includes('itunes.apple.com')) {
+      const albumMatch = rawUrl.match(/album\/(?:[^/]+\/)?(\d+)/i) || rawUrl.match(/[?&]id=(\d+)/i);
+      if (albumMatch) {
+        try {
+          const itunesResp = await fetch(`https://itunes.apple.com/lookup?id=${albumMatch[1]}&entity=song`, { signal: AbortSignal.timeout(8000) });
+          if (itunesResp.ok) {
+            const data = await itunesResp.json();
+            const results = (data && Array.isArray(data.results)) ? data.results : [];
+            const albumItem = results.find(r => r && r.wrapperType === 'collection');
+            if (albumItem) {
+              const tracks = results
+                .filter(r => r && r.wrapperType === 'track')
+                .map(item => ({
+                  title: item.trackName || '',
+                  artist: item.artistName || albumItem.artistName || '',
+                  duration: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 0,
+                  cover: (item.artworkUrl100 || albumItem.artworkUrl100 || '').replace('100x100', '600x600'),
+                }));
+              if (tracks.length > 0) {
+                return {
+                  name: albumItem.collectionName || 'Apple Music альбом',
+                  cover: (albumItem.artworkUrl100 || '').replace('100x100', '600x600'),
+                  items: tracks,
+                  isDirect: false,
+                };
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[apple] iTunes lookup failed:', e.message);
+        }
+      }
+
+      try {
+        const html = await httpGet(rawUrl, 12000);
+        let playlistName = 'Apple Music импорт';
+        let playlistCover = '';
+        const items = [];
+
+        const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          playlistName = titleMatch[1].replace(/ – Apple Music$/i, '').replace(/ on Apple Music$/i, '').trim();
+        }
+
+        const ldMatch = html.match(/<script\s+id=["']schema:music-(?:playlist|album)["']\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i) ||
+                        html.match(/<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+        if (ldMatch) {
+          try {
+            const ld = JSON.parse(ldMatch[1]);
+            if (ld.name) playlistName = ld.name;
+            if (ld.image) playlistCover = typeof ld.image === 'string' ? ld.image : (ld.image.url || '');
+            const trackList = ld.track?.itemListElement || ld.tracks || [];
+            for (const t of trackList) {
+              const it = t.item || t;
+              const title = it.name || '';
+              const artist = it.byArtist?.name || (Array.isArray(it.byArtist) ? it.byArtist.map(a => a.name).join(', ') : '');
+              if (title) items.push({ title, artist, duration: 0 });
+            }
+          } catch (e) {}
+        }
+
+        if (items.length > 0) {
+          return { name: playlistName, cover: playlistCover, items, isDirect: false };
+        }
+      } catch (e) {
+        console.warn('[apple] HTML parse failed:', e.message);
+      }
+    }
+
     // 4. YOUTUBE & YOUTUBE MUSIC (Default / yt-dlp)
     try {
       const localYtdlpPath = process.env.YT_DLP_PATH || findYtDlp();
@@ -1038,6 +1158,155 @@ async function getDeezerArtistData(name) {
     } catch (e) {
       console.error('[soundcloud] Import error:', e.message);
       sendJson(res, 502, { error: 'Failed to import: ' + e.message });
+      return true;
+    }
+  }
+
+  // --- AUDIO OUTPUT & BLUETOOTH BATTERY INFO ---
+  if (u.pathname === '/api/audio-output-info' && req.method === 'GET') {
+    const info = await getSystemAudioOutputInfo();
+    sendJson(res, 200, info);
+    return true;
+  }
+
+  // --- LYRICS TRANSLATION (FREE GOOGLE TRANSLATE) ---
+  if (u.pathname === '/api/translate' && req.method === 'POST') {
+    let payload;
+    try {
+      payload = await parseBody(req);
+    } catch (e) {
+      sendJson(res, 400, { error: 'Invalid JSON body' });
+      return true;
+    }
+    const lines = Array.isArray(payload?.texts) ? payload.texts : (Array.isArray(payload?.lines) ? payload.lines : []);
+    const targetLang = payload?.targetLang || payload?.to || 'ru';
+    if (!lines.length) {
+      sendJson(res, 200, { success: true, translations: [] });
+      return true;
+    }
+    try {
+      const translations = await translateTexts(lines, targetLang);
+      sendJson(res, 200, { success: true, translations });
+    } catch (e) {
+      sendJson(res, 500, { error: e.message || 'Translation failed' });
+    }
+    return true;
+  }
+
+  // --- DOWNLOAD AUDIO TRACK (MP3 / FLAC) ---
+  if (u.pathname === '/api/download') {
+    const id = u.searchParams.get('id')?.trim() || '';
+    const trackUrl = u.searchParams.get('url')?.trim() || (id ? `https://www.youtube.com/watch?v=${id}` : '');
+    const title = u.searchParams.get('title')?.trim() || 'Track';
+    const artist = u.searchParams.get('artist')?.trim() || 'Unknown';
+    const format = (u.searchParams.get('format') || 'mp3').toLowerCase() === 'flac' ? 'flac' : 'mp3';
+
+    if (!trackUrl && !id) {
+      sendJson(res, 400, { error: 'Track ID or URL required' });
+      return true;
+    }
+
+    const safeTitle = `${artist} - ${title}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+    const filename = `${safeTitle}.${format}`;
+    const localYtdlp = process.env.YT_DLP_PATH || findYtDlp();
+    const tmpOut = path.join(os.tmpdir(), `votify-dl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${format}`);
+
+    try {
+      const proc = spawn(
+        localYtdlp,
+        [
+          '--no-check-certificates',
+          '--no-warnings',
+          '--quiet',
+          '-x',
+          '--audio-format', format,
+          '--audio-quality', '0',
+          '--add-metadata',
+          '--embed-thumbnail',
+          '-o', tmpOut,
+          trackUrl
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true }
+      );
+
+      await new Promise((resolve, reject) => {
+        let errOut = '';
+        proc.stderr.on('data', d => { errOut += d.toString(); });
+        proc.on('error', reject);
+        proc.on('close', code => {
+          if (code === 0 && fs.existsSync(tmpOut)) resolve();
+          else reject(new Error(errOut || `yt-dlp exited with code ${code}`));
+        });
+      });
+
+      const stat = fs.statSync(tmpOut);
+      res.writeHead(200, {
+        'Content-Type': format === 'flac' ? 'audio/flac' : 'audio/mpeg',
+        'Content-Length': stat.size,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      });
+      const stream = fs.createReadStream(tmpOut);
+      stream.pipe(res);
+      stream.on('end', () => {
+        try { fs.unlinkSync(tmpOut); } catch (e) {}
+      });
+      stream.on('error', () => {
+        try { fs.unlinkSync(tmpOut); } catch (e) {}
+      });
+      return true;
+    } catch (err) {
+      console.error('[download] Error:', err.message);
+      try { if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut); } catch (e) {}
+      sendJson(res, 502, { error: 'Failed to download track: ' + err.message });
+      return true;
+    }
+  }
+
+  // --- MULTI-PLATFORM PLAYLIST IMPORT ALIAS ---
+  if (u.pathname === '/api/playlist-import') {
+    const url = u.searchParams.get('url')?.trim();
+    if (!url) {
+      sendJson(res, 400, { error: 'Playlist URL required' });
+      return true;
+    }
+    try {
+      const { name, cover, items, isDirect } = await extractTracksFromUrl(url);
+      if (isDirect) {
+        sendJson(res, 200, { name, cover, tracks: items });
+        return true;
+      }
+      const results = [];
+      const BATCH = 4;
+      for (let i = 0; i < items.length; i += BATCH) {
+        const batch = items.slice(i, i + BATCH);
+        const batchResults = await Promise.allSettled(
+          batch.map(async trk => {
+            const query = trk.artist ? `${trk.artist} - ${trk.title}` : trk.title;
+            const ytResults = await searchTracks(query, 1, false);
+            if (ytResults && ytResults.length > 0) {
+              const yt = ytResults[0];
+              const uniqueCover = yt.cover || `https://img.youtube.com/vi/${yt.id}/hqdefault.jpg`;
+              const trackCover = (trk.cover && trk.cover !== cover) ? trk.cover : uniqueCover;
+              return {
+                id: yt.id,
+                title: trk.title || yt.title,
+                artist: trk.artist || yt.artist || '',
+                duration: yt.duration || trk.duration || 0,
+                cover: trackCover,
+              };
+            }
+            return null;
+          })
+        );
+        for (const r of batchResults) {
+          if (r.status === 'fulfilled' && r.value) results.push(r.value);
+        }
+      }
+      sendJson(res, 200, { name, cover, tracks: results });
+      return true;
+    } catch (e) {
+      console.error('[playlist-import] Error:', e.message);
+      sendJson(res, 502, { error: e.message || 'Ошибка импорта плейлиста' });
       return true;
     }
   }

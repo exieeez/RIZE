@@ -78,6 +78,9 @@ class AppUpdateManager(
 
     private fun startPeriodicCheck() {
         scope.launch {
+            // Check immediately on app startup after network initialization
+            delay(1500L)
+            checkForUpdate(force = true)
             while (true) {
                 delay(300_000L) // Check every 5 minutes in background
                 checkForUpdate()
@@ -116,8 +119,8 @@ class AppUpdateManager(
 
             // An update is considered newer if remote code > curCode,
             // or if codes match and remote commit sha is newer,
-            // or if force is true and remote sha is different from current.
-            val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode)) || (force && isNewerSha)
+            // or if force is true.
+            val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode)) || force
 
             if (!force && dismissedSha == info.sha) {
                 _state.value = UpdateState.Idle

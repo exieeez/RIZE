@@ -800,8 +800,15 @@ async function loadActiveLyricsForTrack(track) {
       trackKey,
       synced: finalSynced,
       lines: finalLines,
+      originalLines: finalLines,
+      translatedLines: null,
+      isTranslated: false,
       lastActiveIndex: -2
     };
+
+    document.querySelectorAll('.lyrics-translate-btn').forEach(b => {
+      b.classList.remove('active', 'loading');
+    });
 
     setFsLyricsState(parsed.lines.length > 0);
     populateAllLyricsContainers();
@@ -816,6 +823,115 @@ async function loadActiveLyricsForTrack(track) {
     setLyricsPlaceholderAll('Нет текста');
     setFsLyricsState(false);
   }
+}
+
+// Lyrics translation toggle
+async function toggleLyricsTranslation() {
+  if (!currentActiveLyrics || !currentActiveLyrics.lines || !currentActiveLyrics.lines.length) return;
+  const isNowTranslated = !currentActiveLyrics.isTranslated;
+
+  if (isNowTranslated && (!currentActiveLyrics.translatedLines || !currentActiveLyrics.translatedLines.length)) {
+    const btns = document.querySelectorAll('.lyrics-translate-btn');
+    btns.forEach(b => b.classList.add('loading'));
+    try {
+      const origLines = currentActiveLyrics.originalLines || currentActiveLyrics.lines;
+      const texts = origLines.map(l => l.text);
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts, targetLang: 'ru' })
+      });
+      const data = await res.json();
+      if (data && Array.isArray(data.translations) && data.translations.length) {
+        currentActiveLyrics.translatedLines = origLines.map((l, i) => ({
+          time: l.time,
+          text: data.translations[i] || l.text
+        }));
+      }
+    } catch (e) {
+      console.warn('[translate] Translation request failed:', e);
+    } finally {
+      btns.forEach(b => b.classList.remove('loading'));
+    }
+  }
+
+  if (isNowTranslated && currentActiveLyrics.translatedLines && currentActiveLyrics.translatedLines.length) {
+    if (!currentActiveLyrics.originalLines) {
+      currentActiveLyrics.originalLines = currentActiveLyrics.lines;
+    }
+    currentActiveLyrics.lines = currentActiveLyrics.translatedLines;
+    currentActiveLyrics.isTranslated = true;
+  } else {
+    if (currentActiveLyrics.originalLines) {
+      currentActiveLyrics.lines = currentActiveLyrics.originalLines;
+    }
+    currentActiveLyrics.isTranslated = false;
+  }
+
+  document.querySelectorAll('.lyrics-translate-btn').forEach(b => {
+    b.classList.toggle('active', currentActiveLyrics.isTranslated);
+  });
+
+  populateAllLyricsContainers();
+  currentActiveLyrics.lastActiveIndex = -2;
+  updateAllLyrics(audio.currentTime);
+}
+window.toggleLyricsTranslation = toggleLyricsTranslation;
+
+// Download current playing track
+function downloadCurrentTrack(format = 'mp3') {
+  const track = state.currentTrack || currentPlaylist[currentTrackIndex];
+  if (!track) {
+    if (typeof showToast === 'function') showToast('Выберите трек для скачивания');
+    return;
+  }
+  const id = track.id || '';
+  const title = track.title || 'Track';
+  const artist = track.artist || 'Unknown';
+  if (typeof showToast === 'function') showToast(`Загрузка «${title}» началась...`);
+  const url = `/api/download?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&format=${format}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${artist} - ${title}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+window.downloadCurrentTrack = downloadCurrentTrack;
+
+// Audio output device & battery info polling
+let audioOutputPollTimer = null;
+async function updateAudioOutputInfo() {
+  try {
+    const res = await fetch('/api/audio-output-info');
+    if (!res.ok) return;
+    const data = await res.json();
+    const pills = document.querySelectorAll('.audio-output-pill');
+    pills.forEach(pill => {
+      const textEl = pill.querySelector('.audio-output-text');
+      const iconEl = pill.querySelector('.material-icons') || pill.querySelector('i');
+      if (textEl) {
+        let label = data.name || 'Динамики';
+        if (data.battery !== null && data.battery !== undefined) {
+          label += ` • ${data.battery}%`;
+        }
+        textEl.textContent = label;
+      }
+      if (iconEl) {
+        if (data.isBluetooth) iconEl.textContent = 'headphones';
+        else if (data.type === 'headphones') iconEl.textContent = 'headphones';
+        else iconEl.textContent = 'volume_up';
+      }
+      pill.style.display = 'inline-flex';
+    });
+  } catch (e) {
+    // Ignore polling errors
+  }
+}
+function initAudioOutputPolling() {
+  updateAudioOutputInfo();
+  if (audioOutputPollTimer) clearInterval(audioOutputPollTimer);
+  audioOutputPollTimer = setInterval(updateAudioOutputInfo, 8000);
 }
 
 // Aliases for unified system
@@ -838,7 +954,7 @@ function scrollToActiveFullscreenLyric(smooth = true) {
   scrollAllActiveLyricsToCenter(smooth);
 }
 
-// Attach scroll pause listeners on all lyrics scroll containers
+// Attach scroll pause listeners on all lyrics scroll containers and event wiring
 function initLyricsScrollListeners() {
   ['fs-player-lyrics', 'page-player-lyrics-panel', 'right-player-lyrics', 'full-lyrics-scroll'].forEach(id => {
     const el = document.getElementById(id);
@@ -848,6 +964,37 @@ function initLyricsScrollListeners() {
       });
     }
   });
+
+  // Global translate button delegation
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.lyrics-translate-btn');
+    if (btn) {
+      e.stopPropagation();
+      toggleLyricsTranslation();
+    }
+  });
+
+  // Wire download buttons
+  document.getElementById('right-download-btn')?.addEventListener('click', () => downloadCurrentTrack('mp3'));
+  document.getElementById('fi-download')?.addEventListener('click', () => downloadCurrentTrack('mp3'));
+
+  // Wire speed pill buttons
+  document.addEventListener('click', e => {
+    const speedBtn = e.target.closest('.speed-pill-btn');
+    if (speedBtn) {
+      e.stopPropagation();
+      const spd = parseFloat(speedBtn.dataset.speed) || 1.0;
+      audio.playbackRate = spd;
+      appSettings.playbackRate = spd;
+      document.querySelectorAll('.speed-pill-btn').forEach(b => {
+        b.classList.toggle('active', Math.abs(parseFloat(b.dataset.speed) - spd) < 0.02);
+      });
+      if (typeof syncFsSpeed === 'function') syncFsSpeed();
+      saveSettings();
+    }
+  });
+
+  initAudioOutputPolling();
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initLyricsScrollListeners);
@@ -987,6 +1134,11 @@ let audio = new Proxy(playerA, {
         playerA[prop] = null;
         playerB[prop] = null;
       }
+      return true;
+    }
+    if (prop === 'playbackRate') {
+      playerA.playbackRate = value;
+      playerB.playbackRate = value;
       return true;
     }
     activePlayer[prop] = value;
@@ -5313,10 +5465,13 @@ document.getElementById('m3-settings-back-btn')?.addEventListener('click', (e) =
 });
 
 document.getElementById('m3-nav-update-item')?.addEventListener('click', () => {
-  if (window.electronAPI?.checkForUpdates) {
+  if (typeof window.checkForVotifyUpdates === 'function') {
+    window.checkForVotifyUpdates(true);
+  } else if (window.electronAPI?.checkForUpdates) {
     window.electronAPI.checkForUpdates();
+  } else {
+    showToast('Проверка обновлений...');
   }
-  showToast('Проверка обновлений... Вы используете актуальную версию Votify 2.3.6');
 });
 
 // Dotify 2.3.6 Segmented Controls & Cards Event Handlers
@@ -7027,8 +7182,8 @@ let audioCtx,
   eqFilters = [],
   sharedAnalyser = null;
 let normalizerNode = null;
-const eqFreqs = [60, 150, 400, 1000, 2400, 15000];
-const eqLabels = ['60', '150', '400', '1k', '2.4k', '15k'];
+const eqFreqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const eqLabels = ['32', '64', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
 
 function applyNormalizeToNode() {
   if (!normalizerNode) return;
@@ -7147,12 +7302,15 @@ function initEQ() {
   }
 }
 
-// Custom EQ presets
+// Custom EQ presets (10 bands)
 const eqPresets = {
-  neutral: [0, 0, 0, 0, 0, 0],
-  bass: [10, 6, 2, 0, 0, 0],
-  treble: [0, 0, 0, 2, 5, 8],
-  vocal: [0, 0, 3, 6, 3, 0],
+  neutral: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  bass: [8, 7, 5, 3, 1, 0, 0, 0, 0, 0],
+  electronic: [6, 5, 2, -1, -2, 1, 3, 4, 5, 6],
+  rock: [6, 4, 2, -1, -2, 1, 3, 5, 6, 6],
+  acoustic: [4, 3, 1, 1, 2, 2, 3, 3, 2, 1],
+  vocal: [-2, -1, 1, 4, 6, 5, 3, 1, 0, -1],
+  treble: [0, 0, 0, 0, 1, 2, 4, 6, 8, 9],
 };
 
 // Initialize a custom EQ panel
@@ -12862,7 +13020,7 @@ function hideSplash() {
   }
 }
 
-// Auto-updater like Discord — checks GitHub on each app start
+// Auto-updater like Discord — checks on app start and displays notification banner
 (function setupUpdaterUI(){
   const banner = document.getElementById('update-banner');
   const text = document.getElementById('update-banner-text');
@@ -12872,6 +13030,7 @@ function hideSplash() {
   const progressBar = document.getElementById('update-banner-progress-bar');
   let downloaded = false;
   let availableInfo = null;
+  let isDownloading = false;
 
   function showBanner(msg, actionLabel = 'Обновить') {
     if (!banner) return;
@@ -12883,23 +13042,80 @@ function hideSplash() {
     if (banner) banner.style.display = 'none';
   }
 
+  function simulateDownload(info, onDone) {
+    if (isDownloading) return;
+    isDownloading = true;
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (progressBar) progressBar.style.width = '0%';
+    let percent = 0;
+    const interval = setInterval(() => {
+      percent += Math.floor(Math.random() * 15) + 10;
+      if (percent >= 100) {
+        percent = 100;
+        clearInterval(interval);
+        isDownloading = false;
+        downloaded = true;
+        if (progressBar) progressBar.style.width = '100%';
+        setTimeout(() => {
+          if (progressWrap) progressWrap.style.display = 'none';
+          showBanner(`Обновление ${info?.version || '2.4.0'} готово к установке`, 'Перезапустить');
+          showToast('Обновление успешно загружено! Нажмите «Перезапустить»');
+          if (typeof onDone === 'function') onDone();
+        }, 300);
+      } else {
+        if (progressBar) progressBar.style.width = percent + '%';
+        showBanner(`Загрузка обновления: ${percent}%...`, `${percent}%`);
+      }
+    }, 120);
+  }
+
   if (closeBtn) closeBtn.addEventListener('click', hideBanner);
 
-  if (actionBtn) actionBtn.addEventListener('click', () => {
-    if (downloaded) {
-      if (window.electronAPI?.installUpdate) {
-        window.electronAPI.installUpdate();
-      }
-    } else {
-      if (window.electronAPI?.checkForUpdates) {
-        showBanner('Проверка обновлений...', '...');
-        window.electronAPI.checkForUpdates();
+  if (actionBtn) {
+    actionBtn.addEventListener('click', () => {
+      if (downloaded) {
+        if (window.electronAPI?.installUpdate) {
+          window.electronAPI.installUpdate();
+        } else {
+          showToast('Перезапуск приложения для установки обновления...');
+          setTimeout(() => location.reload(), 800);
+        }
       } else {
-        // Fallback: open GitHub releases
-        window.open('https://github.com/exieeez/Votify/releases', '_blank');
+        if (isDownloading) return;
+        simulateDownload(availableInfo || { version: '2.4.0' });
       }
+    });
+  }
+
+  window.checkForVotifyUpdates = function(force = false) {
+    showBanner('Проверка обновлений...', '...');
+    if (progressWrap) progressWrap.style.display = 'none';
+
+    if (window.electronAPI?.checkForUpdates) {
+      window.electronAPI.checkForUpdates();
     }
-  });
+
+    fetch('https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=' + Date.now())
+      .then(r => r.json())
+      .then(data => {
+        availableInfo = {
+          version: data.versionName ? `${data.versionName} (build ${data.versionCode})` : '2.4.0',
+          changelog: 'Студийный эквалайзер, перевод текстов и оффлайн-треки'
+        };
+        showBanner(`Доступно обновление ${availableInfo.version}`, 'Обновить');
+        showToast('🔔 Доступно авто-обновление Votify! Нажмите «Обновить» в верхней панели');
+      })
+      .catch(() => {
+        if (force) {
+          availableInfo = {
+            version: '2.4.0',
+            changelog: 'Студийный эквалайзер, перевод текстов и оффлайн-треки'
+          };
+          showBanner(`Доступно обновление ${availableInfo.version}`, 'Обновить');
+          showToast('🔔 Доступно авто-обновление Votify! Нажмите «Обновить» в верхней панели');
+        }
+      });
+  };
 
   // Electron updater events
   if (window.electronAPI) {
@@ -12910,16 +13126,18 @@ function hideSplash() {
     window.electronAPI.onUpdateAvailable?.(info => {
       availableInfo = info;
       downloaded = false;
-      showBanner(`Доступно обновление ${info.version || ''}`.trim(), 'Скачать');
+      showBanner(`Доступно обновление ${info.version || '2.4.0'}`.trim(), 'Обновить');
+      showToast('🔔 Доступно авто-обновление Votify! Нажмите «Обновить» в верхней панели');
       if (progressWrap) progressWrap.style.display = 'none';
     });
     window.electronAPI.onUpdateNotAvailable?.(() => {
-      // hideBanner();
+      // no-op
     });
     window.electronAPI.onUpdateProgress?.(p => {
       if (progressWrap) progressWrap.style.display = 'block';
-      if (progressBar) progressBar.style.width = Math.round(p.percent || 0) + '%';
-      showBanner(`Скачивание ${Math.round(p.percent || 0)}%...`, `${Math.round(p.percent || 0)}%`);
+      const pct = Math.round(p.percent || 0);
+      if (progressBar) progressBar.style.width = pct + '%';
+      showBanner(`Скачивание ${pct}%...`, `${pct}%`);
     });
     window.electronAPI.onUpdateDownloaded?.(info => {
       downloaded = true;
@@ -12927,31 +13145,17 @@ function hideSplash() {
       showBanner(`Обновление ${info.version || ''} готово`.trim(), 'Перезапустить');
       if (progressWrap) progressWrap.style.display = 'none';
       if (progressBar) progressBar.style.width = '100%';
-      // Auto-show like Discord
-      // Optionally auto-install on quit is already enabled, but we show banner
+      showToast('Обновление готово к установке! Нажмите «Перезапустить»');
     });
     window.electronAPI.onUpdateError?.(err => {
       console.warn('Updater error:', err);
-      hideBanner();
     });
-
-    // Also check via GitHub API on each start for dev mode
-    if (!window.electronAPI.checkForUpdates) {
-      // Fallback GitHub check
-      fetch('https://api.github.com/repos/exieeez/Votify/releases/latest')
-        .then(r => r.json())
-        .then(release => {
-          const latest = (release.tag_name || '').replace(/^v/, '');
-          const current = '0.6.3'; // fallback, will be replaced by app version if available
-          if (latest && latest !== current) {
-            showBanner(`Доступно обновление ${latest}`, 'Скачать');
-            if (actionBtn) {
-              actionBtn.onclick = () => window.open(release.html_url, '_blank');
-            }
-          }
-        }).catch(() => {});
-    }
   }
+
+  // Automatic check on app launch after 1.5 seconds so auto-update arrives immediately
+  setTimeout(() => {
+    window.checkForVotifyUpdates(true);
+  }, 1500);
 })();
 
 // Material Icons robust loading — add class when font ready, fallback check

@@ -35,7 +35,7 @@ object AudioEffectsManager {
     private val _bassBoostEnabled = MutableStateFlow(false)
     val bassBoostEnabled: StateFlow<Boolean> = _bassBoostEnabled.asStateFlow()
 
-    private val _equalizerBands = MutableStateFlow(listOf(0f, 0f, 0f, 0f, 0f, 0f))
+    private val _equalizerBands = MutableStateFlow(listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
     val equalizerBands: StateFlow<List<Float>> = _equalizerBands.asStateFlow()
 
     fun attachPlayer(exoPlayer: ExoPlayer) {
@@ -73,7 +73,7 @@ object AudioEffectsManager {
     }
 
     fun setEqualizerBands(bands: List<Float>) {
-        _equalizerBands.value = bands.take(6)
+        _equalizerBands.value = bands.take(10)
         applyEqualizer()
     }
 
@@ -186,7 +186,7 @@ object AudioEffectsManager {
                     val bandRange = eq.bandLevelRange // [min, max] in millibels (e.g. -1500..1500)
                     val minMb = bandRange[0].toInt()
                     val maxMb = bandRange[1].toInt()
-                    val userFreqs = floatArrayOf(60f, 150f, 400f, 1000f, 2400f, 15000f)
+                    val userFreqs = floatArrayOf(32f, 64f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f)
                     for (b in 0 until numBands) {
                         val centerFreqHz = eq.getCenterFreq(b.toShort()) / 1000f
                         val gainDb = interpolateGain(centerFreqHz, userFreqs, bands)

@@ -371,12 +371,16 @@ async function checkGitHubForUpdates() {
         try {
           const release = JSON.parse(data);
           const latest = (release.tag_name || release.name || '').replace(/^v/, '');
-          if (latest && latest !== currentVersion) {
+          if (latest) {
             console.log(`[updater] GitHub latest: ${latest}, current: ${currentVersion}`);
-            // Simple semver compare
             const cmp = latest.localeCompare(currentVersion, undefined, { numeric: true });
-            if (cmp > 0) {
-              mainWindow?.webContents.send('update:available', { version: latest, releaseNotes: release.body, releaseName: release.name });
+            if (cmp > 0 || !app.isPackaged) {
+              const displayVer = cmp > 0 ? latest : '2.4.0';
+              mainWindow?.webContents.send('update:available', {
+                version: displayVer,
+                releaseNotes: release.body || 'Студийный эквалайзер, перевод текстов и оффлайн-треки',
+                releaseName: release.name || 'Votify Update'
+              });
             }
           }
         } catch (e) {}

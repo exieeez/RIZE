@@ -85,6 +85,7 @@ import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,6 +93,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.derivedStateOf
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import kotlinx.coroutines.launch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -202,7 +209,7 @@ fun PlayerScreen(
     onSetRemix: (speed: Float, pitch: Float, pitchLinked: Boolean, reverb: String, bass: Boolean) -> Unit = { _, _, _, _, _ -> },
     onSaveSpeedPreset: (speed: Float, pitch: Float, pitchLinked: Boolean, reverb: String, bass: Boolean) -> Unit = { _, _, _, _, _ -> },
     initialEqualizerPreset: String = "neutral",
-    initialEqualizerBands: String = "0.0,0.0,0.0,0.0,0.0,0.0",
+    initialEqualizerBands: String = "0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0",
     onEqualizerChange: (List<Float>) -> Unit = {},
     onSaveEqualizer: (bands: List<Float>, preset: String) -> Unit = { _, _ -> },
 ) {
@@ -229,7 +236,7 @@ fun PlayerScreen(
     if (showEqualizerSheet) {
         val parsedBands = remember(initialEqualizerBands) {
             val list = initialEqualizerBands.split(",").mapNotNull { it.trim().toFloatOrNull() }
-            if (list.size == 6) list else listOf(0f, 0f, 0f, 0f, 0f, 0f)
+            if (list.size == 10) list else listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
         }
         EqualizerBottomSheet(
             initialPreset = initialEqualizerPreset,
@@ -547,6 +554,47 @@ fun PlayerScreen(
                     .padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                // Audio output indicator pill (Bluetooth / Speaker)
+                val context = LocalContext.current
+                val audioOutputInfo = remember {
+                    derivedStateOf {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                        val devices = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS) ?: emptyArray()
+                        val btDevice = devices.firstOrNull {
+                            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                            it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                            it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                        }
+                        if (btDevice != null) {
+                            val name = btDevice.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Bluetooth"
+                            "🎧 $name"
+                        } else {
+                            val wired = devices.firstOrNull {
+                                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                            }
+                            if (wired != null) "🎧 Наушники" else "🔊 Динамик"
+                        }
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.08f),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                    modifier = Modifier.padding(bottom = 6.dp),
+                ) {
+                    Text(
+                        text = audioOutputInfo.value,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                    )
+                }
+
                 Text(
                     track?.title ?: "—",
                     style = MaterialTheme.typography.titleLarge,
@@ -889,6 +937,11 @@ private fun artworkAnimModifier(anim: String, playing: Boolean): Modifier {
 /** Synced lyrics: active line in white and bold, auto-scrolls to keep it in view, tap to seek. */
 @Composable
 private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long) -> Unit, onClose: () -> Unit) {
+    var isTranslated by remember { mutableStateOf(false) }
+    var translatedLines by remember(state) { mutableStateOf<List<String>?>(null) }
+    var isTranslating by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
     Box(
         Modifier
             .fillMaxSize()
@@ -913,13 +966,77 @@ private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long)
                 )
             }
 
-            is LyricsState.Loaded -> LyricsList(lyrics = state.lyrics, positionMs = positionMs, onSeekToMs = onSeekToMs)
+            is LyricsState.Loaded -> {
+                LyricsList(
+                    lyrics = state.lyrics,
+                    positionMs = positionMs,
+                    onSeekToMs = onSeekToMs,
+                    translatedLines = if (isTranslated) translatedLines else null,
+                )
+
+                // Translate button at top right
+                Surface(
+                    onClick = {
+                        isTranslated = !isTranslated
+                        if (isTranslated && translatedLines == null) {
+                            isTranslating = true
+                            coroutineScope.launch {
+                                val texts = state.lyrics.lines.map { it.text }
+                                val res = withContext(Dispatchers.IO) {
+                                    translateLyricsLines(texts)
+                                }
+                                translatedLines = res
+                                isTranslating = false
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isTranslated) Color(0xFF1DB954) else Color(0xFF222226),
+                    contentColor = if (isTranslated) Color.Black else Color.White,
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(14.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) {
+                        if (isTranslating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 1.5.dp,
+                                color = if (isTranslated) Color.Black else Color.White,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        } else {
+                            Icon(
+                                Icons.Outlined.Translate,
+                                contentDescription = "Перевод",
+                                modifier = Modifier.size(14.dp),
+                                tint = if (isTranslated) Color.Black else Color.White,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = if (isTranslated) "RU" else "Перевод",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun LyricsList(lyrics: LyricsModel, positionMs: Long, onSeekToMs: (Long) -> Unit) {
+private fun LyricsList(
+    lyrics: LyricsModel,
+    positionMs: Long,
+    onSeekToMs: (Long) -> Unit,
+    translatedLines: List<String>? = null,
+) {
     val listState = rememberLazyListState()
     val active = lyrics.activeIndex(positionMs)
 
@@ -936,8 +1053,13 @@ private fun LyricsList(lyrics: LyricsModel, positionMs: Long, onSeekToMs: (Long)
         itemsIndexed(lyrics.lines) { i, line ->
             val isActive = lyrics.synced && i == active
             val isPast = lyrics.synced && i < active
+            val displayText = if (translatedLines != null && i < translatedLines.size) {
+                translatedLines[i].ifBlank { line.text.ifBlank { "♪" } }
+            } else {
+                line.text.ifBlank { "♪" }
+            }
             Text(
-                text = line.text.ifBlank { "♪" },
+                text = displayText,
                 style = if (isActive) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                 color = when {
@@ -952,6 +1074,31 @@ private fun LyricsList(lyrics: LyricsModel, positionMs: Long, onSeekToMs: (Long)
             )
         }
     }
+}
+
+private fun translateLyricsLines(lines: List<String>): List<String> {
+    if (lines.isEmpty()) return emptyList()
+    val joined = lines.joinToString("\n")
+    return runCatching {
+        val encoded = java.net.URLEncoder.encode(joined, "UTF-8")
+        val url = java.net.URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ru&dt=t&q=$encoded")
+        val conn = url.openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 8000
+        conn.readTimeout = 8000
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+        val resp = conn.inputStream.bufferedReader().use { it.readText() }
+        val array = org.json.JSONArray(resp)
+        val outer = array.optJSONArray(0) ?: return lines
+        val sb = StringBuilder()
+        for (idx in 0 until outer.length()) {
+            val item = outer.optJSONArray(idx)
+            if (item != null) {
+                sb.append(item.optString(0, ""))
+            }
+        }
+        val trans = sb.toString().lines()
+        if (trans.size == lines.size) trans else lines
+    }.getOrDefault(lines)
 }
 
 @Composable
@@ -1809,7 +1956,7 @@ private fun EqualizerBottomSheet(
     onDismiss: () -> Unit,
 ) {
     var bands by remember(initialBands) {
-        mutableStateOf(if (initialBands.size == 6) initialBands else listOf(0f, 0f, 0f, 0f, 0f, 0f))
+        mutableStateOf(if (initialBands.size == 10) initialBands else listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
     }
     var currentPreset by remember(initialPreset) { mutableStateOf(initialPreset) }
 
@@ -1817,21 +1964,23 @@ private fun EqualizerBottomSheet(
         listOf(
             "neutral" to "Нейтральный",
             "bass" to "Басы",
-            "treble" to "Высокие",
-            "vocal" to "Вокал",
             "electronic" to "Электронная",
             "rock" to "Рок",
+            "acoustic" to "Акустика",
+            "vocal" to "Вокал",
+            "treble" to "Высокие",
         )
     }
 
     fun applyPreset(presetKey: String) {
         val newBands = when (presetKey) {
-            "bass" -> listOf(6.0f, 4.5f, 2.0f, 0.0f, -1.0f, -2.0f)
-            "treble" -> listOf(-2.0f, -1.0f, 0.0f, 2.0f, 4.5f, 6.0f)
-            "vocal" -> listOf(-1.5f, 1.0f, 4.0f, 3.5f, 1.0f, -0.5f)
-            "electronic" -> listOf(5.0f, 3.5f, -1.0f, 2.0f, 4.0f, 5.0f)
-            "rock" -> listOf(4.0f, 2.5f, -0.5f, 1.5f, 3.0f, 4.5f)
-            else -> listOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+            "bass" -> listOf(8.0f, 7.0f, 5.0f, 3.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+            "electronic" -> listOf(6.0f, 5.0f, 2.0f, -1.0f, -2.0f, 1.0f, 3.0f, 4.0f, 5.0f, 6.0f)
+            "rock" -> listOf(6.0f, 4.0f, 2.0f, -1.0f, -2.0f, 1.0f, 3.0f, 5.0f, 6.0f, 6.0f)
+            "acoustic" -> listOf(4.0f, 3.0f, 1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 2.0f, 1.0f)
+            "vocal" -> listOf(-2.0f, -1.0f, 1.0f, 4.0f, 6.0f, 5.0f, 3.0f, 1.0f, 0.0f, -1.0f)
+            "treble" -> listOf(0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 4.0f, 6.0f, 8.0f, 9.0f)
+            else -> listOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         }
         bands = newBands
         currentPreset = presetKey
@@ -1920,7 +2069,7 @@ private fun EqualizerBottomSheet(
             Spacer(Modifier.height(28.dp))
 
             // Catmull-Rom Spline Equalizer Canvas
-            val freqLabels = listOf("60", "150", "400", "1k", "2.4k", "15k")
+            val freqLabels = listOf("32", "64", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
             var canvasWidth by remember { mutableFloatStateOf(0f) }
             val canvasHeight = 190.dp
             val paddingX = 24.dp
@@ -1936,7 +2085,7 @@ private fun EqualizerBottomSheet(
                         val padPx = paddingX.toPx()
                         val tbPadPx = topBottomPad.toPx()
                         val usableW = (canvasWidth - 2 * padPx).coerceAtLeast(1f)
-                        val stepW = usableW / 5f
+                        val stepW = usableW / 9f
                         val h = size.height.toFloat()
                         val usableH = (h - 2 * tbPadPx).coerceAtLeast(1f)
                         val yZero = h / 2f
@@ -1944,7 +2093,7 @@ private fun EqualizerBottomSheet(
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             down.consume()
-                            var activeIndex = ((down.position.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
+                            var activeIndex = ((down.position.x - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 9)
 
                             fun updateAt(pos: Offset) {
                                 val gainDb = (-(pos.y - yZero) / (usableH / 2f) * 12f).coerceIn(-12f, 12f)
@@ -1962,7 +2111,7 @@ private fun EqualizerBottomSheet(
                                 if (change.pressed) {
                                     change.consume()
                                     val currentX = change.position.x
-                                    val nearestIdx = ((currentX - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 5)
+                                    val nearestIdx = ((currentX - padPx + stepW / 2f) / stepW).toInt().coerceIn(0, 9)
                                     if (kotlin.math.abs(currentX - (padPx + nearestIdx * stepW)) < stepW * 0.45f) {
                                         activeIndex = nearestIdx
                                     }
@@ -1976,7 +2125,7 @@ private fun EqualizerBottomSheet(
                     val padPx = paddingX.toPx()
                     val tbPadPx = topBottomPad.toPx()
                     val usableW = size.width - 2 * padPx
-                    val stepW = usableW / 5f
+                    val stepW = usableW / 9f
                     val usableH = size.height - 2 * tbPadPx
                     val yZero = size.height / 2f
 
@@ -1989,9 +2138,9 @@ private fun EqualizerBottomSheet(
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f)),
                     )
 
-                    // 2. Compute 6 points
+                    // 2. Compute 10 points
                     val points = mutableListOf<Offset>()
-                    for (i in 0..5) {
+                    for (i in 0..9) {
                         val px = padPx + i * stepW
                         val g = bands.getOrElse(i) { 0f }.coerceIn(-12f, 12f)
                         val py = yZero - (g / 12f) * (usableH / 2f)
@@ -2076,7 +2225,7 @@ private fun EqualizerBottomSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 freqLabels.forEachIndexed { i, label ->
@@ -2085,7 +2234,7 @@ private fun EqualizerBottomSheet(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .width(46.dp)
+                            .weight(1f)
                             .clickable {
                                 val nextGain = when {
                                     gain == 0f -> 4.0f
@@ -2102,7 +2251,7 @@ private fun EqualizerBottomSheet(
                             text = label,
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.45f),
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
@@ -2110,7 +2259,7 @@ private fun EqualizerBottomSheet(
                             style = MaterialTheme.typography.bodySmall,
                             color = if (gain != 0f) Color.White else Color.White.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                         )
                     }
                 }

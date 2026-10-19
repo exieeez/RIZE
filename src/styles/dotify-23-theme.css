@@ -6732,6 +6732,116 @@ select option:hover,
   color: #ffffff !important;
 }
 
+/* Audio Output Pill */
+.audio-output-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  margin-right: 6px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.audio-output-pill i,
+.audio-output-pill .material-icons {
+  font-size: 15px;
+  color: var(--accent, #ffffff);
+}
+.audio-output-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Lyrics Header & Translate Button */
+.lyrics-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.lyrics-translate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.lyrics-translate-btn i,
+.lyrics-translate-btn .material-icons {
+  font-size: 14px;
+}
+.lyrics-translate-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.lyrics-translate-btn.active {
+  background: var(--accent, #1db954);
+  color: #000000;
+  border-color: transparent;
+  font-weight: 600;
+}
+.lyrics-translate-btn.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* EQ Speed Row */
+.custom-eq-speed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 10px 0;
+  padding: 0 4px;
+}
+.custom-eq-speed-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+}
+.speed-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.speed-pill-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.speed-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+.speed-pill-btn.active {
+  background: var(--accent, #1db954);
+  color: #000000;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+
 
 
 

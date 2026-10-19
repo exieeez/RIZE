@@ -708,6 +708,11 @@
           <input type="range" id="right-player-volume" value="80" min="0" max="100" />
         </div>
         <div class="right-player-extras">
+          <div class="audio-output-pill" id="audio-output-pill" title="Устройство вывода звука">
+            <i class="material-icons">headphones</i>
+            <span class="audio-output-text">Динамики</span>
+          </div>
+          <button class="right-extra-btn" id="right-download-btn" title="Скачать трек (MP3)"><i class="material-icons">file_download</i></button>
           <button class="right-extra-btn" id="right-eq-btn" title="Эквалайзер"><i class="material-icons">equalizer</i></button>
           <button class="right-extra-btn" id="right-lyrics-btn" title="Текст песни"><i class="material-icons">lyrics</i></button>
         </div>
@@ -715,8 +720,22 @@
           <div class="custom-eq-presets" id="right-eq-presets">
             <button class="custom-eq-preset active" data-preset="neutral">Neutral</button>
             <button class="custom-eq-preset" data-preset="bass">Bass Boost</button>
-            <button class="custom-eq-preset" data-preset="treble">Treble</button>
+            <button class="custom-eq-preset" data-preset="electronic">Electronic</button>
+            <button class="custom-eq-preset" data-preset="rock">Rock</button>
+            <button class="custom-eq-preset" data-preset="acoustic">Acoustic</button>
             <button class="custom-eq-preset" data-preset="vocal">Vocal</button>
+            <button class="custom-eq-preset" data-preset="treble">Treble</button>
+          </div>
+          <div class="custom-eq-speed-row">
+            <span class="custom-eq-speed-label">Скорость:</span>
+            <div class="speed-pill-group">
+              <button class="speed-pill-btn" data-speed="0.75">0.75x</button>
+              <button class="speed-pill-btn" data-speed="0.85">0.85x</button>
+              <button class="speed-pill-btn active" data-speed="1">1.0x</button>
+              <button class="speed-pill-btn" data-speed="1.15">1.15x</button>
+              <button class="speed-pill-btn" data-speed="1.25">1.25x</button>
+              <button class="speed-pill-btn" data-speed="1.5">1.5x</button>
+            </div>
           </div>
           <div class="custom-eq-graph" id="right-eq-graph">
             <svg class="custom-eq-svg" id="right-eq-svg" preserveAspectRatio="none">
@@ -734,7 +753,12 @@
           <div class="custom-eq-labels" id="right-eq-labels"></div>
         </div>
         <div class="right-player-lyrics" id="right-player-lyrics" style="display:none">
-          <div class="lyrics-label">Текст песни</div>
+          <div class="lyrics-header-row">
+            <div class="lyrics-label">Текст песни</div>
+            <button class="lyrics-translate-btn" id="right-lyrics-translate-btn" title="Перевести на русский">
+              <i class="material-icons">translate</i> <span>Перевод</span>
+            </button>
+          </div>
           <div class="lyrics-body" id="right-lyrics-body"><div class="lyrics-placeholder">Нет текста</div></div>
         </div>
       </aside>
@@ -1679,6 +1703,13 @@
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
           </button>
+          <button class="fi-btn" id="fi-download" title="Скачать трек (MP3)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
           <button class="fi-btn" id="fi-add-playlist" title="Добавить в плейлист">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -1704,8 +1735,22 @@
             <div class="custom-eq-presets" id="fi-eq-presets">
               <button class="custom-eq-preset active" data-preset="neutral">Neutral</button>
               <button class="custom-eq-preset" data-preset="bass">Bass Boost</button>
-              <button class="custom-eq-preset" data-preset="treble">Treble</button>
+              <button class="custom-eq-preset" data-preset="electronic">Electronic</button>
+              <button class="custom-eq-preset" data-preset="rock">Rock</button>
+              <button class="custom-eq-preset" data-preset="acoustic">Acoustic</button>
               <button class="custom-eq-preset" data-preset="vocal">Vocal</button>
+              <button class="custom-eq-preset" data-preset="treble">Treble</button>
+            </div>
+            <div class="custom-eq-speed-row">
+              <span class="custom-eq-speed-label">Скорость:</span>
+              <div class="speed-pill-group">
+                <button class="speed-pill-btn" data-speed="0.75">0.75x</button>
+                <button class="speed-pill-btn" data-speed="0.85">0.85x</button>
+                <button class="speed-pill-btn active" data-speed="1">1.0x</button>
+                <button class="speed-pill-btn" data-speed="1.15">1.15x</button>
+                <button class="speed-pill-btn" data-speed="1.25">1.25x</button>
+                <button class="speed-pill-btn" data-speed="1.5">1.5x</button>
+              </div>
             </div>
             <div class="custom-eq-graph" id="fi-eq-graph">
               <svg class="custom-eq-svg" id="fi-eq-svg" preserveAspectRatio="none">
@@ -1861,6 +1906,11 @@
         <!-- RIGHT COLUMN: Synced Lyrics -->
         <div class="fs-right-column">
           <div class="fs-lyrics-container" id="fs-player-lyrics">
+            <div class="lyrics-header-row" style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+              <button class="lyrics-translate-btn" id="fs-lyrics-translate-btn" title="Перевести на русский">
+                <i class="material-icons">translate</i> <span>Перевод</span>
+              </button>
+            </div>
             <div class="lyrics-body" id="fs-lyrics-body">
               <div class="lyrics-placeholder">Загрузка текста...</div>
             </div>
@@ -2996,7 +3046,12 @@
             <h1 id="full-lyrics-title">Текст песни</h1>
             <p id="full-lyrics-artist">—</p>
           </div>
-          <button class="full-lyrics-close" id="full-lyrics-close" aria-label="Закрыть"><i class="material-icons">close</i></button>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="lyrics-translate-btn" id="full-lyrics-translate-btn" title="Перевести на русский">
+              <i class="material-icons">translate</i> <span>Перевод</span>
+            </button>
+            <button class="full-lyrics-close" id="full-lyrics-close" aria-label="Закрыть"><i class="material-icons">close</i></button>
+          </div>
         </header>
         <div class="full-lyrics-scroll" id="full-lyrics-scroll">
           <div class="full-lyrics-body" id="full-lyrics-body"><div class="lyrics-placeholder">Нет текста</div></div>
