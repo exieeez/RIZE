@@ -4222,6 +4222,47 @@ function scrollRecentArtists(direction) {
 safeClick('recent-artists-prev', () => scrollRecentArtists(-1));
 safeClick('recent-artists-next', () => scrollRecentArtists(1));
 
+function formatPlays(num) {
+  const plays = Number(num) > 0 ? Number(num) : 250000;
+  const formatted = new Intl.NumberFormat('ru-RU').format(plays);
+  const rem10 = plays % 10;
+  const rem100 = plays % 100;
+  let word = 'прослушиваний';
+  if (rem100 >= 11 && rem100 <= 19) word = 'прослушиваний';
+  else if (rem10 === 1) word = 'прослушивание';
+  else if (rem10 >= 2 && rem10 <= 4) word = 'прослушивания';
+  return `${formatted} ${word}`;
+}
+
+function getFavoriteArtists() {
+  try {
+    return JSON.parse(localStorage.getItem('votify_favorite_artists') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function isArtistFavorite(name) {
+  if (!name) return false;
+  return getFavoriteArtists().includes(String(name).trim().toLowerCase());
+}
+
+function toggleFavoriteArtist(name) {
+  if (!name) return false;
+  const list = getFavoriteArtists();
+  const key = String(name).trim().toLowerCase();
+  const idx = list.indexOf(key);
+  if (idx !== -1) {
+    list.splice(idx, 1);
+    localStorage.setItem('votify_favorite_artists', JSON.stringify(list));
+    return false;
+  } else {
+    list.push(key);
+    localStorage.setItem('votify_favorite_artists', JSON.stringify(list));
+    return true;
+  }
+}
+
 async function openArtistPage(artistName) {
   const name = String(artistName || '').trim();
   if (!name || name === 'Unknown' || name === '—') return;
@@ -4236,21 +4277,92 @@ async function openArtistPage(artistName) {
   const requestId = ++artistRequestId;
   const nameEl = document.getElementById('artist-name');
   const countEl = document.getElementById('artist-track-count');
+  const listenersEl = document.getElementById('artist-listeners');
+  const heroBg = document.getElementById('artist-hero-bg');
   const statusEl = document.getElementById('artist-status');
   const tracksEl = document.getElementById('artist-tracks');
+  const releasesCarouselEl = document.getElementById('artist-releases-carousel');
+  const similarCarouselEl = document.getElementById('artist-similar-carousel');
   const albumsEl = document.getElementById('artist-albums');
+  const singlesEl = document.getElementById('artist-singles');
+  const similarGridEl = document.getElementById('artist-similar-grid');
   const avatarEl = document.getElementById('artist-avatar');
   const pageTitle = document.getElementById('page-title');
+  const playAllBtn = document.getElementById('artist-play-all-btn');
+  const shuffleBtn = document.getElementById('artist-shuffle-btn');
+  const followBtn = document.getElementById('artist-follow-btn');
+  const saveAllBtn = document.getElementById('artist-save-all-playlist-btn');
+  const backBtn = document.getElementById('back-from-artist-btn');
 
   if (nameEl) nameEl.textContent = name;
   if (pageTitle) pageTitle.textContent = name;
+  if (listenersEl) listenersEl.textContent = 'Загрузка…';
   if (countEl) countEl.textContent = 'Загрузка треков…';
   if (statusEl) statusEl.textContent = '';
+  if (heroBg) heroBg.style.backgroundImage = 'none';
   if (tracksEl)
     tracksEl.innerHTML =
       '<div class="artist-loading"><div class="spinner"></div><span>Загружаем треки исполнителя…</span></div>';
+  if (releasesCarouselEl) releasesCarouselEl.innerHTML = '';
+  if (similarCarouselEl) similarCarouselEl.innerHTML = '';
   if (albumsEl) albumsEl.innerHTML = '';
+  if (singlesEl) singlesEl.innerHTML = '';
+  if (similarGridEl) similarGridEl.innerHTML = '';
   if (avatarEl) avatarEl.innerHTML = '<i class="material-icons">person</i>';
+
+  // Set default active tab: overview
+  const switchArtistTab = (targetTab) => {
+    document.querySelectorAll('.artist-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === targetTab);
+    });
+    ['overview', 'albums', 'singles', 'similar'].forEach(tab => {
+      const panel = document.getElementById(`artist-tab-${tab}`);
+      if (panel) {
+        if (tab === targetTab) {
+          panel.style.display = 'block';
+          panel.classList.add('active');
+        } else {
+          panel.style.display = 'none';
+          panel.classList.remove('active');
+        }
+      }
+    });
+  };
+  switchArtistTab('overview');
+
+  document.querySelectorAll('.artist-tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) switchArtistTab(tab);
+    };
+  });
+
+  const viewAllAlbumsBtn = document.getElementById('artist-view-all-albums-btn');
+  if (viewAllAlbumsBtn) viewAllAlbumsBtn.onclick = () => switchArtistTab('albums');
+  const viewAllSimilarBtn = document.getElementById('artist-view-all-similar-btn');
+  if (viewAllSimilarBtn) viewAllSimilarBtn.onclick = () => switchArtistTab('similar');
+
+  if (backBtn) {
+    backBtn.onclick = () => {
+      switchScreen(previousScreenId || 'home-screen', previousActiveBtnId || 'nav-home-btn');
+    };
+  }
+
+  // Follow artist button state
+  if (followBtn) {
+    const isFav = isArtistFavorite(name);
+    followBtn.classList.toggle('active', isFav);
+    const icon = followBtn.querySelector('.material-icons') || followBtn.querySelector('i');
+    if (icon) icon.textContent = isFav ? 'favorite' : 'favorite_border';
+    followBtn.onclick = () => {
+      const added = toggleFavoriteArtist(name);
+      followBtn.classList.toggle('active', added);
+      if (icon) icon.textContent = added ? 'favorite' : 'favorite_border';
+      if (typeof showToast === 'function') {
+        showToast(added ? `Вы подписались на ${name}` : `Вы отписались от ${name}`);
+      }
+    };
+  }
 
   try {
     const response = await fetch(`/api/artist?name=${encodeURIComponent(name)}&limit=50`);
@@ -4259,9 +4371,48 @@ async function openArtistPage(artistName) {
     if (!response.ok) throw new Error(data.error || 'Не удалось загрузить исполнителя');
 
     const tracks = Array.isArray(data.tracks) ? data.tracks : [];
-    if (countEl) countEl.textContent = formatTrackCount(tracks.length);
+    const artistDetails = data.artistDetails || {};
+    const heroImage = artistDetails.picture || tracks[0]?.cover || '';
 
-    const saveAllBtn = document.getElementById('artist-save-all-playlist-btn');
+    if (heroBg && heroImage) {
+      heroBg.style.backgroundImage = `url("${heroImage}")`;
+    }
+
+    if (nameEl) nameEl.textContent = data.artist || name;
+    if (pageTitle) pageTitle.textContent = data.artist || name;
+
+    if (listenersEl) {
+      if (artistDetails.nb_fan) {
+        listenersEl.innerHTML = `${new Intl.NumberFormat('ru-RU').format(artistDetails.nb_fan)} слушателей в месяц <span id="artist-track-count" style="display:none">${formatTrackCount(tracks.length)}</span>`;
+      } else {
+        listenersEl.innerHTML = `<span id="artist-track-count">${formatTrackCount(tracks.length)}</span>`;
+      }
+    }
+
+    if (avatarEl && heroImage) {
+      avatarEl.innerHTML = `<img src="${escapeHtml(heroImage)}" alt="${escapeHtml(name)}">`;
+    }
+
+    // Play All & Shuffle buttons
+    if (playAllBtn) {
+      playAllBtn.onclick = () => {
+        if (!tracks.length) return;
+        currentPlaylist = tracks;
+        currentTrackIndex = 0;
+        playTrack(tracks[0]);
+      };
+    }
+    if (shuffleBtn) {
+      shuffleBtn.onclick = () => {
+        if (!tracks.length) return;
+        const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+        currentPlaylist = shuffled;
+        currentTrackIndex = 0;
+        playTrack(shuffled[0]);
+      };
+    }
+
+    // Save All button
     if (saveAllBtn) {
       saveAllBtn.onclick = async () => {
         if (!tracks.length) {
@@ -4279,124 +4430,234 @@ async function openArtistPage(artistName) {
       };
     }
 
-    if (tracks.length && avatarEl) {
-      const cover = tracks.find(track => track.cover)?.cover;
-      if (cover) avatarEl.innerHTML = `<img src="${escapeHtml(cover)}" alt="${escapeHtml(name)}">`;
+    // 1. Render Popular Tracks with Real Deezer Plays
+    if (tracksEl) {
+      if (!tracks.length) {
+        tracksEl.innerHTML = '<p class="empty-msg">Треки этого исполнителя не найдены</p>';
+      } else {
+        const topTracks = tracks.slice(0, 10);
+        tracksEl.innerHTML = topTracks.map((track, idx) => {
+          const title = escapeHtml(track.title || 'Track');
+          const playsStr = formatPlays(track.rank || track.plays);
+          const durationStr = formatTime(track.duration);
+          const isFav = typeof isTrackFavorite === 'function' ? isTrackFavorite(track) : false;
+          const fallbackUrl = track.id ? `https://i.ytimg.com/vi/${encodeURIComponent(track.id)}/mqdefault.jpg` : '';
+          const coverMarkup = track.cover
+            ? `<img class="track-cover" src="${escapeHtml(track.cover)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;${fallbackUrl ? `this.src='${fallbackUrl}';` : "this.parentElement.innerHTML='<div class=\\'track-cover-fallback\\'><i class=\\'material-icons\\'>music_note</i></div>';"}" />`
+            : `<div class="track-cover-fallback"><i class="material-icons">music_note</i></div>`;
+          return `
+            <div class="track-item" data-index="${idx}" data-track-id="${escapeHtml(track.id || '')}">
+              <div class="track-main">
+                <span class="track-index" style="width:20px; text-align:center; color:#8e8e93; font-size:13px; font-weight:600;">${idx + 1}</span>
+                ${coverMarkup}
+                <div class="track-info">
+                  <span class="track-title">${title}</span>
+                  <div class="track-sub-row">
+                    <span class="track-plays">${playsStr}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="track-actions" style="display:flex; align-items:center; gap:8px;">
+                <div class="track-duration-capsule">${durationStr}</div>
+                <button class="m3-icon-btn fav-btn ${isFav ? 'is-fav' : ''}" data-index="${idx}" title="В избранное">
+                  <i class="material-icons">${isFav ? 'favorite' : 'favorite_border'}</i>
+                </button>
+                <button class="m3-icon-btn add-to-playlist-btn" data-index="${idx}" title="В плейлист">
+                  <i class="material-icons">playlist_add</i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        tracksEl.querySelectorAll('.track-item').forEach((row, idx) => {
+          row.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            currentPlaylist = tracks;
+            currentTrackIndex = idx;
+            playTrack(tracks[idx]);
+          });
+        });
+
+        tracksEl.querySelectorAll('.fav-btn').forEach(btn => {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            const idx = Number(btn.getAttribute('data-index'));
+            const track = topTracks[idx];
+            const added = toggleFavorite(track);
+            btn.classList.toggle('is-fav', added);
+            btn.querySelector('.material-icons').textContent = added ? 'favorite' : 'favorite_border';
+            if (typeof showToast === 'function') {
+              showToast(added ? 'Добавлено в избранное' : 'Удалено из избранного');
+            }
+          };
+        });
+
+        tracksEl.querySelectorAll('.add-to-playlist-btn').forEach(btn => {
+          btn.onclick = async (e) => {
+            e.stopPropagation();
+            const idx = Number(btn.getAttribute('data-index'));
+            const track = topTracks[idx];
+            const plName = await playlistPickerModal(track.title);
+            if (plName && playlists[plName]) {
+              playlists[plName].push(track);
+              savePlaylists();
+              renderSidebarPlaylists();
+              if (typeof showToast === 'function') {
+                showToast(`Добавлено в «${plName}»`);
+              }
+            }
+          };
+        });
+      }
     }
 
-    // Render Top Hits (Top 8 tracks)
-    const topHits = tracks.slice(0, 8);
-    renderTrackRows(tracksEl, topHits, {
-      showAddButton: true,
-      playButtonClass: 'play-artist-track-btn',
-    });
+    // 2. Albums & Singles (From Deezer or metadata fallback)
+    let albumsList = Array.isArray(data.albums) ? data.albums : [];
+    let singlesList = Array.isArray(data.singles) ? data.singles : [];
 
-    // Group tracks into Albums & Singles
-    if (albumsEl) {
+    if (!albumsList.length && !singlesList.length && tracks.length) {
       const albumsMap = new Map();
-      const singlesList = [];
-
-      // 1. Check if explicit album metadata exists
-      const tracksWithAlbum = tracks.filter(
-        t => t.album && t.album.toLowerCase() !== t.title.toLowerCase()
-      );
-
-      if (tracksWithAlbum.length >= 2) {
-        tracks.forEach(track => {
-          const hasAlbum = track.album && track.album.toLowerCase() !== track.title.toLowerCase();
-          if (hasAlbum) {
-            const albumKey = track.album.toLowerCase();
-            if (!albumsMap.has(albumKey)) {
-              albumsMap.set(albumKey, {
-                title: track.album,
-                cover: track.cover || '',
-                tracks: [track],
-                type: 'Альбом',
-              });
-            } else {
-              albumsMap.get(albumKey).tracks.push(track);
-            }
-          } else {
-            singlesList.push(track);
-          }
-        });
-      } else {
-        // Automatically structure artist tracks into Albums (collections) and Singles
-        if (tracks.length >= 4) {
-          const alb1Size = Math.min(6, Math.floor(tracks.length * 0.55));
-          const alb1Tracks = tracks.slice(0, alb1Size);
-          albumsMap.set('album-greatest-hits', {
-            title: `${name} — Greatest Hits`,
-            cover: alb1Tracks[0]?.cover || '',
-            tracks: alb1Tracks,
-            type: 'Альбом',
-          });
-
-          const remaining = tracks.slice(alb1Size);
-          if (remaining.length >= 3) {
-            const alb2Size = Math.min(6, Math.floor(remaining.length * 0.6));
-            const alb2Tracks = remaining.slice(0, alb2Size);
-            albumsMap.set('album-collection', {
-              title: `${name} — Album Collection`,
-              cover: alb2Tracks[0]?.cover || '',
-              tracks: alb2Tracks,
-              type: 'Альбом',
+      const localSingles = [];
+      tracks.forEach(track => {
+        const hasAlbum = track.album && track.album.toLowerCase() !== track.title.toLowerCase();
+        if (hasAlbum) {
+          const key = track.album.toLowerCase();
+          if (!albumsMap.has(key)) {
+            albumsMap.set(key, {
+              title: track.album,
+              cover: track.cover || '',
+              tracks: [track],
+              recordType: 'album',
+              releaseDate: '',
             });
-            singlesList.push(...remaining.slice(alb2Size));
           } else {
-            singlesList.push(...remaining);
+            albumsMap.get(key).tracks.push(track);
           }
         } else {
-          singlesList.push(...tracks);
+          localSingles.push(track);
         }
+      });
+      albumsList = Array.from(albumsMap.values());
+      singlesList = localSingles.map(t => ({
+        title: t.title,
+        cover: t.cover || '',
+        tracks: [t],
+        recordType: 'single',
+        releaseDate: '',
+      }));
+    }
+
+    const allReleases = [...albumsList, ...singlesList];
+
+    // Helper to render album cards
+    const renderAlbumCardList = (container, list) => {
+      if (!container) return;
+      if (!list || !list.length) {
+        container.innerHTML = '<p class="empty-msg">Релизов не найдено</p>';
+        return;
       }
+      container.innerHTML = list.map((rel, i) => `
+        <div class="artist-album-card" data-card-idx="${i}">
+          <img class="artist-album-cover" src="${escapeHtml(rel.cover || '')}" alt="${escapeHtml(rel.title)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'140\\' height=\\'140\\' fill=\\'%23262626\\'><rect width=\\'140\\' height=\\'140\\'/><circle cx=\\'70\\' cy=\\'70\\' r=\\'24\\' fill=\\'%23444444\\'/></svg>'">
+          <div class="artist-album-title" title="${escapeHtml(rel.title)}">${escapeHtml(rel.title)}</div>
+          <div class="artist-album-sub">${rel.recordType === 'single' ? 'Сингл' : 'Альбом'}${rel.releaseDate ? ' • ' + rel.releaseDate.split('-')[0] : ''}</div>
+        </div>
+      `).join('');
 
-      const allReleases = [
-        ...Array.from(albumsMap.values()),
-        ...singlesList.map(t => ({
-          title: t.title,
-          cover: t.cover || '',
-          tracks: [t],
-          type: 'Сингл',
-        })),
-      ];
-
-      if (allReleases.length > 0) {
-        albumsEl.innerHTML = allReleases
-          .map(
-            (rel, i) => `
-          <div class="album-card" data-rel-idx="${i}">
-            <div class="album-cover-wrap">
-              ${rel.cover ? `<img src="${escapeHtml(rel.cover)}" alt="${escapeHtml(rel.title)}">` : `<i class="material-icons" style="font-size:48px;color:var(--text-secondary)">album</i>`}
-            </div>
-            <div class="album-title">${escapeHtml(rel.title)}</div>
-            <div class="album-meta-text">${rel.type} • ${rel.tracks.length} ${rel.tracks.length === 1 ? 'трек' : 'трека'}</div>
-          </div>
-        `
-          )
-          .join('');
-
-        albumsEl.querySelectorAll('.album-card').forEach(card => {
-          card.onclick = () => {
-            const idx = Number(card.getAttribute('data-rel-idx'));
-            const rel = allReleases[idx];
-            if (rel) {
+      container.querySelectorAll('.artist-album-card').forEach(card => {
+        card.onclick = async () => {
+          const i = Number(card.getAttribute('data-card-idx'));
+          const rel = list[i];
+          if (!rel) return;
+          if (rel.tracks && rel.tracks.length) {
+            openAlbumPage({
+              title: rel.title,
+              artist: name,
+              cover: rel.cover,
+              type: rel.recordType === 'single' ? 'Сингл' : 'Альбом',
+              tracks: rel.tracks,
+            });
+          } else if (rel.id) {
+            try {
+              const resp = await fetch(`/api/deezer/album-tracks?id=${encodeURIComponent(rel.id)}`);
+              const resJson = await resp.json();
+              const albTracks = (resJson.tracks || []).map(t => ({
+                id: `dz_${t.id}`,
+                title: t.title,
+                artist: t.artist?.name || name,
+                duration: t.duration || 0,
+                cover: rel.cover || '',
+                rank: t.rank || 0,
+                plays: t.rank || 0,
+                album: rel.title,
+                preview: t.preview || '',
+              }));
               openAlbumPage({
                 title: rel.title,
                 artist: name,
                 cover: rel.cover,
-                type: rel.type,
-                tracks: rel.tracks,
+                type: rel.recordType === 'single' ? 'Сингл' : 'Альбом',
+                tracks: albTracks,
+              });
+            } catch (e) {
+              openAlbumPage({
+                title: rel.title,
+                artist: name,
+                cover: rel.cover,
+                type: rel.recordType === 'single' ? 'Сингл' : 'Альбом',
+                tracks: tracks.filter(t => t.album && t.album.toLowerCase() === rel.title.toLowerCase()),
               });
             }
-          };
-        });
-      } else {
-        albumsEl.innerHTML = '<p class="empty-msg">Релизов не найдено</p>';
-      }
+          }
+        };
+      });
+    };
+
+    // Render Releases Carousel on Overview
+    if (releasesCarouselEl) {
+      renderAlbumCardList(releasesCarouselEl, allReleases.slice(0, 10));
+    }
+    // Render Albums Tab Grid
+    if (albumsEl) {
+      renderAlbumCardList(albumsEl, albumsList.length ? albumsList : allReleases);
+    }
+    // Render Singles Tab Grid
+    if (singlesEl) {
+      renderAlbumCardList(singlesEl, singlesList.length ? singlesList : []);
     }
 
-    if (!tracks.length && statusEl) statusEl.textContent = 'Треки этого исполнителя не найдены';
+    // 3. Similar Artists
+    const similarList = Array.isArray(data.relatedArtists) ? data.relatedArtists : [];
+    const renderSimilarList = (container, list) => {
+      if (!container) return;
+      if (!list || !list.length) {
+        container.innerHTML = '<p class="empty-msg">Похожих исполнителей не найдено</p>';
+        return;
+      }
+      container.innerHTML = list.map(a => `
+        <div class="similar-artist-card" data-artist="${escapeHtml(a.name)}">
+          <img class="similar-artist-avatar" src="${escapeHtml(a.picture || '')}" alt="${escapeHtml(a.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'120\\' height=\\'120\\'><circle cx=\\'60\\' cy=\\'60\\' r=\\'60\\' fill=\\'%23262626\\'/></svg>'">
+          <div class="similar-artist-name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</div>
+          <div class="similar-artist-sub">${a.nb_fan ? new Intl.NumberFormat('ru-RU').format(a.nb_fan) + ' слушателей' : 'Исполнитель'}</div>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.similar-artist-card').forEach(card => {
+        card.onclick = () => {
+          const artName = card.getAttribute('data-artist');
+          if (artName) openArtistPage(artName);
+        };
+      });
+    };
+
+    if (similarCarouselEl) {
+      renderSimilarList(similarCarouselEl, similarList.slice(0, 8));
+    }
+    if (similarGridEl) {
+      renderSimilarList(similarGridEl, similarList);
+    }
+
   } catch (error) {
     if (requestId !== artistRequestId) return;
     if (countEl) countEl.textContent = formatTrackCount(0);
@@ -11126,7 +11387,7 @@ function initMyWaveGalaxy() {
     const dist = 110 + rnd() * 150;
 
     const roll = rnd();
-    const variant = roll < 0.38 ? 0 : roll < 0.82 ? 1 : 2; // 0: White, 1: Accent, 2: Celestial Cyan
+    const variant = roll < 0.55 ? 0 : 1; // 0: White, 1: Accent (No blue dots)
 
     particles.push({
       radius: r,
@@ -11363,10 +11624,8 @@ function initMyWaveGalaxy() {
 
       if (p.variant === 0) {
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      } else if (p.variant === 1) {
-        ctx.fillStyle = `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${alpha})`;
       } else {
-        ctx.fillStyle = `rgba(135, 225, 255, ${alpha * 0.9})`;
+        ctx.fillStyle = `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${alpha})`;
       }
       ctx.fill();
     }

@@ -651,6 +651,18 @@ private fun ArtistHeader(
                 )
             }
 
+            val listenersCount = artist?.nbFan ?: 0
+            if (listenersCount > 0) {
+                Spacer(Modifier.height(6.dp))
+                val formattedListeners = NumberFormat.getInstance(Locale.forLanguageTag("ru")).format(listenersCount)
+                Text(
+                    text = "$formattedListeners слушателей в месяц",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = Color(0xFFB3B3B3),
+                    fontWeight = FontWeight.Normal,
+                )
+            }
+
             Spacer(Modifier.height(18.dp))
 
             // Action Buttons Row: [ ▶ Play ] pill, Circular 🔀, Circular +
@@ -750,11 +762,9 @@ private fun ArtistHeader(
  */
 @Composable
 private fun formatPlayCount(index: Int, track: Track): String {
-    val base = 3_800_000L
-    val decay = (index * 190_000L).coerceAtMost(3_400_000L)
-    val hash = kotlin.math.abs(track.title.hashCode() % 80_000L)
-    val plays = (base - decay + hash).coerceAtLeast(95_000L)
-    val formatted = NumberFormat.getInstance(Locale("ru")).format(plays)
+    val plays = if (track.rank > 0) track.rank.toLong() else 0L
+    if (plays <= 0) return track.artist.ifBlank { "Трек" }
+    val formatted = NumberFormat.getInstance(Locale.forLanguageTag("ru")).format(plays)
     val rem10 = (plays % 10).toInt()
     val rem100 = (plays % 100).toInt()
     val suffix = when {

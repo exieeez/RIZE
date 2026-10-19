@@ -868,7 +868,10 @@
           <!-- SECTION: Для вас (Home Recommendations / Carousel) -->
           <div class="home-section" id="home-for-you-section">
             <div class="home-section-header home-for-you-header">
-              <h2 class="home-heading for-you-heading">Для вас</h2>
+              <div>
+                <h2 class="home-heading for-you-heading">Для вас</h2>
+                <div class="for-you-subheading" style="font-size:13px; color:rgba(255,255,255,0.6); margin-top:2px; font-weight:500;">Треки</div>
+              </div>
               <div class="for-you-controls">
                 <button class="rz-nav-btn for-you-nav-btn" id="for-you-refresh" title="Обновить" aria-label="Обновить"><i class="material-icons">refresh</i></button>
                 <button class="rz-nav-btn for-you-nav-btn" id="for-you-prev" title="Назад" aria-label="Назад"><i class="material-icons">chevron_left</i></button>
@@ -890,10 +893,10 @@
             <div class="rec-grid for-you-carousel home-playlists-carousel" id="home-playlists-results"></div>
           </div>
 
-          <!-- SECTION: Популярные артисты -->
+          <!-- SECTION: Артисты (Популярные артисты) -->
           <div class="home-section" id="home-artists-section">
             <div class="home-section-header">
-              <h2 class="home-heading">Популярные артисты</h2>
+              <h2 class="home-heading">Артисты <span style="display:none;" aria-hidden="true">Популярные артисты</span></h2>
               <div class="home-carousel-actions" aria-label="Прокрутка артистов">
                 <button class="home-carousel-btn" id="artists-carousel-prev" type="button" aria-label="Предыдущие артисты"><i class="material-icons">chevron_left</i></button>
                 <button class="home-carousel-btn" id="artists-carousel-next" type="button" aria-label="Следующие артисты"><i class="material-icons">chevron_right</i></button>
@@ -902,10 +905,10 @@
             <div class="artists-grid artists-carousel" id="home-artists-results"></div>
           </div>
 
-          <!-- SECTION: Новые релизы -->
+          <!-- SECTION: Релизы (Новые релизы) -->
           <div class="home-section" id="home-releases-section">
             <div class="home-section-header">
-              <h2 class="home-heading">Новые релизы</h2>
+              <h2 class="home-heading">Релизы <span style="display:none;" aria-hidden="true">Новые релизы</span></h2>
               <div class="home-carousel-actions" aria-label="Прокрутка релизов">
                 <button class="home-carousel-btn" id="releases-carousel-prev" type="button" aria-label="Предыдущие релизы"><i class="material-icons">chevron_left</i></button>
                 <button class="home-carousel-btn" id="releases-carousel-next" type="button" aria-label="Следующие релизы"><i class="material-icons">chevron_right</i></button>
@@ -1287,37 +1290,111 @@
           </div>
         </section>
 
-        <!-- ARTIST -->
+        <!-- ARTIST (Phone-style Redesign Matching ArtistScreen.kt) -->
         <section id="artist-screen" class="screen hidden" style="display:none">
-          <div class="screen-header">
-            <button class="btn-secondary" id="back-from-artist-btn"><i class="material-icons">arrow_back</i> Назад</button>
-          </div>
-          <div class="artist-header">
-            <div class="artist-avatar-large" id="artist-avatar"><i class="material-icons">person</i></div>
-            <div class="artist-info-block">
-              <h2 id="artist-name">Artist</h2>
-              <div class="artist-meta">
-                <span class="artist-track-count" id="artist-track-count">0 треков</span>
+          <!-- Immersive Phone-style Hero Header -->
+          <div class="artist-hero-wrap" id="artist-hero-wrap">
+            <div class="artist-hero-bg" id="artist-hero-bg"></div>
+            <div class="artist-hero-overlay"></div>
+            <div class="artist-top-bar">
+              <button class="pl-back-circle-btn artist-back-btn" id="back-from-artist-btn" title="Назад" aria-label="Назад">
+                <i class="material-icons">arrow_back</i>
+              </button>
+            </div>
+            <div class="artist-hero-content">
+              <div class="artist-verified-badge" id="artist-verified-badge">
+                <i class="material-icons">verified</i> Подтвержденный исполнитель
               </div>
-              <div class="artist-actions-row" style="margin-top: 12px;">
-                <button class="btn-secondary" id="artist-save-all-playlist-btn" style="display: inline-flex; align-items: center; gap: 8px;">
-                  <i class="material-icons">playlist_add</i> Сохранить все треки в плейлист
+              <h1 class="artist-hero-name" id="artist-name">Artist</h1>
+              <div class="artist-hero-listeners" id="artist-listeners">
+                <span id="artist-track-count">0 треков</span>
+              </div>
+              <div class="artist-hero-actions">
+                <button class="artist-play-pill" id="artist-play-all-btn">
+                  <i class="material-icons">play_arrow</i> Слушать
+                </button>
+                <button class="artist-action-circle" id="artist-shuffle-btn" title="Перемешать" aria-label="Перемешать">
+                  <i class="material-icons">shuffle</i>
+                </button>
+                <button class="artist-action-circle" id="artist-follow-btn" title="Подписаться" aria-label="Подписаться">
+                  <i class="material-icons">favorite_border</i>
+                </button>
+                <button class="artist-action-circle" id="artist-save-all-playlist-btn" title="Сохранить в плейлист" aria-label="Сохранить в плейлист">
+                  <i class="material-icons">playlist_add</i>
                 </button>
               </div>
             </div>
+            <!-- Backward compat avatar holder -->
+            <div class="artist-avatar-large" id="artist-avatar" style="display:none;"></div>
           </div>
+
+          <!-- Phone-style Tab Row -->
+          <div class="artist-tabs-row" id="artist-tabs-row">
+            <button class="artist-tab-btn active" data-tab="overview">Обзор</button>
+            <button class="artist-tab-btn" data-tab="albums">Альбомы</button>
+            <button class="artist-tab-btn" data-tab="singles">Синглы и EP</button>
+            <button class="artist-tab-btn" data-tab="similar">Похожие</button>
+          </div>
+
           <div class="status-message" id="artist-status"></div>
 
-          <!-- Section 1: Top Hits -->
-          <div class="artist-section">
-            <h3 class="artist-section-title"><i class="material-icons">local_fire_department</i> Главные хиты</h3>
-            <div id="artist-tracks" class="results-list"></div>
+          <!-- TAB 1: OVERVIEW -->
+          <div class="artist-tab-panel active" id="artist-tab-overview">
+            <!-- Section 1: Popular Tracks -->
+            <div class="artist-section">
+              <div class="artist-section-header-row">
+                <h3 class="artist-section-title">Популярные треки</h3>
+              </div>
+              <div id="artist-tracks" class="results-list artist-tracks-phone-list"></div>
+            </div>
+
+            <!-- Section 2: Releases Carousel -->
+            <div class="artist-section" id="artist-releases-highlight-section">
+              <div class="artist-section-header-row">
+                <h3 class="artist-section-title">Релизы</h3>
+                <button class="artist-section-action-btn" id="artist-view-all-albums-btn" type="button">Все</button>
+              </div>
+              <div class="rec-grid for-you-carousel artist-releases-carousel" id="artist-releases-carousel"></div>
+            </div>
+
+            <!-- Section 3: Similar Artists Carousel -->
+            <div class="artist-section" id="artist-similar-highlight-section">
+              <div class="artist-section-header-row">
+                <h3 class="artist-section-title">Похожие исполнители</h3>
+                <button class="artist-section-action-btn" id="artist-view-all-similar-btn" type="button">Все</button>
+              </div>
+              <div class="artists-grid artists-carousel artist-similar-carousel" id="artist-similar-carousel"></div>
+            </div>
           </div>
 
-          <!-- Section 2: Albums & Singles -->
-          <div class="artist-section" id="artist-albums-section">
-            <h3 class="artist-section-title"><i class="material-icons">album</i> Альбомы и синглы</h3>
-            <div id="artist-albums" class="artist-albums-grid"></div>
+          <!-- TAB 2: ALBUMS -->
+          <div class="artist-tab-panel" id="artist-tab-albums" style="display:none;">
+            <div class="artist-section" id="artist-albums-section">
+              <div class="artist-section-header-row">
+                <h3 class="artist-section-title">Альбомы</h3>
+              </div>
+              <div id="artist-albums" class="artist-albums-grid"></div>
+            </div>
+          </div>
+
+          <!-- TAB 3: SINGLES & EPS -->
+          <div class="artist-tab-panel" id="artist-tab-singles" style="display:none;">
+            <div class="artist-section">
+              <div class="artist-section-header-row">
+                <h3 class="artist-section-title">Синглы и EP</h3>
+              </div>
+              <div id="artist-singles" class="artist-albums-grid"></div>
+            </div>
+          </div>
+
+          <!-- TAB 4: SIMILAR ARTISTS -->
+          <div class="artist-tab-panel" id="artist-tab-similar" style="display:none;">
+            <div class="artist-section">
+              <div class="artist-section-header-row">
+                <h3 class="artist-section-title">Похожие исполнители</h3>
+              </div>
+              <div id="artist-similar-grid" class="artists-grid"></div>
+            </div>
           </div>
         </section>
 

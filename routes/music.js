@@ -36,6 +36,99 @@ async function handleMusicRoutes(req, res, u) {
     return true;
   }
 
+async function getDeezerArtistData(name) {
+  try {
+    const searchRes = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}&limit=5`, {
+      headers: { 'User-Agent': 'Votify/1.1' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!searchRes.ok) return null;
+    const searchJson = await searchRes.json();
+    if (!searchJson || !Array.isArray(searchJson.data) || !searchJson.data.length) return null;
+
+    const best = searchJson.data.find(a => a.name.toLowerCase() === name.toLowerCase()) || searchJson.data[0];
+    const artistId = best.id;
+
+    const [artistRes, topRes, albumsRes, relatedRes] = await Promise.allSettled([
+      fetch(`https://api.deezer.com/artist/${artistId}`, { headers: { 'User-Agent': 'Votify/1.1' }, signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+      fetch(`https://api.deezer.com/artist/${artistId}/top?limit=40`, { headers: { 'User-Agent': 'Votify/1.1' }, signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+      fetch(`https://api.deezer.com/artist/${artistId}/albums?limit=60`, { headers: { 'User-Agent': 'Votify/1.1' }, signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+      fetch(`https://api.deezer.com/artist/${artistId}/related?limit=16`, { headers: { 'User-Agent': 'Votify/1.1' }, signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+    ]);
+
+    const artistDetails = artistRes.status === 'fulfilled' && artistRes.value && !artistRes.value.error ? artistRes.value : best;
+    const topData = topRes.status === 'fulfilled' && topRes.value && Array.isArray(topRes.value.data) ? topRes.value.data : [];
+    const albumsData = albumsRes.status === 'fulfilled' && albumsRes.value && Array.isArray(albumsRes.value.data) ? albumsRes.value.data : [];
+    const relatedData = relatedRes.status === 'fulfilled' && relatedRes.value && Array.isArray(relatedRes.value.data) ? relatedRes.value.data : [];
+
+    const tracks = topData.map(t => ({
+      id: `dz_${t.id}`,
+      title: t.title,
+      artist: t.artist?.name || best.name,
+      duration: t.duration || 0,
+      cover: t.album?.cover_xl || t.album?.cover_big || t.album?.cover_medium || '',
+      rank: t.rank || 0,
+      plays: t.rank || 0,
+      album: t.album?.title || '',
+      preview: t.preview || '',
+    }));
+
+    const studioAlbums = albumsData
+      .filter(a => (a.record_type || 'album').toLowerCase() === 'album')
+      .map(a => ({
+        id: a.id,
+        title: a.title,
+        cover: a.cover_xl || a.cover_big || a.cover_medium || '',
+        releaseDate: a.release_date || '',
+        recordType: 'album',
+        trackCount: a.nb_tracks || 0,
+      }));
+
+    const singles = albumsData
+      .filter(a => (a.record_type || 'album').toLowerCase() !== 'album')
+      .map(a => ({
+        id: a.id,
+        title: a.title,
+        cover: a.cover_xl || a.cover_big || a.cover_medium || '',
+        releaseDate: a.release_date || '',
+        recordType: a.record_type || 'single',
+        trackCount: a.nb_tracks || 0,
+      }));
+
+    const related = relatedData.map(a => ({
+      id: a.id,
+      name: a.name,
+      picture: a.picture_xl || a.picture_big || a.picture_medium || '',
+      nb_fan: a.nb_fan || 0,
+    }));
+
+    return {
+      artist: artistDetails.name || best.name,
+      artistDetails: {
+        id: artistDetails.id,
+        name: artistDetails.name || best.name,
+        picture: artistDetails.picture_xl || artistDetails.picture_big || artistDetails.picture_medium || '',
+        nb_fan: artistDetails.nb_fan || 0,
+        nb_album: artistDetails.nb_album || 0,
+      },
+      tracks,
+      albums: studioAlbums.length ? studioAlbums : albumsData.map(a => ({
+        id: a.id,
+        title: a.title,
+        cover: a.cover_xl || a.cover_big || a.cover_medium || '',
+        releaseDate: a.release_date || '',
+        recordType: a.record_type || 'album',
+        trackCount: a.nb_tracks || 0,
+      })),
+      singles,
+      relatedArtists: related,
+    };
+  } catch (err) {
+    console.warn('[deezer] Error fetching artist:', err.message);
+    return null;
+  }
+}
+
   // --- ARTIST ---
   if (u.pathname === '/api/artist') {
     const name = u.searchParams.get('name')?.trim();
@@ -44,8 +137,35 @@ async function handleMusicRoutes(req, res, u) {
       return true;
     }
     const limit = Math.min(Math.max(Number(u.searchParams.get('limit')) || 50, 1), 100);
+
+    const deezerData = await getDeezerArtistData(name);
+    if (deezerData && deezerData.tracks && deezerData.tracks.length > 0) {
+      sendJson(res, 200, deezerData);
+      return true;
+    }
+
     const tracks = await searchTracksByArtist(name, limit);
     sendJson(res, 200, { artist: name, tracks });
+    return true;
+  }
+
+  // --- DEEZER ALBUM TRACKS ---
+  if (u.pathname === '/api/deezer/album-tracks') {
+    const id = u.searchParams.get('id');
+    if (!id) {
+      sendJson(res, 400, { error: 'Album ID required' });
+      return true;
+    }
+    try {
+      const resp = await fetch(`https://api.deezer.com/album/${id}/tracks?limit=100`, {
+        headers: { 'User-Agent': 'Votify/1.1' },
+        signal: AbortSignal.timeout(6000),
+      });
+      const data = await resp.json();
+      sendJson(res, 200, { tracks: (data && data.data) || [] });
+    } catch (e) {
+      sendJson(res, 500, { error: e.message });
+    }
     return true;
   }
 

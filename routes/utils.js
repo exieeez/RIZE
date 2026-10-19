@@ -1060,6 +1060,36 @@ async function fetchStreamUrl(videoId) {
       return null;
     }
 
+    // Deezer tracks (dz_<id>)
+    if (vid.startsWith('dz_')) {
+      const rawId = vid.replace('dz_', '');
+      try {
+        const dzRes = await httpGet(`https://api.deezer.com/track/${rawId}`, 6000);
+        const dzData = typeof dzRes === 'string' ? JSON.parse(dzRes) : dzRes;
+        const title = dzData?.title || '';
+        const artist = dzData?.artist?.name || '';
+        const preview = dzData?.preview || '';
+        if (title) {
+          const query = artist ? `${artist} - ${title}` : title;
+          const ytResults = await searchTracks(query, 1, false);
+          if (ytResults && ytResults.length > 0 && ytResults[0].id) {
+            const ytStream = await fetchStreamUrl(ytResults[0].id);
+            if (ytStream) {
+              streamCache.set(cacheKey, { url: ytStream, expires: Date.now() + STREAM_CACHE_TTL });
+              return ytStream;
+            }
+          }
+        }
+        if (preview) {
+          streamCache.set(cacheKey, { url: preview, expires: Date.now() + STREAM_CACHE_TTL });
+          return preview;
+        }
+      } catch (e) {
+        console.warn('[deezer] Stream resolve error for', vid, ':', e.message);
+      }
+      return null;
+    }
+
     // 1. Try fast InnerTube HTTP direct stream extraction (~150-350ms, mobile parity)
     try {
       const fastUrl = await fetchFastInnerTubeStreamUrl(vid);

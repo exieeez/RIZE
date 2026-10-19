@@ -14,6 +14,7 @@ data class Track(
     val cover: String = "",
     val url: String = "",
     val duration: Int = 0,
+    val rank: Int = 0,
 )
 
 @Serializable

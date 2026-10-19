@@ -99,6 +99,7 @@ object EmbeddedMusicSource {
     private const val MAX_IMPORT_ITEMS = 500
 
     private val streamCache = ConcurrentHashMap<String, CachedUrl>()
+    private val deezerToYtCache = ConcurrentHashMap<String, String>()
 
 @Volatile
 private var trendingCache: Pair<Long, List<Track>>? = null
@@ -733,6 +734,15 @@ private const val TRENDING_TTL_MS = 30 * 60 * 1000L
             return scStream
         }
 
+        if (trackId.startsWith("dz_")) {
+            val dzStream = resolveDeezerTrackStream(trackId, quality)
+            if (dzStream != null) {
+                streamCache[cacheKey] = CachedUrl(dzStream, System.currentTimeMillis())
+                return dzStream
+            }
+            throw IOException("Не удалось получить аудиопоток для трека Deezer")
+        }
+
         val pageUrl = if (trackId.startsWith("http")) trackId else "https://www.youtube.com/watch?v=$trackId"
         val npStream = runCatching {
             val info = StreamInfo.getInfo(NewPipe.getServiceByUrl(pageUrl), pageUrl)
@@ -753,6 +763,53 @@ private const val TRENDING_TTL_MS = 30 * 60 * 1000L
         }
 
         throw IOException("Не удалось получить аудиопоток")
+    }
+
+    /**
+     * Resolves a Deezer track (`dz_<id>`) by mapping its artist and title to a full audio
+     * stream on YouTube / YouTube Music, with graceful fallback to Deezer's 30s preview MP3.
+     */
+    private fun resolveDeezerTrackStream(trackId: String, quality: AudioQuality): String? {
+        val rawId = trackId.removePrefix("dz_").toLongOrNull() ?: return null
+        val meta = DeezerApi.getTrackSync(rawId)
+
+        // 1. Check if we previously found a matching YouTube video ID
+        val cachedYtId = deezerToYtCache[trackId]
+        if (cachedYtId != null) {
+            val ytStream = runCatching {
+                val pageUrl = "https://www.youtube.com/watch?v=$cachedYtId"
+                val info = StreamInfo.getInfo(NewPipe.getServiceByUrl(pageUrl), pageUrl)
+                pickAudioStream(info.audioStreams, quality)?.getContent()
+            }.getOrNull()
+            if (ytStream != null) return ytStream
+        }
+
+        // 2. Search on YouTube Music and regular YouTube for full audio
+        val query = if (meta != null && meta.artist.isNotBlank()) {
+            "${meta.artist} ${meta.title}".trim()
+        } else meta?.title?.trim().orEmpty()
+
+        if (query.isNotBlank()) {
+            val ytTrack = runCatching { rawSearch(query, music = true, limit = 3).firstOrNull() }.getOrNull()
+                ?: runCatching { rawSearch(query, music = false, limit = 3).firstOrNull() }.getOrNull()
+
+            if (ytTrack != null) {
+                deezerToYtCache[trackId] = ytTrack.id
+                val ytStream = runCatching {
+                    val pageUrl = "https://www.youtube.com/watch?v=${ytTrack.id}"
+                    val info = StreamInfo.getInfo(NewPipe.getServiceByUrl(pageUrl), pageUrl)
+                    pickAudioStream(info.audioStreams, quality)?.getContent()
+                }.getOrNull()
+                if (ytStream != null) return ytStream
+            }
+        }
+
+        // 3. Fallback: direct Deezer preview MP3 if YouTube audio is unreachable
+        if (meta != null && meta.previewUrl.isNotBlank()) {
+            return meta.previewUrl
+        }
+
+        return null
     }
 
     /**

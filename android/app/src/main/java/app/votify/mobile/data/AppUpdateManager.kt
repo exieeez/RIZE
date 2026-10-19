@@ -9,6 +9,9 @@ import androidx.core.content.FileProvider
 import app.votify.mobile.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +72,16 @@ class AppUpdateManager(
         // Clear any old obsolete cached APK from legacy cache directory
         runCatching {
             File(context.cacheDir, "updates").deleteRecursively()
+        }
+        startPeriodicCheck()
+    }
+
+    private fun startPeriodicCheck() {
+        scope.launch {
+            while (true) {
+                delay(300_000L) // Check every 5 minutes in background
+                checkForUpdate()
+            }
         }
     }
 
@@ -140,6 +153,8 @@ class AppUpdateManager(
                     if (cachedApk.exists()) cachedApk.delete()
                     if (metaFile.exists()) metaFile.delete()
                     _state.value = UpdateState.Available(info)
+                    // Auto-start download so the update arrives and prepares seamlessly
+                    startDownload(info)
                 }
                 withContext(Dispatchers.Main) { onResult?.invoke(true) }
             } else {
@@ -154,7 +169,7 @@ class AppUpdateManager(
         }
     }
 
-    private fun fetchUpdateInfo(): UpdateInfo? {
+    private suspend fun fetchUpdateInfo(): UpdateInfo? = withContext(Dispatchers.IO) {
         val urls = listOf(
             "https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=${System.currentTimeMillis()}",
             "https://github.com/exieeez/Votify/releases/download/android-debug/version.json?t=${System.currentTimeMillis()}",
@@ -162,28 +177,31 @@ class AppUpdateManager(
             "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
             "https://raw.githack.com/exieeez/Votify/apk/version.json"
         )
-        val candidates = mutableListOf<UpdateInfo>()
-        for (url in urls) {
-            runCatching {
-                val req = Request.Builder()
-                    .url(url)
-                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
-                    .header("Pragma", "no-cache")
-                    .build()
-                http.newCall(req).execute().use { resp ->
-                    if (resp.isSuccessful) {
-                        val body = resp.body?.string().orEmpty()
-                        if (body.isNotBlank()) {
-                            val parsed = json.decodeFromString<UpdateInfo>(body)
-                            if (parsed.versionCode > 0 || parsed.sha.isNotBlank()) {
-                                candidates.add(parsed)
+        val deferreds = urls.map { url ->
+            async {
+                runCatching {
+                    val req = Request.Builder()
+                        .url(url)
+                        .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                        .header("Pragma", "no-cache")
+                        .build()
+                    http.newCall(req).execute().use { resp ->
+                        if (resp.isSuccessful) {
+                            val body = resp.body?.string().orEmpty()
+                            if (body.isNotBlank()) {
+                                val parsed = json.decodeFromString<UpdateInfo>(body)
+                                if (parsed.versionCode > 0 || parsed.sha.isNotBlank()) {
+                                    return@async parsed
+                                }
                             }
                         }
                     }
-                }
+                    null
+                }.getOrNull()
             }
         }
-        return candidates.maxByOrNull { it.versionCode }
+        val candidates = deferreds.awaitAll().filterNotNull()
+        candidates.maxByOrNull { it.versionCode }
     }
 
     fun startDownload(info: UpdateInfo) {

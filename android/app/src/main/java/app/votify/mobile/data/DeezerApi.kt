@@ -33,6 +33,15 @@ data class DeezerAlbum(
     val artistId: Long = 0,
 )
 
+data class DeezerTrackMeta(
+    val id: Long,
+    val title: String,
+    val artist: String,
+    val previewUrl: String,
+    val duration: Int = 0,
+    val cover: String = "",
+)
+
 data class DeezerTrack(
     val id: Long,
     val title: String,
@@ -51,6 +60,7 @@ data class DeezerTrack(
             artist = artistName,
             duration = durationSeconds,
             cover = albumCover,
+            rank = rank,
         )
     }
 }
@@ -60,6 +70,8 @@ data class DeezerTrack(
  * Docs: https://developers.deezer.com/api
  */
 object DeezerApi {
+
+    val trackMetaCache = java.util.concurrent.ConcurrentHashMap<String, DeezerTrackMeta>()
 
     private const val BASE_URL = "https://api.deezer.com"
 
@@ -246,7 +258,7 @@ object DeezerApi {
         val cover = albumObj?.optString("cover_medium") ?: albumObj?.optString("cover").orEmpty()
         val coverBig = albumObj?.optString("cover_big") ?: cover
         val coverXl = albumObj?.optString("cover_xl") ?: coverBig
-        return DeezerTrack(
+        val track = DeezerTrack(
             id = o.optLong("id"),
             title = o.optString("title"),
             durationSeconds = o.optInt("duration"),
@@ -257,6 +269,15 @@ object DeezerApi {
             albumCover = coverXl.ifBlank { coverBig.ifBlank { cover } },
             previewUrl = o.optString("preview"),
         )
+        trackMetaCache["dz_${track.id}"] = DeezerTrackMeta(
+            id = track.id,
+            title = track.title,
+            artist = track.artistName,
+            previewUrl = track.previewUrl,
+            duration = track.durationSeconds,
+            cover = track.albumCover,
+        )
+        return track
     }
 
     private fun parseTrackList(arr: JSONArray): List<DeezerTrack> {
@@ -266,5 +287,42 @@ object DeezerApi {
             list.add(parseTrack(o))
         }
         return list
+    }
+
+    /** Fetch single track details by ID synchronously (for ExoPlayer audio resolving thread). */
+    fun getTrackSync(id: Long): DeezerTrackMeta? {
+        val cached = trackMetaCache["dz_$id"]
+        if (cached != null) return cached
+        return runCatching {
+            val url = "$BASE_URL/track/$id".toHttpUrl()
+            val req = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Votify/1.1.7 (Android)")
+                .get()
+                .build()
+            http.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) return@use null
+                val body = res.body?.string().orEmpty()
+                if (body.isBlank()) return@use null
+                val obj = JSONObject(body)
+                if (obj.has("error")) return@use null
+                val t = parseTrack(obj)
+                DeezerTrackMeta(
+                    id = t.id,
+                    title = t.title,
+                    artist = t.artistName,
+                    previewUrl = t.previewUrl,
+                    duration = t.durationSeconds,
+                    cover = t.albumCover,
+                )
+            }
+        }.getOrNull()
+    }
+
+    /** Fetch single track details by ID asynchronously. */
+    suspend fun getTrack(id: Long): DeezerTrack? = withContext(Dispatchers.IO) {
+        val json = getJson("/track/$id") ?: return@withContext null
+        if (json.has("error")) return@withContext null
+        parseTrack(json)
     }
 }
