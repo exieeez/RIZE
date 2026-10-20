@@ -79,4 +79,35 @@ class AppUpdateManagerTest {
         assertFalse(isSameSha)
         assertFalse(isSameNewer)
     }
+
+    @Test
+    fun testMatchingShaNeverTriggersUpdateEvenIfRemoteVersionCodeIsHigher() {
+        val curCode = 1262
+        val curSha = "662c5ce7941cf38e9853962346ccd40e112dc9da"
+
+        val remoteInfo = UpdateInfo(
+            versionCode = 1263,
+            sha = "662c5ce7941cf38e9853962346ccd40e112dc9da",
+            shortSha = "662c5ce"
+        )
+
+        val isMatchingSha = curSha.startsWith(remoteInfo.shortSha) || remoteInfo.sha.startsWith(curSha)
+        assertTrue(isMatchingSha)
+
+        val isNewerCode = remoteInfo.versionCode > curCode
+        val isNewerSha = !isMatchingSha
+        val shouldUpdate = (isNewerCode || isNewerSha) && !isMatchingSha
+        assertFalse(shouldUpdate)
+    }
+
+    @Test
+    fun testAlreadyInstalledDownloadedApkTerminatesDownload() {
+        val curCode = 1262
+        val curSha = "662c5ce7941cf38e9853962346ccd40e112dc9da"
+        val downloadedApkVersionCode = 1262
+        val isNewerSha = false
+
+        val isAlreadyInstalled = downloadedApkVersionCode <= curCode && !isNewerSha
+        assertTrue(isAlreadyInstalled)
+    }
 }

@@ -51,6 +51,12 @@ sealed interface UpdateState {
     data class Error(val message: String, val info: UpdateInfo? = null) : UpdateState
 }
 
+private sealed interface DownloadOutcome {
+    data object InstalledOrStale : DownloadOutcome
+    data object Success : DownloadOutcome
+    data object RetryNext : DownloadOutcome
+}
+
 class AppUpdateManager(
     private val context: Context,
     private val scope: CoroutineScope,
@@ -108,6 +114,23 @@ class AppUpdateManager(
 
             val curCode = BuildConfig.VERSION_CODE
             val curSha = BuildConfig.BUILD_SHA
+
+            // If the installed build matches the remote commit SHA, it is ALREADY the latest build!
+            val isMatchingSha = if (info.sha.isNotBlank() && curSha.isNotBlank() && !curSha.equals("dev", ignoreCase = true)) {
+                curSha.startsWith(info.shortSha.ifBlank { info.sha.take(7) }) || info.sha.startsWith(curSha)
+            } else false
+
+            if (isMatchingSha) {
+                runCatching {
+                    getUpdateApkFile().delete()
+                    getUpdateMetaFile().delete()
+                    File(context.cacheDir, "updates").deleteRecursively()
+                }
+                _state.value = UpdateState.Idle
+                withContext(Dispatchers.Main) { onResult?.invoke(false) }
+                return@launch
+            }
+
             val isNewerCode = info.versionCode > curCode
             val isNewerSha = if (info.sha.isNotBlank()) {
                 if (curSha.isBlank() || curSha.equals("dev", ignoreCase = true)) {
@@ -232,10 +255,9 @@ class AppUpdateManager(
                 info.mirrorUrl.ifBlank { null }
             )
 
-            var success = false
             for (url in downloadUrls) {
                 _state.value = UpdateState.Downloading(info, 0f, 0L, -1L)
-                val ok = withContext(Dispatchers.IO) {
+                val outcome = withContext(Dispatchers.IO) {
                     runCatching {
                         val req = Request.Builder()
                             .url(url)
@@ -243,10 +265,10 @@ class AppUpdateManager(
                             .header("Pragma", "no-cache")
                             .build()
                         http.newCall(req).execute().use { resp ->
-                            if (!resp.isSuccessful) return@runCatching false
-                            val body = resp.body ?: return@runCatching false
+                            if (!resp.isSuccessful) return@runCatching DownloadOutcome.RetryNext
+                            val body = resp.body ?: return@runCatching DownloadOutcome.RetryNext
                             val total = body.contentLength()
-                            val tempFile = File(apkFile.parentFile, "votify-update.tmp")
+                            val tempFile = File(apkFile.parentFile, "votify-update-temp.apk")
                             if (tempFile.exists()) tempFile.delete()
 
                             body.byteStream().use { input ->
@@ -281,36 +303,57 @@ class AppUpdateManager(
                                 val isMatchingPackage = pkgInfo != null &&
                                     (pkgInfo.packageName == context.packageName || pkgInfo.packageName in setOf("com.hiby.music", "app.votify.mobile"))
 
-                                val isLegitNewerApk = isMatchingPackage &&
-                                    (apkVersionCode > curCode || (apkVersionCode == curCode && isNewerSha) || curSha.equals("dev", ignoreCase = true)) &&
-                                    (info.versionCode <= 0 || apkVersionCode >= info.versionCode || curSha.equals("dev", ignoreCase = true))
+                                if (!isMatchingPackage) {
+                                    android.util.Log.w("AppUpdateManager", "Rejected mismatched package: ${pkgInfo?.packageName} vs ${context.packageName}")
+                                    tempFile.delete()
+                                    return@runCatching DownloadOutcome.RetryNext
+                                }
 
+                                val isAlreadyInstalled = apkVersionCode <= curCode && !isNewerSha && !curSha.equals("dev", ignoreCase = true)
+                                if (isAlreadyInstalled) {
+                                    android.util.Log.i("AppUpdateManager", "Downloaded APK ($apkVersionCode) is already installed (cur=$curCode). Setting Idle.")
+                                    tempFile.delete()
+                                    return@runCatching DownloadOutcome.InstalledOrStale
+                                }
+
+                                val isLegitNewerApk = apkVersionCode > curCode || (apkVersionCode == curCode && isNewerSha) || curSha.equals("dev", ignoreCase = true)
                                 if (isLegitNewerApk) {
                                     if (apkFile.exists()) apkFile.delete()
                                     tempFile.renameTo(apkFile)
                                     runCatching { getUpdateMetaFile().writeText(info.sha) }
-                                    true
+                                    return@runCatching DownloadOutcome.Success
                                 } else {
-                                    android.util.Log.w("AppUpdateManager", "Rejected stale/corrupted APK from $url: code=$apkVersionCode vs current=$curCode, pkg=${pkgInfo?.packageName}")
+                                    android.util.Log.w("AppUpdateManager", "Rejected APK code=$apkVersionCode vs current=$curCode")
                                     tempFile.delete()
-                                    false
+                                    return@runCatching DownloadOutcome.InstalledOrStale
                                 }
                             } else {
                                 tempFile.delete()
-                                false
+                                DownloadOutcome.RetryNext
                             }
                         }
-                    }.getOrDefault(false)
+                    }.getOrDefault(DownloadOutcome.RetryNext)
                 }
 
-                if (ok) {
-                    success = true
-                    _state.value = UpdateState.Ready(info, apkFile)
-                    break
+                when (outcome) {
+                    DownloadOutcome.InstalledOrStale -> {
+                        _state.value = UpdateState.Idle
+                        return@launch
+                    }
+                    DownloadOutcome.Success -> {
+                        _state.value = UpdateState.Ready(info, apkFile)
+                        if (canInstallDirectly()) {
+                            installUpdate(apkFile)
+                        }
+                        return@launch
+                    }
+                    DownloadOutcome.RetryNext -> {
+                        // try next mirror
+                    }
                 }
             }
 
-            if (!success && _state.value is UpdateState.Downloading) {
+            if (_state.value is UpdateState.Downloading) {
                 _state.value = UpdateState.Error(context.getString(app.votify.mobile.R.string.update_download_failed), info)
             }
         }
