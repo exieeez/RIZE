@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -549,17 +550,43 @@ class PlayerController(
 
     // ---- internals ----
 
-    private fun toMediaItem(t: Track): MediaItem = MediaItem.Builder()
-        .setMediaId(t.id)
-        .setUri(RESOLVE_URI_SCHEME + Uri.encode(t.id))
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(t.title)
-                .setArtist(t.artist)
-                .setArtworkUri(t.cover.takeIf { it.isNotBlank() }?.toUri())
-                .build(),
-        )
-        .build()
+    private fun toMediaItem(t: Track): MediaItem {
+        val rawUri = if (t.id.startsWith("content://") || t.id.startsWith("file://")) {
+            Uri.parse(t.id)
+        } else if (t.id.startsWith("local:")) {
+            Uri.parse(t.id.removePrefix("local:"))
+        } else {
+            Uri.parse(RESOLVE_URI_SCHEME + Uri.encode(t.id))
+        }
+
+        val builder = MediaItem.Builder()
+            .setMediaId(t.id)
+            .setUri(rawUri)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(t.title)
+                    .setArtist(t.artist)
+                    .setArtworkUri(t.cover.takeIf { it.isNotBlank() }?.toUri())
+                    .build(),
+            )
+
+        val uriStr = rawUri.toString().lowercase()
+        val titleStr = t.title.lowercase()
+        val idStr = t.id.lowercase()
+        if (uriStr.endsWith(".flac") || titleStr.endsWith(".flac") || idStr.contains(".flac")) {
+            builder.setMimeType(MimeTypes.AUDIO_FLAC)
+        } else if (uriStr.endsWith(".mp3") || titleStr.endsWith(".mp3") || idStr.contains(".mp3")) {
+            builder.setMimeType(MimeTypes.AUDIO_MPEG)
+        } else if (uriStr.endsWith(".wav") || titleStr.endsWith(".wav") || idStr.contains(".wav")) {
+            builder.setMimeType(MimeTypes.AUDIO_WAV)
+        } else if (uriStr.endsWith(".m4a") || uriStr.endsWith(".aac") || idStr.contains(".m4a")) {
+            builder.setMimeType(MimeTypes.AUDIO_AAC)
+        } else if (uriStr.endsWith(".ogg") || uriStr.endsWith(".opus") || idStr.contains(".ogg")) {
+            builder.setMimeType(MimeTypes.AUDIO_OGG)
+        }
+
+        return builder.build()
+    }
 
     private fun syncFromPlayer(p: Player) {
         val id = p.currentMediaItem?.mediaId

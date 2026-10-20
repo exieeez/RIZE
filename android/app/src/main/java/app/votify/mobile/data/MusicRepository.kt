@@ -1,5 +1,8 @@
 package app.votify.mobile.data
 
+import android.net.Uri
+import app.votify.mobile.VotifyApp
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -142,7 +145,28 @@ class MusicRepository(
     fun resolveStreamUrlSync(trackId: String): String {
         // Direct local audio: content://, file://, or local: scheme
         if (trackId.startsWith("content://") || trackId.startsWith("file://") || trackId.startsWith("local:")) {
-            return trackId.removePrefix("local:")
+            val raw = trackId.removePrefix("local:")
+            if (raw.startsWith("content://")) {
+                runCatching {
+                    val app = VotifyApp.instance
+                    val cacheDir = File(app.filesDir, "local_tracks").apply { mkdirs() }
+                    val ext = if (raw.lowercase().contains("flac")) "flac" else "mp3"
+                    val cached = File(cacheDir, "cached_${kotlin.math.abs(raw.hashCode())}.$ext")
+                    if (cached.exists() && cached.length() > 0) {
+                        return Uri.fromFile(cached).toString()
+                    }
+                    val u = Uri.parse(raw)
+                    app.contentResolver.openInputStream(u)?.use { input ->
+                        cached.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    if (cached.exists() && cached.length() > 0) {
+                        return Uri.fromFile(cached).toString()
+                    }
+                }
+            }
+            return raw
         }
         // Offline first: a downloaded copy plays without any network call.
         if (!isServerMode) {

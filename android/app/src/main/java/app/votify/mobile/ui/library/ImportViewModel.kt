@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -133,27 +134,65 @@ class ImportViewModel(
                             runCatching { mmr.release() }
                         }
 
-                        if (rawTitle.isNullOrBlank()) {
-                            val cursor = context.contentResolver.query(uri, null, null, null, null)
-                            cursor?.use { c ->
-                                val nameIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                                if (nameIndex >= 0 && c.moveToFirst()) {
-                                    val fileName = c.getString(nameIndex)
-                                    val cleanName = fileName.substringBeforeLast(".")
-                                    if (" - " in cleanName) {
-                                        val parts = cleanName.split(" - ", limit = 2)
-                                        rawArtist = parts[0].trim()
-                                        rawTitle = parts[1].trim()
-                                    } else {
-                                        rawTitle = cleanName
-                                    }
-                                }
+                        var rawFileName: String? = null
+                        val cursor = context.contentResolver.query(uri, null, null, null, null)
+                        cursor?.use { c ->
+                            val nameIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (nameIndex >= 0 && c.moveToFirst()) {
+                                rawFileName = c.getString(nameIndex)
+                            }
+                        }
+
+                        if (rawTitle.isNullOrBlank() && !rawFileName.isNullOrBlank()) {
+                            val cleanName = rawFileName!!.substringBeforeLast(".")
+                            if (" - " in cleanName) {
+                                val parts = cleanName.split(" - ", limit = 2)
+                                rawArtist = parts[0].trim()
+                                rawTitle = parts[1].trim()
+                            } else {
+                                rawTitle = cleanName
                             }
                         }
 
                         val cleanTitle = rawTitle?.takeIf { it.isNotBlank() } ?: "Трек"
                         val cleanArtist = rawArtist?.takeIf { it.isNotBlank() } ?: ""
                         val durationSec = (durationMs / 1000).toInt()
+
+                        val ext = when {
+                            rawFileName?.lowercase()?.endsWith(".flac") == true -> "flac"
+                            rawFileName?.lowercase()?.endsWith(".wav") == true -> "wav"
+                            rawFileName?.lowercase()?.endsWith(".m4a") == true -> "m4a"
+                            rawFileName?.lowercase()?.endsWith(".ogg") == true -> "ogg"
+                            rawFileName?.lowercase()?.endsWith(".mp3") == true -> "mp3"
+                            cleanTitle.lowercase().endsWith(".flac") -> "flac"
+                            cleanTitle.lowercase().endsWith(".wav") -> "wav"
+                            cleanTitle.lowercase().endsWith(".m4a") -> "m4a"
+                            cleanTitle.lowercase().endsWith(".ogg") -> "ogg"
+                            cleanTitle.lowercase().endsWith(".mp3") -> "mp3"
+                            else -> {
+                                val mime = context.contentResolver.getType(uri).orEmpty().lowercase()
+                                if ("flac" in mime) "flac" else if ("wav" in mime) "wav" else if ("mp4" in mime || "aac" in mime) "m4a" else if ("ogg" in mime || "opus" in mime) "ogg" else "flac"
+                            }
+                        }
+
+                        // Copy audio to local app storage for permanent, seekable playback
+                        val localDir = File(context.filesDir, "local_tracks").apply { mkdirs() }
+                        val safeFile = File(localDir, "track_${System.currentTimeMillis()}_${kotlin.math.abs(uri.toString().hashCode())}.$ext")
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                safeFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ImportViewModel", "Failed to copy audio", e)
+                        }
+
+                        val finalAudioPath = if (safeFile.exists() && safeFile.length() > 0) {
+                            Uri.fromFile(safeFile).toString()
+                        } else {
+                            uri.toString()
+                        }
 
                         var extCover = ""
                         var finalTitle = cleanTitle
@@ -182,7 +221,7 @@ class ImportViewModel(
 
                         list.add(
                             Track(
-                                id = "local:$uri",
+                                id = "local:$finalAudioPath",
                                 title = finalTitle,
                                 artist = finalArtist,
                                 duration = durationSec,
