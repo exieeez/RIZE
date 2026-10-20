@@ -1,5 +1,8 @@
 package app.votify.mobile.ui.library
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,24 +16,30 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.AudioFile
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.votify.mobile.R
 import app.votify.mobile.ui.components.TrackRow
@@ -53,6 +62,14 @@ fun ImportScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val localFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris ->
+        if (!uris.isNullOrEmpty()) {
+            viewModel.importLocalTracks(uris, context)
+        }
+    }
 
     Column(
         Modifier
@@ -89,7 +106,7 @@ fun ImportScreen(
                 Spacer(Modifier.height(12.dp))
                 ImportButton(
                     text = stringResource(R.string.import_button),
-                    loading = state.loading,
+                    loading = state.loading && state.url.isNotBlank(),
                     enabled = state.url.isNotBlank(),
                     onClick = viewModel::import,
                 )
@@ -111,6 +128,68 @@ fun ImportScreen(
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center,
                     )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Local files import: audio is played locally, cover and metadata fetched from outside
+        VotifyCard(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.AudioFile,
+                        contentDescription = null,
+                        tint = VotifyColors.Primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "Свои треки с устройства",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VotifyColors.TextPrimary,
+                        )
+                        Text(
+                            text = "Звук воспроизводится локально, обложки и данные берутся из сети",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VotifyColors.TextMuted,
+                            fontSize = 11.5.sp,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    onClick = {
+                        localFilePicker.launch(arrayOf("audio/*", "application/ogg"))
+                    },
+                    enabled = !state.loading,
+                    shape = RoundedCornerShape(14.dp),
+                    color = VotifyColors.SurfaceContainerHigh,
+                    border = BorderStroke(0.5.dp, VotifyColors.BorderSubtle),
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Outlined.FolderOpen,
+                            contentDescription = null,
+                            tint = VotifyColors.TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Выбрать аудиофайлы (MP3, FLAC, WAV, M4A)",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = VotifyColors.TextPrimary,
+                        )
+                    }
                 }
             }
         }

@@ -140,6 +140,10 @@ class MusicRepository(
      * in embedded mode it extracts the direct audio URL (cached).
      */
     fun resolveStreamUrlSync(trackId: String): String {
+        // Direct local audio: content://, file://, or local: scheme
+        if (trackId.startsWith("content://") || trackId.startsWith("file://") || trackId.startsWith("local:")) {
+            return trackId.removePrefix("local:")
+        }
         // Offline first: a downloaded copy plays without any network call.
         if (!isServerMode) {
             EmbeddedMusicSource.downloadFileFor(trackId)

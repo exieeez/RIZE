@@ -62,6 +62,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -78,6 +79,7 @@ import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
@@ -175,6 +177,11 @@ data class PlayerVisuals(
     val swipeNavigation: Boolean = true,
     val iosSlider: Boolean = true,
     val sliderStyle: String = "ios",
+)
+
+private data class AudioOutputInfo(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val name: String,
 )
 
 @Composable
@@ -477,7 +484,7 @@ fun PlayerScreen(
                     label = "artwork-lyrics",
                 ) { showLyrics ->
                     if (showLyrics) {
-                        LyricsPanel(state = lyrics, positionMs = state.positionMs, onSeekToMs = onSeekToMs, onClose = onToggleLyrics)
+                        LyricsPanel(state = lyrics, positionMs = state.positionMs, onSeekToMs = onSeekToMs, onClose = onToggleLyrics, accent = accentColor)
                     } else {
                         Box(contentAlignment = Alignment.Center) {
                             // «Всегда» = заменять обложку трека всегда; иначе только когда у трека нет своей.
@@ -554,7 +561,7 @@ fun PlayerScreen(
                     .padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Audio output indicator pill (Bluetooth / Speaker)
+                // Audio output indicator pill (Bluetooth / Speaker) - clean vector icon without emojis
                 val context = LocalContext.current
                 val audioOutputInfo = remember {
                     derivedStateOf {
@@ -568,14 +575,18 @@ fun PlayerScreen(
                         }
                         if (btDevice != null) {
                             val name = btDevice.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Bluetooth"
-                            "🎧 $name"
+                            AudioOutputInfo(Icons.Outlined.Headphones, name)
                         } else {
                             val wired = devices.firstOrNull {
                                 it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
                                 it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
                                 it.type == AudioDeviceInfo.TYPE_USB_HEADSET
                             }
-                            if (wired != null) "🎧 Наушники" else "🔊 Динамик"
+                            if (wired != null) {
+                                AudioOutputInfo(Icons.Outlined.Headphones, "Наушники")
+                            } else {
+                                AudioOutputInfo(Icons.AutoMirrored.Outlined.VolumeUp, "Динамик")
+                            }
                         }
                     }
                 }
@@ -585,14 +596,26 @@ fun PlayerScreen(
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier.padding(bottom = 6.dp),
                 ) {
-                    Text(
-                        text = audioOutputInfo.value,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                    val info = audioOutputInfo.value
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
-                    )
+                    ) {
+                        Icon(
+                            imageVector = info.icon,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            text = info.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
 
                 Text(
@@ -936,7 +959,13 @@ private fun artworkAnimModifier(anim: String, playing: Boolean): Modifier {
 
 /** Synced lyrics: active line in white and bold, auto-scrolls to keep it in view, tap to seek. */
 @Composable
-private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long) -> Unit, onClose: () -> Unit) {
+private fun LyricsPanel(
+    state: LyricsState,
+    positionMs: Long,
+    onSeekToMs: (Long) -> Unit,
+    onClose: () -> Unit,
+    accent: Color = VotifyColors.Primary,
+) {
     var isTranslated by remember { mutableStateOf(false) }
     var translatedLines by remember(state) { mutableStateOf<List<String>?>(null) }
     var isTranslating by remember { mutableStateOf(false) }
@@ -974,7 +1003,8 @@ private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long)
                     translatedLines = if (isTranslated) translatedLines else null,
                 )
 
-                // Translate button at top right
+                // Translate button at top right - uses active accent color (not green)
+                val activeTextColor = if (accent.luminance() > 0.5f) Color.Black else Color.White
                 Surface(
                     onClick = {
                         isTranslated = !isTranslated
@@ -991,8 +1021,8 @@ private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long)
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isTranslated) Color(0xFF1DB954) else Color(0xFF222226),
-                    contentColor = if (isTranslated) Color.Black else Color.White,
+                    color = if (isTranslated) accent else Color(0xFF222226),
+                    contentColor = if (isTranslated) activeTextColor else Color.White,
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -1006,7 +1036,7 @@ private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long)
                             CircularProgressIndicator(
                                 modifier = Modifier.size(12.dp),
                                 strokeWidth = 1.5.dp,
-                                color = if (isTranslated) Color.Black else Color.White,
+                                color = if (isTranslated) activeTextColor else Color.White,
                             )
                             Spacer(Modifier.width(6.dp))
                         } else {
@@ -1014,7 +1044,7 @@ private fun LyricsPanel(state: LyricsState, positionMs: Long, onSeekToMs: (Long)
                                 Icons.Outlined.Translate,
                                 contentDescription = "Перевод",
                                 modifier = Modifier.size(14.dp),
-                                tint = if (isTranslated) Color.Black else Color.White,
+                                tint = if (isTranslated) activeTextColor else Color.White,
                             )
                             Spacer(Modifier.width(6.dp))
                         }
@@ -1082,10 +1112,11 @@ private fun translateLyricsLines(lines: List<String>): List<String> {
     return runCatching {
         val encoded = java.net.URLEncoder.encode(joined, "UTF-8")
         val url = java.net.URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ru&dt=t&q=$encoded")
-        val conn = url.openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 8000
-        conn.readTimeout = 8000
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+        val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 8000
+            readTimeout = 8000
+            setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+        }
         val resp = conn.inputStream.bufferedReader().use { it.readText() }
         val array = org.json.JSONArray(resp)
         val outer = array.optJSONArray(0) ?: return lines
@@ -1096,8 +1127,11 @@ private fun translateLyricsLines(lines: List<String>): List<String> {
                 sb.append(item.optString(0, ""))
             }
         }
-        val trans = sb.toString().lines()
-        if (trans.size == lines.size) trans else lines
+        val translatedText = sb.toString()
+        val rawLines = translatedText.replace("\r", "").trimEnd('\n').split("\n")
+        lines.indices.map { i ->
+            if (i < rawLines.size && rawLines[i].isNotBlank()) rawLines[i].trim() else lines[i]
+        }
     }.getOrDefault(lines)
 }
 

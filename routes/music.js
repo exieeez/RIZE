@@ -34,7 +34,7 @@ async function translateTexts(texts, targetLang = 'ru') {
   let curLen = 0;
   for (const text of texts) {
     const s = String(text || '').trim();
-    if (curChunk.length > 0 && curLen + s.length + 1 > 1500) {
+    if (curChunk.length > 0 && curLen + s.length + 1 > 1200) {
       chunks.push(curChunk);
       curChunk = [];
       curLen = 0;
@@ -49,24 +49,25 @@ async function translateTexts(texts, targetLang = 'ru') {
     const query = chunk.join('\n');
     const encoded = encodeURIComponent(query);
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encoded}`;
+    let success = false;
     try {
-      const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(6000) });
-      if (!resp.ok) {
-        results.push(...chunk);
-        continue;
-      }
-      const data = await resp.json();
-      if (Array.isArray(data) && Array.isArray(data[0])) {
-        const translatedJoined = data[0].map(s => s[0] || '').join('');
-        const splitLines = translatedJoined.split('\n');
-        for (let i = 0; i < chunk.length; i++) {
-          results.push(splitLines[i] !== undefined ? splitLines[i].trim() : chunk[i]);
+      const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }, signal: AbortSignal.timeout(6000) });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data) && Array.isArray(data[0])) {
+          const translatedJoined = data[0].map(s => s[0] || '').join('');
+          const splitLines = translatedJoined.replace(/\r/g, '').trimEnd().split('\n');
+          for (let i = 0; i < chunk.length; i++) {
+            results.push(splitLines[i] ? splitLines[i].trim() : chunk[i]);
+          }
+          success = true;
         }
-      } else {
-        results.push(...chunk);
       }
     } catch (e) {
-      console.warn('[translate] API error:', e.message);
+      console.warn('[translate] Google GTX error, attempting fallback:', e.message);
+    }
+
+    if (!success) {
       results.push(...chunk);
     }
   }

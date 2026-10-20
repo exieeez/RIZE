@@ -836,16 +836,48 @@ async function toggleLyricsTranslation() {
     try {
       const origLines = currentActiveLyrics.originalLines || currentActiveLyrics.lines;
       const texts = origLines.map(l => l.text);
-      const res = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texts, targetLang: 'ru' })
-      });
-      const data = await res.json();
-      if (data && Array.isArray(data.translations) && data.translations.length) {
+      
+      // Try backend translation first
+      let translatedArray = null;
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts, targetLang: 'ru' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.translations) && data.translations.length) {
+            translatedArray = data.translations;
+          }
+        }
+      } catch (err) {
+        console.warn('[translate] Backend translation failed, trying direct GTX client...', err);
+      }
+
+      // Direct client-side fallback if backend unavailable or empty
+      if (!translatedArray) {
+        try {
+          const joined = texts.join('\n');
+          const encoded = encodeURIComponent(joined);
+          const gtxResp = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ru&dt=t&q=${encoded}`);
+          if (gtxResp.ok) {
+            const gtxData = await gtxResp.json();
+            if (gtxData && Array.isArray(gtxData[0])) {
+              const full = gtxData[0].map(s => s[0] || '').join('');
+              const rawLines = full.replace(/\r/g, '').trimEnd().split('\n');
+              translatedArray = texts.map((t, i) => (rawLines[i] && rawLines[i].trim()) ? rawLines[i].trim() : t);
+            }
+          }
+        } catch (gtxErr) {
+          console.warn('[translate] Client-side GTX translation failed:', gtxErr);
+        }
+      }
+
+      if (translatedArray && translatedArray.length) {
         currentActiveLyrics.translatedLines = origLines.map((l, i) => ({
           time: l.time,
-          text: data.translations[i] || l.text
+          text: translatedArray[i] || l.text
         }));
       }
     } catch (e) {
@@ -870,6 +902,13 @@ async function toggleLyricsTranslation() {
 
   document.querySelectorAll('.lyrics-translate-btn').forEach(b => {
     b.classList.toggle('active', currentActiveLyrics.isTranslated);
+    if (currentActiveLyrics.isTranslated) {
+      b.style.backgroundColor = 'var(--accent, #a78bfa)';
+      b.style.color = '#000000';
+    } else {
+      b.style.backgroundColor = '';
+      b.style.color = '';
+    }
   });
 
   populateAllLyricsContainers();
@@ -911,7 +950,7 @@ async function updateAudioOutputInfo() {
       const textEl = pill.querySelector('.audio-output-text');
       const iconEl = pill.querySelector('.material-icons') || pill.querySelector('i');
       if (textEl) {
-        let label = data.name || 'Динамики';
+        let label = (data.name || 'Динамики').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
         if (data.battery !== null && data.battery !== undefined) {
           label += ` • ${data.battery}%`;
         }
@@ -3836,6 +3875,92 @@ function startStreamingUrlImport(url) {
   });
 }
 
+async function startLocalAudioImport(playlistName, items) {
+  switchImportView('progress');
+  updateImportProgress({
+    title: 'Импорт локальных треков...',
+    subtitle: 'Поиск обложек и данных из сети...',
+    current: 0,
+    total: items.length,
+    percent: 0
+  });
+
+  const currTrackEl = document.getElementById('import-current-track');
+  if (currTrackEl) currTrackEl.style.display = 'block';
+
+  importedTracksState = [];
+  const results = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    showCurrentImportTrack({ title: item.title, artist: item.artist });
+    updateImportProgress({
+      title: 'Импорт локальных треков...',
+      subtitle: `Поиск обложки: ${item.artist ? item.artist + ' - ' : ''}${item.title}`,
+      current: i + 1,
+      total: items.length,
+      percent: Math.round(((i + 1) / items.length) * 100)
+    });
+
+    let extCover = 'icon.png';
+    let finalTitle = item.title;
+    let finalArtist = item.artist || '';
+    let finalDuration = 0;
+    let finalAlbum = '';
+
+    try {
+      const query = (finalArtist ? `${finalArtist} ${finalTitle}` : finalTitle).trim();
+      const itunesResp = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`);
+      if (itunesResp.ok) {
+        const itunesData = await itunesResp.json();
+        if (itunesData.results && itunesData.results[0]) {
+          const hit = itunesData.results[0];
+          finalTitle = hit.trackName || finalTitle;
+          finalArtist = hit.artistName || finalArtist;
+          finalAlbum = hit.collectionName || '';
+          extCover = (hit.artworkUrl100 || '').replace('100x100bb', '600x600bb') || extCover;
+          finalDuration = Math.round((hit.trackTimeMillis || 0) / 1000);
+        }
+      }
+    } catch (e) {
+      try {
+        const query = (finalArtist ? `${finalArtist} ${finalTitle}` : finalTitle).trim();
+        const dzResp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`);
+        if (dzResp.ok) {
+          const dzData = await dzResp.json();
+          if (dzData.data && dzData.data[0]) {
+            const hit = dzData.data[0];
+            finalTitle = hit.title || finalTitle;
+            finalArtist = hit.artist?.name || finalArtist;
+            finalAlbum = hit.album?.title || '';
+            extCover = hit.album?.cover_xl || hit.album?.cover_medium || extCover;
+            finalDuration = hit.duration || 0;
+          }
+        }
+      } catch (_dz) {}
+    }
+
+    const localUrl = item.localUrl || (item.file ? URL.createObjectURL(item.file) : null);
+    const trackObj = {
+      id: 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
+      title: finalTitle,
+      artist: finalArtist,
+      album: finalAlbum,
+      cover: extCover,
+      duration: finalDuration,
+      isLocal: true,
+      localUrl: localUrl,
+      url: localUrl,
+      source: 'local'
+    };
+
+    results.push(trackObj);
+  }
+
+  importedTracksState = results;
+  showImportResults(playlistName || 'Мои треки', results);
+}
+
 async function startStreamingBatchImport(name, items) {
   if (!items || items.length === 0) {
     showToast('Список треков пуст');
@@ -4100,7 +4225,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const ext = (file.name.split('.').pop() || '').toLowerCase();
       if (['mp3', 'wav', 'flac', 'm4a', 'ogg', 'aac', 'wma', 'opus'].includes(ext)) {
         const parsed = cleanTrackNameAndArtist(file.name);
-        if (parsed) selectedImportFileItems.push(parsed);
+        if (parsed) {
+          selectedImportFileItems.push({
+            file,
+            localUrl: URL.createObjectURL(file),
+            title: parsed.title,
+            artist: parsed.artist,
+            isAudioFile: true
+          });
+        }
         processedCount++;
         if (processedCount === files.length) finalizeUI();
       } else {
@@ -4149,11 +4282,15 @@ document.addEventListener('DOMContentLoaded', () => {
       startStreamingUrlImport(url);
     } else if (activeTab === 'file') {
       if (!selectedImportFileItems || selectedImportFileItems.length === 0) {
-        showToast('Сначала выберите файл плейлиста');
+        showToast('Сначала выберите файл плейлиста или треки');
         return;
       }
-      const fileName = document.getElementById('import-file-name')?.textContent?.split('(')[0]?.trim() || 'Файл плейлиста';
-      startStreamingBatchImport(fileName.replace(/\.[a-zA-Z0-9]+$/, ''), selectedImportFileItems);
+      const fileName = document.getElementById('import-file-name')?.textContent?.split('(')[0]?.trim() || 'Мои треки';
+      if (selectedImportFileItems.some(i => i.isAudioFile)) {
+        startLocalAudioImport(fileName.replace(/\.[a-zA-Z0-9]+$/, ''), selectedImportFileItems);
+      } else {
+        startStreamingBatchImport(fileName.replace(/\.[a-zA-Z0-9]+$/, ''), selectedImportFileItems);
+      }
     } else if (activeTab === 'text') {
       const text = document.getElementById('import-text-input')?.value?.trim();
       if (!text) {
@@ -13032,6 +13169,9 @@ function hideSplash() {
   let availableInfo = null;
   let isDownloading = false;
 
+  const currentAppVersion = '1.1.0';
+  let updateDismissed = false;
+
   function showBanner(msg, actionLabel = 'Обновить') {
     if (!banner) return;
     if (text) text.textContent = msg;
@@ -13058,7 +13198,7 @@ function hideSplash() {
         if (progressBar) progressBar.style.width = '100%';
         setTimeout(() => {
           if (progressWrap) progressWrap.style.display = 'none';
-          showBanner(`Обновление ${info?.version || '2.4.0'} готово к установке`, 'Перезапустить');
+          showBanner(`Обновление ${info?.version || currentAppVersion} готово к установке`, 'Перезапустить');
           showToast('Обновление успешно загружено! Нажмите «Перезапустить»');
           if (typeof onDone === 'function') onDone();
         }, 300);
@@ -13069,7 +13209,10 @@ function hideSplash() {
     }, 120);
   }
 
-  if (closeBtn) closeBtn.addEventListener('click', hideBanner);
+  if (closeBtn) closeBtn.addEventListener('click', () => {
+    updateDismissed = true;
+    hideBanner();
+  });
 
   if (actionBtn) {
     actionBtn.addEventListener('click', () => {
@@ -13082,37 +13225,43 @@ function hideSplash() {
         }
       } else {
         if (isDownloading) return;
-        simulateDownload(availableInfo || { version: '2.4.0' });
+        simulateDownload(availableInfo || { version: currentAppVersion });
       }
     });
   }
 
   window.checkForVotifyUpdates = function(force = false) {
-    showBanner('Проверка обновлений...', '...');
-    if (progressWrap) progressWrap.style.display = 'none';
+    if (updateDismissed && !force) return;
+    if (force) {
+      showBanner('Проверка обновлений...', '...');
+      if (progressWrap) progressWrap.style.display = 'none';
+    }
 
     if (window.electronAPI?.checkForUpdates) {
       window.electronAPI.checkForUpdates();
     }
 
-    fetch('https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=' + Date.now())
+    fetch('https://api.github.com/repos/exieeez/Votify/releases/latest?t=' + Date.now())
       .then(r => r.json())
-      .then(data => {
-        availableInfo = {
-          version: data.versionName ? `${data.versionName} (build ${data.versionCode})` : '2.4.0',
-          changelog: 'Студийный эквалайзер, перевод текстов и оффлайн-треки'
-        };
-        showBanner(`Доступно обновление ${availableInfo.version}`, 'Обновить');
-        showToast('🔔 Доступно авто-обновление Votify! Нажмите «Обновить» в верхней панели');
+      .then(release => {
+        const latest = (release.tag_name || release.name || '').replace(/^v/, '');
+        const isNewer = latest && latest.localeCompare(currentAppVersion, undefined, { numeric: true }) > 0;
+        if (isNewer) {
+          availableInfo = {
+            version: latest,
+            changelog: release.body || 'Студийный эквалайзер, перевод текстов и оффлайн-треки'
+          };
+          showBanner(`Доступно обновление ${latest}`, 'Обновить');
+          showToast(`🔔 Найдено обновление Votify ${latest}! Нажмите «Обновить» в шапке`);
+        } else if (force) {
+          hideBanner();
+          showToast(`Вы используете актуальную версию Votify ${currentAppVersion}`);
+        }
       })
       .catch(() => {
         if (force) {
-          availableInfo = {
-            version: '2.4.0',
-            changelog: 'Студийный эквалайзер, перевод текстов и оффлайн-треки'
-          };
-          showBanner(`Доступно обновление ${availableInfo.version}`, 'Обновить');
-          showToast('🔔 Доступно авто-обновление Votify! Нажмите «Обновить» в верхней панели');
+          hideBanner();
+          showToast(`Вы используете актуальную версию Votify ${currentAppVersion}`);
         }
       });
   };
@@ -13126,8 +13275,8 @@ function hideSplash() {
     window.electronAPI.onUpdateAvailable?.(info => {
       availableInfo = info;
       downloaded = false;
-      showBanner(`Доступно обновление ${info.version || '2.4.0'}`.trim(), 'Обновить');
-      showToast('🔔 Доступно авто-обновление Votify! Нажмите «Обновить» в верхней панели');
+      showBanner(`Доступно обновление ${info.version || currentAppVersion}`.trim(), 'Обновить');
+      showToast('🔔 Доступно обновление Votify! Нажмите «Обновить» в шапке');
       if (progressWrap) progressWrap.style.display = 'none';
     });
     window.electronAPI.onUpdateNotAvailable?.(() => {
@@ -13152,10 +13301,10 @@ function hideSplash() {
     });
   }
 
-  // Automatic check on app launch after 1.5 seconds so auto-update arrives immediately
+  // Automatic check on app launch after 2.5 seconds (respects dismissal, no auto-download)
   setTimeout(() => {
-    window.checkForVotifyUpdates(true);
-  }, 1500);
+    window.checkForVotifyUpdates(false);
+  }, 2500);
 })();
 
 // Material Icons robust loading — add class when font ready, fallback check

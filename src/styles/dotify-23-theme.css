@@ -6790,8 +6790,8 @@ select option:hover,
   color: #ffffff;
 }
 .lyrics-translate-btn.active {
-  background: var(--accent, #1db954);
-  color: #000000;
+  background: var(--accent, var(--md-sys-color-primary, #a78bfa)) !important;
+  color: var(--accent-text, #000000) !important;
   border-color: transparent;
   font-weight: 600;
 }

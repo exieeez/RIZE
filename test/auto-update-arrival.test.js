@@ -9,12 +9,16 @@ test('Auto-Update Arrival on Mobile & PC', async (t) => {
     const content = fs.readFileSync(ktFile, 'utf8');
 
     assert.ok(
-      content.includes('checkForUpdate(force = true)'),
-      'AppUpdateManager should trigger immediate checkForUpdate(force = true) on launch'
+      content.includes('checkForUpdate(force = false)'),
+      'AppUpdateManager should check without forcing dismissed updates'
     );
     assert.ok(
-      content.includes('delay(1500L)\n            checkForUpdate(force = true)'),
-      'Initial check must execute after 1.5s startup delay'
+      content.includes('delay(2000L)\n            checkForUpdate(force = false)'),
+      'Initial check must execute after 2s startup delay'
+    );
+    assert.ok(
+      !content.includes('// Auto-start download so the update arrives and prepares seamlessly\n                    startDownload(info)'),
+      'Must NOT auto-download in background without user consent'
     );
   });
 

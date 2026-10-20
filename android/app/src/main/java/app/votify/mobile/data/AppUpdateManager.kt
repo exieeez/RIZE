@@ -78,12 +78,12 @@ class AppUpdateManager(
 
     private fun startPeriodicCheck() {
         scope.launch {
-            // Check immediately on app startup after network initialization
-            delay(1500L)
-            checkForUpdate(force = true)
+            // Check on app startup after network initialization (without force, respecting user dismiss)
+            delay(2000L)
+            checkForUpdate(force = false)
             while (true) {
                 delay(300_000L) // Check every 5 minutes in background
-                checkForUpdate()
+                checkForUpdate(force = false)
             }
         }
     }
@@ -111,16 +111,15 @@ class AppUpdateManager(
             val isNewerCode = info.versionCode > curCode
             val isNewerSha = if (info.sha.isNotBlank()) {
                 if (curSha.isBlank() || curSha.equals("dev", ignoreCase = true)) {
-                    true
+                    false
                 } else {
                     !curSha.startsWith(info.shortSha.ifBlank { info.sha.take(7) }) && !info.sha.startsWith(curSha)
                 }
             } else false
 
-            // An update is considered newer if remote code > curCode,
-            // or if codes match and remote commit sha is newer,
-            // or if force is true.
-            val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode)) || force
+            // An update is considered newer ONLY if remote code > curCode,
+            // or if codes match and remote commit sha is newer.
+            val isNewer = isNewerCode || (isNewerSha && (info.versionCode <= 0 || info.versionCode >= curCode))
 
             if (!force && dismissedSha == info.sha) {
                 _state.value = UpdateState.Idle
@@ -148,16 +147,15 @@ class AppUpdateManager(
                         !cachedSha.isNullOrBlank() &&
                         cachedSha == info.sha &&
                         isMatchingPackage &&
-                        (cachedVersionCode > curCode || (cachedVersionCode == curCode && isNewerSha) || curSha.equals("dev", ignoreCase = true))
+                        (cachedVersionCode > curCode || (cachedVersionCode == curCode && isNewerSha))
 
                 if (isCachedValid) {
                     _state.value = UpdateState.Ready(info, cachedApk)
                 } else {
                     if (cachedApk.exists()) cachedApk.delete()
                     if (metaFile.exists()) metaFile.delete()
+                    // Prompt the user via banner — NEVER auto-download in background without consent!
                     _state.value = UpdateState.Available(info)
-                    // Auto-start download so the update arrives and prepares seamlessly
-                    startDownload(info)
                 }
                 withContext(Dispatchers.Main) { onResult?.invoke(true) }
             } else {
