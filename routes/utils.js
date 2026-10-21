@@ -325,16 +325,29 @@ function httpGet(url, timeout) {
   });
 }
 
+const innerTubeHttpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 32,
+  keepAliveMsecs: 15000,
+});
+const innerTubeHttpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 32,
+  keepAliveMsecs: 15000,
+});
+
 function httpPostJSON(url, body, timeout) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('timeout')), timeout);
     const parsed = new URL(url);
     const transport = parsed.protocol === 'https:' ? https : http;
+    const agent = parsed.protocol === 'https:' ? innerTubeHttpsAgent : innerTubeHttpAgent;
     const payload = JSON.stringify(body);
     const req = transport.request(
       parsed,
       {
         method: 'POST',
+        agent,
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
@@ -1090,21 +1103,21 @@ async function fetchStreamUrl(videoId) {
       return null;
     }
 
-    // 1. Try fast InnerTube HTTP direct stream extraction (~150-350ms, mobile parity)
-    try {
-      const fastUrl = await fetchFastInnerTubeStreamUrl(vid);
-      if (fastUrl) {
-        streamCache.set(cacheKey, { url: fastUrl, expires: Date.now() + STREAM_CACHE_TTL });
-        return fastUrl;
-      }
-    } catch (e) {}
-
-    // 2. Try persistent in-memory python resolver daemon (~1.2s on cold)
+    // 1. Try persistent in-memory python resolver daemon (~1.2s on cold, ~300ms warm)
     try {
       const daemonUrl = await fetchFromDaemon(vid, quality, 8000);
       if (daemonUrl) {
         streamCache.set(cacheKey, { url: daemonUrl, expires: Date.now() + STREAM_CACHE_TTL });
         return daemonUrl;
+      }
+    } catch (e) {}
+
+    // 2. Try fast InnerTube HTTP direct stream extraction fallback
+    try {
+      const fastUrl = await fetchFastInnerTubeStreamUrl(vid);
+      if (fastUrl) {
+        streamCache.set(cacheKey, { url: fastUrl, expires: Date.now() + STREAM_CACHE_TTL });
+        return fastUrl;
       }
     } catch (e) {}
 
@@ -1453,3 +1466,11 @@ module.exports = {
   // static UI
   serveStatic,
 };
+
+// Pre-warm resolver daemon on server startup for fast instant playback
+setTimeout(() => {
+  try {
+    getResolverDaemon();
+  } catch (_) {}
+}, 250);
+

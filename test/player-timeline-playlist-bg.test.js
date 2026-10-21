@@ -26,10 +26,10 @@ test('Player timeline seeking, playlist pure black background, and titlebar sett
   assert.match(mainJs, /const tbSettingsEl = document\.getElementById\('tb-settings-btn'\);/);
   assert.match(mainJs, /tbSettingsEl\.onclick[\s\S]*toggleSettingsOverlay\(\);/);
 
-  // 4. Playlist screen pure black background (#000000)
-  assert.match(themeCss, /#playlist-screen[\s\S]*background:\s*#000000\s*!important/);
-  assert.match(themeCss, /#playlist-screen[\s\S]*background-color:\s*#000000\s*!important/);
-  assert.match(stylesCss, /#playlist-screen[\s\S]*background:\s*#000000\s*!important/);
+  // 4. Playlist screen dynamic/transparent background adhering to theme
+  assert.match(themeCss, /#playlist-screen[\s\S]*background:\s*transparent/);
+  assert.match(themeCss, /#playlist-screen[\s\S]*background-color:\s*transparent/);
+  assert.match(stylesCss, /#playlist-screen[\s\S]*background:\s*transparent/);
 
   // 5. Full player timeline (#page-player-progress) styling: track with gradient and thumb visible on interaction
   assert.match(themeCss, /#page-player-progress::-webkit-slider-runnable-track[\s\S]*background:\s*linear-gradient/);

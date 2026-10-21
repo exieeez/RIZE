@@ -59,6 +59,16 @@ app.commandLine.appendSwitch('disk-cache-dir', path.join(userDataPath, 'cache'))
 // runs to show an older interface after an update.
 app.commandLine.appendSwitch('disable-http-cache');
 
+// Hardware acceleration & low-overhead Wayland/GPU pipeline (matching Swiftify performance)
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,CanvasOopifRaster,Accelerated2dCanvas');
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+  app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+}
+
 function getGoogleDesktopCredentials() {
   let clientId = process.env.VOTIFY_GOOGLE_DESKTOP_CLIENT_ID || '';
   let clientSecret = process.env.VOTIFY_GOOGLE_DESKTOP_CLIENT_SECRET || '';

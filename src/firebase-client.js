@@ -2054,6 +2054,88 @@
     document.getElementById('profile-fav-track-clear-btn')?.addEventListener('click', handleClearFavTrack);
     document.getElementById('page-profile-fav-track-clear-btn')?.addEventListener('click', handleClearFavTrack);
 
+    // Spotify Profile Import handler
+    const handleSpotifyProfileImport = async () => {
+      const input = document.getElementById('profile-spotify-url')?.value?.trim();
+      const statusEl = document.getElementById('profile-spotify-status');
+      const btn = document.getElementById('btn-import-spotify-profile');
+      if (!input) {
+        if (typeof window.showToast === 'function') window.showToast('Введите ссылку на профиль или юзернейм Spotify');
+        return;
+      }
+      if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Получение данных профиля Spotify...';
+        statusEl.style.color = 'var(--text-secondary, #94a3b8)';
+      }
+
+      try {
+        const res = await fetch(`/api/spotify/profile?user=${encodeURIComponent(input)}`);
+        const data = await res.json();
+        if (!res.ok || !data.success || !data.user) {
+          throw new Error(data.error || 'Профиль не найден');
+        }
+        const user = data.user;
+
+        // 1. Name
+        const nameInput = document.getElementById('profile-display-name');
+        if (nameInput && user.name) nameInput.value = user.name;
+        const nameText = document.getElementById('profile-display-name-text');
+        if (nameText && user.name) nameText.textContent = user.name;
+
+        // 2. Handle
+        const cleanHandle = (user.id || user.handle || '').replace(/[^a-zA-Z0-9_\-\.]/g, '');
+        const handleInput = document.getElementById('profile-handle');
+        if (handleInput && cleanHandle) handleInput.value = cleanHandle;
+        const handleText = document.getElementById('profile-handle-text');
+        if (handleText && cleanHandle) handleText.textContent = '@' + cleanHandle;
+
+        // 3. Bio / About
+        const aboutInput = document.getElementById('profile-about');
+        if (aboutInput && user.description) aboutInput.value = user.description;
+
+        // 4. Avatar
+        if (user.avatar) {
+          const avatarImg = document.getElementById('profile-avatar-img');
+          if (avatarImg) avatarImg.src = user.avatar;
+          if (state && state.profile) {
+            state.profile.avatar = user.avatar;
+          }
+        }
+
+        // 5. Banner
+        if (user.avatar) {
+          const b1 = document.getElementById('profile-banner-bg');
+          if (b1) {
+            b1.style.backgroundImage = `url("${user.avatar.replace(/"/g, '\\"')}")`;
+            b1.style.backgroundSize = 'cover';
+            b1.style.backgroundPosition = 'center';
+          }
+          const bannerInput = document.getElementById('profile-banner-url');
+          if (bannerInput) bannerInput.value = user.avatar;
+          pendingProfileBanner = user.avatar;
+        }
+
+        if (statusEl) {
+          statusEl.textContent = `✓ Профиль «${user.name}» загружен! Нажмите «Сохранить»`;
+          statusEl.style.color = '#1db954';
+        }
+        if (typeof window.showToast === 'function') {
+          window.showToast(`Профиль Spotify «${user.name}» импортирован! Нажмите «Сохранить»`);
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = err.message || 'Ошибка импорта профиля';
+          statusEl.style.color = 'var(--md-sys-color-error, #ba1a1a)';
+        }
+        if (typeof window.showToast === 'function') window.showToast(err.message || 'Ошибка импорта', 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Импортировать'; }
+      }
+    };
+    document.getElementById('btn-import-spotify-profile')?.addEventListener('click', handleSpotifyProfileImport);
+
     // Save profile handlers
     document.getElementById('profile-save-btn')?.addEventListener('click', async event => {
       const button = event.currentTarget;

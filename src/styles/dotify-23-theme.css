@@ -1157,9 +1157,10 @@ body {
   overflow-x: auto !important;
   overflow-y: hidden !important;
   padding: 4px 2px 16px !important;
-  scroll-behavior: smooth !important;
   scrollbar-width: none !important;
-  scroll-snap-type: x mandatory !important;
+  scroll-behavior: auto !important;
+  scroll-snap-type: none !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .rec-grid.for-you-carousel::-webkit-scrollbar,
@@ -1188,7 +1189,7 @@ body {
   flex-direction: column !important;
   transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   overflow: visible !important;
-  scroll-snap-align: start !important;
+  scroll-snap-align: none !important;
   user-select: none !important;
 }
 
@@ -3218,8 +3219,8 @@ body.transparency-enabled #home-screen .home-quick-banner-card:hover {
 #playlist-screen,
 body.transparency-enabled #playlist-screen,
 body:not(.transparency-enabled) #playlist-screen {
-  background: #000000 !important;
-  background-color: #000000 !important;
+  background: transparent !important;
+  background-color: transparent !important;
   padding: 16px 20px 40px 20px !important;
   box-sizing: border-box !important;
   color: #ffffff !important;
@@ -3232,6 +3233,9 @@ body:not(.transparency-enabled) #playlist-screen {
   border-radius: 24px !important;
   padding: 10px 16px 20px 16px !important;
   box-shadow: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 #playlist-screen .lib-detail-content {
@@ -6160,6 +6164,7 @@ body.transparency-enabled #home-screen,
 body.transparency-enabled .home-screen,
 body.transparency-enabled #player-screen,
 body.transparency-enabled .player-page-container,
+body.transparency-enabled #playlist-screen,
 body.transparency-enabled #folders-screen,
 body.transparency-enabled #artist-screen,
 body.transparency-enabled #album-screen,

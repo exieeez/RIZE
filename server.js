@@ -28,6 +28,21 @@ try {
   /* discord optional */
 }
 
+let riffPort = 38472;
+let riffStarted = false;
+try {
+  const riffServer = require('./riff-source/server.js');
+  riffServer.startServer(38472).then(p => {
+    riffPort = p;
+    riffStarted = true;
+    console.log(`[Riff API] Internal server running on port ${p}`);
+  }).catch(e => {
+    console.warn('[Riff API start warning]:', e.message);
+  });
+} catch (e) {
+  // riff-source optional
+}
+
 const PKG_VERSION = (() => {
   try {
     return require('./package.json').version || '0.0.0';
@@ -232,6 +247,51 @@ const server = http.createServer(async (req, res) => {
 
     // --- DEMO (offline catalog covers/audio) ---
     if (require('./routes/demo.js').handleDemoRoutes(req, res, u)) return;
+
+    // --- RIFF PORT ENDPOINT ---
+    if (u.pathname === '/api/riff-port' && req.method === 'GET') {
+      let token = '';
+      try {
+        const riffServer = require('./riff-source/server.js');
+        if (typeof riffServer.getServerToken === 'function') token = riffServer.getServerToken();
+      } catch (e) {}
+      sendJson(res, 200, { port: port, token: token });
+      return;
+    }
+
+    // --- RIFF BACKEND PROXY (for search, lyrics, stream-info, vibe, etc.) ---
+    if (riffStarted && u.pathname.startsWith('/api/')) {
+      let token = '';
+      try {
+        const riffServer = require('./riff-source/server.js');
+        if (typeof riffServer.getServerToken === 'function') token = riffServer.getServerToken();
+      } catch (e) {}
+
+      const proxyHeaders = {
+        ...req.headers,
+        host: `127.0.0.1:${riffPort}`,
+        ...(token ? { 'x-riff-token': token } : {})
+      };
+      if (proxyHeaders.origin) {
+        proxyHeaders.origin = 'http://127.0.0.1';
+      }
+
+      const proxyReq = http.request({
+        hostname: '127.0.0.1',
+        port: riffPort,
+        path: req.url,
+        method: req.method,
+        headers: proxyHeaders
+      }, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res);
+      });
+      proxyReq.on('error', (err) => {
+        sendJson(res, 502, { error: 'Riff internal server unreachable: ' + err.message });
+      });
+      req.pipe(proxyReq);
+      return;
+    }
 
     // --- STATIC FILES ---
     await serveStatic(u.pathname, res);

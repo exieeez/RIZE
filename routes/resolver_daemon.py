@@ -39,6 +39,7 @@ def get_ydl_for_thread(quality='medium'):
             'youtube_include_hls_manifest': False,
             'socket_timeout': 8,
             'nocheckcertificate': True,
+            'extractor_args': {'youtube': {'player_client': ['android', 'ios'], 'skip': ['translated_subs', 'comments']}},
         })
     return thread_local.instances[quality]
 

@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 release/
+target/
+src-tauri/target/
 
 # Environment files
 *.env
@@ -35,6 +37,8 @@ npm-debug.log*
 !tsconfig.json
 !*.config.js
 !*.rc.js
+!src-tauri/**/*.json
+!src-tauri/*.json
 
 # Service keys (keep locally, don't commit)
 supabase-service-key.json
@@ -45,6 +49,8 @@ firebase-service-account.json
 .trae/
 nohup.out
 repomix-output.xml
+src-legacy-backup/
+riff-source/
 
 # Binaries (Windows build is downloaded by `npm install` via scripts/download-ytdlp.js)
 *.exe

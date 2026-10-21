@@ -4214,10 +4214,27 @@ document.addEventListener('DOMContentLoaded', () => {
     function finalizeUI() {
       const fileSelected = document.getElementById('import-file-selected');
       const fileNameEl = document.getElementById('import-file-name');
+      const fileMetaEl = document.getElementById('import-file-meta');
+      const fileIconEl = document.getElementById('import-file-type-icon');
       const dropzoneEl = document.getElementById('import-dropzone');
+
+      const isAudio = selectedImportFileItems.some(i => i.isAudioFile);
       const displayName = files.length === 1 ? files[0].name : `${files.length} файлов`;
-      if (fileNameEl) fileNameEl.textContent = `${displayName} (${selectedImportFileItems.length} треков)`;
-      if (fileSelected) fileSelected.style.display = 'flex';
+
+      if (fileNameEl) fileNameEl.textContent = displayName;
+      if (fileMetaEl) {
+        if (isAudio) {
+          fileMetaEl.textContent = `Аудиофайлы готовы к импорту (${selectedImportFileItems.length} треков)`;
+        } else {
+          fileMetaEl.textContent = `Список распознан (${selectedImportFileItems.length} треков)`;
+        }
+      }
+      if (fileIconEl) {
+        if (files.length === 1 && isAudio) fileIconEl.textContent = 'audiotrack';
+        else if (isAudio) fileIconEl.textContent = 'library_music';
+        else fileIconEl.textContent = 'queue_music';
+      }
+      if (fileSelected) fileSelected.style.display = 'block';
       if (dropzoneEl) dropzoneEl.style.display = 'none';
     }
 
@@ -13153,9 +13170,26 @@ function hideSplash() {
     splash.style.transition = 'opacity 0.4s ease';
     setTimeout(() => {
       splash.style.display = 'none';
+      checkWelcomeOnboarding();
     }, 400);
   }
 }
+
+function checkWelcomeOnboarding() {
+  const isDone = localStorage.getItem('votify_welcome_done') === '1';
+  const welcomeModal = document.getElementById('welcome-onboarding-modal');
+  if (!isDone && welcomeModal) {
+    welcomeModal.style.display = 'block';
+  }
+}
+
+window.addEventListener('message', (e) => {
+  if (e.data && (e.data.type === 'votify:welcome-done' || e.data.action === 'welcome-finish')) {
+    const welcomeModal = document.getElementById('welcome-onboarding-modal');
+    if (welcomeModal) welcomeModal.style.display = 'none';
+    localStorage.setItem('votify_welcome_done', '1');
+  }
+});
 
 // Auto-updater like Discord — checks on app start and displays notification banner
 (function setupUpdaterUI(){
@@ -13169,7 +13203,7 @@ function hideSplash() {
   let availableInfo = null;
   let isDownloading = false;
 
-  const currentAppVersion = '1.1.0';
+  const currentAppVersion = '1.2.0';
   let updateDismissed = false;
 
   function showBanner(msg, actionLabel = 'Обновить') {

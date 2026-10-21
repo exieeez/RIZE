@@ -27,6 +27,25 @@ const http = require('http');
 const { URL } = require('url');
 const { getSystemAudioOutputInfo } = require('./audio-output.js');
 
+// Persistent keep-alive agents for stream proxying across range requests
+const proxyHttpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 64,
+  maxFreeSockets: 16,
+  timeout: 60000,
+  keepAliveMsecs: 10000,
+});
+const proxyHttpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 64,
+  maxFreeSockets: 16,
+  timeout: 60000,
+  keepAliveMsecs: 10000,
+});
+
+const lyricsMemCache = new Map();
+const LYRICS_CACHE_TTL = 24 * 60 * 60 * 1000;
+
 async function translateTexts(texts, targetLang = 'ru') {
   if (!Array.isArray(texts) || texts.length === 0) return [];
   const chunks = [];
@@ -75,6 +94,24 @@ async function translateTexts(texts, targetLang = 'ru') {
 }
 
 async function handleMusicRoutes(req, res, u) {
+  // --- SPOTIFY PROFILE ENDPOINT ---
+  if (u.pathname === '/api/spotify/profile' || u.pathname === '/api/spotify-profile') {
+    const rawInput = u.searchParams.get('url') || u.searchParams.get('user') || u.searchParams.get('q') || '';
+    if (!rawInput.trim()) {
+      sendJson(res, 400, { success: false, error: 'Не указан пользователь или ссылка на профиль Spotify' });
+      return true;
+    }
+
+    try {
+      const profile = await fetchSpotifyUserProfile(rawInput.trim());
+      sendJson(res, 200, { success: true, profile, user: profile });
+    } catch (e) {
+      console.warn('[spotify-profile] Error:', e.message);
+      sendJson(res, 404, { success: false, error: e.message || 'Профиль Spotify не найден' });
+    }
+    return true;
+  }
+
   // --- SEARCH ---
   if (u.pathname === '/api/search') {
     const q = u.searchParams.get('q')?.trim();
@@ -83,7 +120,14 @@ async function handleMusicRoutes(req, res, u) {
       return true;
     }
     const limit = Math.min(Number(u.searchParams.get('limit')) || SEARCH_LIMIT, SEARCH_MAX_LIMIT);
-    sendJson(res, 200, { tracks: await searchTracks(q, limit, true) });
+    const rawTracks = await searchTracks(q, limit, true);
+    const tracks = (rawTracks || []).map(t => ({
+      ...t,
+      platform: t.platform || 'youtube',
+      duration: t.duration || 0,
+      url: t.url || `/api/audio?id=${encodeURIComponent(t.id)}`,
+    }));
+    sendJson(res, 200, { success: true, tracks });
     return true;
   }
 
@@ -191,12 +235,42 @@ async function getDeezerArtistData(name) {
 
     const deezerData = await getDeezerArtistData(name);
     if (deezerData && deezerData.tracks && deezerData.tracks.length > 0) {
-      sendJson(res, 200, deezerData);
+      sendJson(res, 200, {
+        success: true,
+        artist: deezerData.artist,
+        artistDetails: deezerData.artistDetails,
+        tracks: deezerData.tracks,
+        albums: deezerData.albums || [],
+        singles: deezerData.singles || [],
+        relatedArtists: deezerData.relatedArtists || [],
+        artistData: {
+          name: deezerData.artist,
+          avatar: deezerData.artistDetails?.picture || (deezerData.tracks[0] && deezerData.tracks[0].cover) || '',
+          isVerified: true,
+          tracks: deezerData.tracks,
+          albums: deezerData.albums || [],
+          singles: deezerData.singles || [],
+          related: deezerData.relatedArtists || []
+        }
+      });
       return true;
     }
 
     const tracks = await searchTracksByArtist(name, limit);
-    sendJson(res, 200, { artist: name, tracks });
+    sendJson(res, 200, {
+      success: true,
+      artist: name,
+      tracks: tracks || [],
+      artistData: {
+        name,
+        avatar: (tracks[0] && (tracks[0].cover || tracks[0].thumbnail)) || '',
+        isVerified: false,
+        tracks: tracks || [],
+        albums: [],
+        singles: [],
+        related: []
+      }
+    });
     return true;
   }
 
@@ -232,21 +306,21 @@ async function getDeezerArtistData(name) {
     return true;
   }
 
-  // --- CHARTS (живой чарт Apple Music: что слушают прямо сейчас) ---
-  if (u.pathname === '/api/charts') {
+  // --- CHARTS (живой чарт Apple Music: что слушают прямо сейчас / hot picks) ---
+  if (u.pathname === '/api/charts' || u.pathname === '/api/hot') {
     const region = (u.searchParams.get('region') || 'ru').toLowerCase();
     const limit = Math.min(Math.max(Number(u.searchParams.get('limit')) || 30, 1), 50);
     try {
       const chart = await getChartTracks(region, limit);
       if (chart.length) {
-        sendJson(res, 200, { tracks: chart });
+        sendJson(res, 200, { success: true, tracks: chart });
         return true;
       }
     } catch (e) {
       console.error('[charts] не удалось получить чарт:', e.message);
     }
     // Чарт недоступен — отдаём обычные рекомендации, чтобы экран не пустовал.
-    sendJson(res, 200, { tracks: await getRecommendations(limit) });
+    sendJson(res, 200, { success: true, tracks: await getRecommendations(limit) });
     return true;
   }
 
@@ -315,14 +389,6 @@ async function getDeezerArtistData(name) {
     sendJson(res, 200, { tracks: scored.map(s => s.t).slice(0, limit) });
     return true;
   }
-
-  // Shared keep-alive agents for stream proxying
-  const proxyHttpsAgent = new https.Agent({
-    keepAlive: true,
-    maxSockets: 32,
-    keepAliveMsecs: 2000,
-  });
-  const proxyHttpAgent = new http.Agent({ keepAlive: true, maxSockets: 32, keepAliveMsecs: 2000 });
 
   // --- STREAM PROXY (NEW) ---
   if (u.pathname === '/api/stream') {
@@ -456,24 +522,38 @@ async function getDeezerArtistData(name) {
     return true;
   }
 
-  // --- PRELOAD ---
-  if (u.pathname === '/api/preload') {
+  // --- PREFETCH / PRELOAD ---
+  if (u.pathname === '/api/prefetch' || u.pathname === '/api/preload') {
+    const id = (u.searchParams.get('id') || '').trim();
+    if (id) {
+      const clean = id.replace(/^yt_/, '').trim();
+      if (clean) fetchStreamUrl(clean).catch(() => {});
+    }
     const ids = u.searchParams.get('ids')?.split(',').filter(Boolean) || [];
-    ids.slice(0, 2).forEach(id => {
-      fetchStreamUrl(id).catch(() => {});
+    ids.slice(0, 3).forEach(item => {
+      const clean = item.replace(/^yt_/, '').trim();
+      if (clean) fetchStreamUrl(clean).catch(() => {});
     });
-    sendJson(res, 200, { preloading: Math.min(ids.length, 2) });
+    sendJson(res, 200, { success: true, preloading: Boolean(id || ids.length) });
     return true;
   }
 
   // --- LYRICS ---
   if (u.pathname === '/api/lyrics') {
-    const rawTrack = u.searchParams.get('track')?.trim() || '';
+    const rawTrack = (u.searchParams.get('track') || u.searchParams.get('title') || '').trim();
     const rawArtist = u.searchParams.get('artist')?.trim() || '';
     if (!rawTrack) {
-      sendJson(res, 400, { error: 'track required' });
+      sendJson(res, 400, { success: false, error: 'track required' });
       return true;
     }
+
+    const memKey = `${rawArtist.toLowerCase()}:::${rawTrack.toLowerCase()}`;
+    const cachedEntry = lyricsMemCache.get(memKey);
+    if (cachedEntry && cachedEntry.expires > Date.now()) {
+      sendJson(res, 200, cachedEntry.payload);
+      return true;
+    }
+
     try {
       const normStr = s => (s || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
       const stripJunk = s => (s || '')
@@ -504,6 +584,8 @@ async function getDeezerArtistData(name) {
       const savePlain = d => {
         if (!plainFallback && d && typeof d === 'object' && d.plainLyrics && d.plainLyrics.trim().length > 0) {
           plainFallback = {
+            success: true,
+            lyrics: d.plainLyrics,
             syncedLyrics: null,
             plainLyrics: d.plainLyrics,
             track: d.trackName || rawTrack,
@@ -513,15 +595,20 @@ async function getDeezerArtistData(name) {
       };
 
       const sendSynced = d => {
-        sendJson(res, 200, {
-          syncedLyrics: d.syncedLyrics,
+        const payload = {
+          success: true,
+          lyrics: d.syncedLyrics || d.plainLyrics || '',
+          syncedLyrics: d.syncedLyrics || null,
           plainLyrics: d.plainLyrics || null,
           track: d.trackName || rawTrack,
           artist: d.artistName || rawArtist,
-        });
+        };
+        lyricsMemCache.set(memKey, { payload, expires: Date.now() + LYRICS_CACHE_TTL });
+        sendJson(res, 200, payload);
       };
 
       const hasSynced = d => Boolean(d && typeof d === 'object' && !d.message && d.syncedLyrics && d.syncedLyrics.trim().length > 0);
+      const isRateLimited = d => Boolean(d && typeof d === 'object' && (d.status === 429 || d.statusCode === 429 || (d.error && String(d.error).includes('429'))));
 
       // Attempt 1: Exact get with extracted artist and title
       if (pExtractedArtist && extractedTitle) {
@@ -529,6 +616,11 @@ async function getDeezerArtistData(name) {
         const res1 = await httpGet(url1, 6000);
         if (hasSynced(res1)) {
           sendSynced(res1);
+          return true;
+        }
+        if (isRateLimited(res1)) {
+          const empty = { success: false, lyrics: '', syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist };
+          sendJson(res, 200, empty);
           return true;
         }
         savePlain(res1);
@@ -540,6 +632,11 @@ async function getDeezerArtistData(name) {
         const res2 = await httpGet(url2, 6000);
         if (hasSynced(res2)) {
           sendSynced(res2);
+          return true;
+        }
+        if (isRateLimited(res2)) {
+          const empty = { success: false, lyrics: '', syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist };
+          sendJson(res, 200, empty);
           return true;
         }
         savePlain(res2);
@@ -558,23 +655,20 @@ async function getDeezerArtistData(name) {
             return true;
           }
           res3.forEach(savePlain);
+        } else if (isRateLimited(res3)) {
+          const empty = { success: false, lyrics: '', syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist };
+          sendJson(res, 200, empty);
+          return true;
         }
       }
 
-      // Attempt 4: Search queries (prioritizing synced results)
-      const queries = [
-        pExtractedArtist && extractedTitle ? `${pExtractedArtist} ${extractedTitle}` : '',
-        pCleanArtist && cleanTrack ? `${pCleanArtist} ${cleanTrack}` : '',
-        extractedTitle,
-        cleanTrack,
-        rawTrack,
-      ].filter(Boolean);
+      // Attempt 4: Search query (prioritizing synced results)
+      const primaryQuery = (pExtractedArtist && extractedTitle)
+        ? `${pExtractedArtist} ${extractedTitle}`
+        : ((pCleanArtist && cleanTrack) ? `${pCleanArtist} ${cleanTrack}` : searchTrack);
 
-      const seenQ = new Set();
-      for (const q of queries) {
-        if (seenQ.has(q)) continue;
-        seenQ.add(q);
-        const urlQ = `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`;
+      if (primaryQuery) {
+        const urlQ = `https://lrclib.net/api/search?q=${encodeURIComponent(primaryQuery)}`;
         const resQ = await httpGet(urlQ, 6000);
         if (Array.isArray(resQ) && resQ.length > 0) {
           const syncedMatchQ = resQ.find(r => r && r.syncedLyrics && r.syncedLyrics.trim().length > 0);
@@ -588,14 +682,18 @@ async function getDeezerArtistData(name) {
 
       // If no synced lyrics were found, return plain fallback if available
       if (plainFallback) {
+        lyricsMemCache.set(memKey, { payload: plainFallback, expires: Date.now() + LYRICS_CACHE_TTL });
         sendJson(res, 200, plainFallback);
         return true;
       }
 
-      sendJson(res, 200, { syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist });
+      const emptyRes = { success: false, lyrics: '', syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist };
+      lyricsMemCache.set(memKey, { payload: emptyRes, expires: Date.now() + 60000 });
+      sendJson(res, 200, emptyRes);
       return true;
     } catch (e) {
-      sendJson(res, 200, { syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist });
+      const errRes = { success: false, lyrics: '', syncedLyrics: null, plainLyrics: null, track: rawTrack, artist: rawArtist };
+      sendJson(res, 200, errRes);
       return true;
     }
   }
@@ -663,16 +761,77 @@ async function getDeezerArtistData(name) {
     });
   }
 
+  // --- SPOTIFY PROFILE SCRAPER ---
+  function fetchSpotifyUserProfile(input) {
+    const str = String(input || '').trim();
+    const m = str.match(/user[/:]([a-zA-Z0-9_\-\.]+)/i);
+    const userId = m ? m[1] : str.replace(/^@/, '');
+    if (!userId) return Promise.reject(new Error('Некорректный ID пользователя Spotify'));
+
+    const profileUrl = `https://open.spotify.com/user/${encodeURIComponent(userId)}`;
+    return new Promise((resolve, reject) => {
+      const httpsMod = require('https');
+      const req = httpsMod.get(profileUrl, {
+        headers: {
+          'User-Agent': 'Twitterbot/1.0',
+          'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 10000
+      }, (resp) => {
+        if (resp.statusCode === 404) {
+          return reject(new Error('Пользователь Spotify не найден (404)'));
+        }
+        let html = '';
+        resp.on('data', chunk => { html += chunk; });
+        resp.on('end', () => {
+          const titleMatch = html.match(/property=[\"']og:title[\"']\s+content=[\"'](.*?)[\"']/i) || 
+                             html.match(/<title>([^<]+)<\/title>/i);
+          const imageMatch = html.match(/property=[\"']og:image[\"']\s+content=[\"'](.*?)[\"']/i);
+          const descMatch = html.match(/property=[\"']og:description[\"']\s+content=[\"'](.*?)[\"']/i);
+
+          let name = titleMatch ? titleMatch[1].replace(/ \| Spotify$/i, '').replace(/ on Spotify$/i, '').trim() : userId;
+          if (name === 'Spotify – Web Player' || name === 'Spotify - Web Player') {
+            name = userId;
+          }
+          const avatar = imageMatch ? imageMatch[1] : '';
+          let description = descMatch ? descMatch[1].trim() : '';
+          if (description === 'User · Spotify' || description === 'Пользователь · Spotify') {
+            description = '';
+          }
+
+          resolve({
+            id: userId,
+            name: name || userId,
+            displayName: name || userId,
+            handle: userId,
+            avatar: avatar || '',
+            about: description || '',
+            description: description || '',
+            url: profileUrl
+          });
+        });
+      });
+      req.on('error', err => reject(new Error(`Ошибка подключения к Spotify: ${err.message}`)));
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Время ожидания ответа от Spotify истекло'));
+      });
+    });
+  }
+
   // --- PLAYLIST EXTRACTION & STREAMING RESOLUTION HELPERS ---
   async function extractTracksFromUrl(url) {
     const rawUrl = String(url || '').trim();
     if (!rawUrl) throw new Error('URL не указан');
 
-    // 1. SPOTIFY (Playlist / Album / Track)
+    // 1. SPOTIFY (Playlist / Album / Track / User Profile)
     if (rawUrl.includes('spotify.com') || rawUrl.startsWith('spotify:')) {
       const playlistId = rawUrl.match(/playlist\/([a-zA-Z0-9]+)/)?.[1] || rawUrl.match(/spotify:playlist:([a-zA-Z0-9]+)/)?.[1];
       const albumId = rawUrl.match(/album\/([a-zA-Z0-9]+)/)?.[1] || rawUrl.match(/spotify:album:([a-zA-Z0-9]+)/)?.[1];
       const trackId = rawUrl.match(/track\/([a-zA-Z0-9]+)/)?.[1] || rawUrl.match(/spotify:track:([a-zA-Z0-9]+)/)?.[1];
+      const userId = rawUrl.match(/user\/([a-zA-Z0-9_\-\.]+)/)?.[1] || rawUrl.match(/spotify:user:([a-zA-Z0-9_\-\.]+)/)?.[1];
 
       let playlistName = 'Spotify импорт';
       let playlistCover = '';
@@ -756,6 +915,54 @@ async function getDeezerArtistData(name) {
             items.push({ title, artist, cover, duration: 0 });
           }
         } catch (e) {}
+      } else if (userId) {
+        try {
+          const profile = await fetchSpotifyUserProfile(userId);
+          playlistName = `${profile.name || userId} — Spotify Профиль`;
+          playlistCover = profile.avatar || '';
+
+          // Search for curated playlists or top tracks for this user
+          const query = profile.name || userId;
+          try {
+            const dzRes = await fetch(`https://api.deezer.com/search/playlist?q=${encodeURIComponent(query)}&limit=3`, {
+              signal: AbortSignal.timeout(6000),
+            });
+            if (dzRes.ok) {
+              const dzData = await dzRes.json();
+              if (dzData.data && dzData.data[0]) {
+                const plId = dzData.data[0].id;
+                const tracksRes = await fetch(`https://api.deezer.com/playlist/${plId}/tracks?limit=50`, {
+                  signal: AbortSignal.timeout(6000),
+                });
+                if (tracksRes.ok) {
+                  const tData = await tracksRes.json();
+                  for (const trk of (tData.data || [])) {
+                    items.push({
+                      title: trk.title,
+                      artist: trk.artist?.name || '',
+                      cover: trk.album?.cover_medium || playlistCover,
+                      duration: trk.duration || 0,
+                    });
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+
+          if (items.length === 0) {
+            const ytTracks = await searchTracks(query, 25, false);
+            for (const yt of (ytTracks || [])) {
+              items.push({
+                title: yt.title,
+                artist: yt.artist || query,
+                cover: yt.cover || playlistCover,
+                duration: yt.duration || 0,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[spotify-profile] Profile import error:', e.message);
+        }
       }
 
       if (items.length === 0) throw new Error('Не удалось извлечь треки из Spotify ссылки');
