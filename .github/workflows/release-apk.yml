@@ -136,6 +136,6 @@ jobs:
             || true
           gh release create "$TAG" "RIZE-debug.apk" "Votify-debug.apk" "version.json" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "RIZE Android — свежая debug-сборка (1.2.0)" \
+            --title "RIZE Android — свежая debug-сборка (1.2.1)" \
             --notes-file notes.md \
             --prerelease
