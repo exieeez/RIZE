@@ -49,7 +49,7 @@ object WidgetUpdateHelper {
             state.reverbPreset != "none" && state.speed < 1f -> context.getString(R.string.widget_slowed_hall)
             state.pitchLinked && state.speed > 1.1f -> "Nightcore"
             Math.abs(state.speed - 1.0f) > 0.03f -> String.format(java.util.Locale.US, "%.2f×", state.speed)
-            else -> "Votify"
+            else -> "RIZE"
         }
 
         // Load cover art
@@ -110,7 +110,7 @@ object WidgetUpdateHelper {
             val views = RemoteViews(context.packageName, R.layout.widget_player_compact_4x1)
 
             views.setTextViewText(R.id.widget_compact_title, track?.title ?: context.getString(R.string.widget_no_track))
-            views.setTextViewText(R.id.widget_compact_artist, track?.artist ?: "Votify")
+            views.setTextViewText(R.id.widget_compact_artist, track?.artist ?: "RIZE")
 
             if (coverBitmap != null) {
                 views.setImageViewBitmap(R.id.widget_compact_cover, coverBitmap)

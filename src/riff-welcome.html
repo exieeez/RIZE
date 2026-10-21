@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Votify - Setup</title>
+  <title>Welcome to RIZE - Setup</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1010,17 +1010,17 @@
             <g class="shape-spin"><path class="shape-path" id="shapePath" d=""/></g>
           </svg>
           <div class="icon-tint">
-            <img class="riff-icon" src="assets/logo.png" alt="Votify" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ffffff\'><path d=\'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z\'/></svg>';" >
+            <img class="riff-icon" src="assets/logo.png" alt="RIZE" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ffffff\'><path d=\'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z\'/></svg>';" >
           </div>
         </div>
         <h1 class="riff-title">
-          <span>V</span><span>o</span><span>t</span><span>i</span><span>f</span><span>y</span>
+          <span>R</span><span>I</span><span>Z</span><span>E</span>
         </h1>
       </div>
 
       <div class="stacked-group">
         <div class="stacked-container top">
-          <h2 class="step-header-title">Welcome to Votify.</h2>
+          <h2 class="step-header-title">Welcome to RIZE.</h2>
           <p class="step-header-subtitle">Let's get started.</p>
         </div>
 
@@ -1229,8 +1229,8 @@
       <div class="stacked-group">
 
         <div class="stacked-container stacked-3-top">
-          <h2 class="step-header-title">Add Votify to your launcher</h2>
-          <p class="step-header-subtitle" id="launcherSub">Open Votify in one click from your Start menu or applications menu.</p>
+          <h2 class="step-header-title">Add RIZE to your launcher</h2>
+          <p class="step-header-subtitle" id="launcherSub">Open RIZE in one click from your Start menu or applications menu.</p>
         </div>
 
         <div class="stacked-container stacked-3-middle launcher-preview">
@@ -1238,7 +1238,7 @@
             <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
           </div>
           <div>
-            <div class="launcher-name">Votify</div>
+            <div class="launcher-name">RIZE</div>
             <div class="launcher-desc">Music player</div>
           </div>
         </div>
@@ -1249,7 +1249,7 @@
           </div>
           <div class="row-text">
             <div class="row-title" id="launcherTitle">Start menu shortcut</div>
-            <div class="row-sub" id="launcherRowSub">Add Votify with its icon so you can find it by searching</div>
+            <div class="row-sub" id="launcherRowSub">Add RIZE with its icon so you can find it by searching</div>
           </div>
           <button class="sw on" role="switch" aria-checked="true" id="launcherSwitch"></button>
         </div>
@@ -1299,7 +1299,7 @@
             </div>
             <div class="row-text">
               <div class="row-title">Import a Spotify playlist</div>
-              <div class="row-sub">Paste a public playlist link and it becomes a Votify playlist</div>
+              <div class="row-sub">Paste a public playlist link and it becomes a RIZE playlist</div>
             </div>
           </div>
           <div class="field-row">
@@ -1406,12 +1406,12 @@
 
       async spotifyLookup(url) {
         const port = await this.serverPort();
-        if (!port) return { success: false, error: 'Votify server is not available here' };
+        if (!port) return { success: false, error: 'RIZE server is not available here' };
         try {
           const res = await fetch(`http://127.0.0.1:${port}/api/spotify-import?url=${encodeURIComponent(url)}`);
           return await res.json();
         } catch (e) {
-          return { success: false, error: 'Could not reach the Votify server' };
+          return { success: false, error: 'Could not reach the RIZE server' };
         }
       }
     };
@@ -1944,16 +1944,16 @@
 
       if (platform === 'win32') {
         launcherTitle.textContent = 'Start menu shortcut';
-        launcherSub.textContent = 'Pin Votify to the Start menu so you can open it by searching.';
-        launcherRowSub.textContent = 'Adds Riff with its icon to the Start menu';
+        launcherSub.textContent = 'Pin RIZE to the Start menu so you can open it by searching.';
+        launcherRowSub.textContent = 'Adds RIZE with its icon to the Start menu';
       } else {
         launcherTitle.textContent = 'Applications menu entry';
-        launcherSub.textContent = 'Add Riff to your applications menu with its icon and description.';
+        launcherSub.textContent = 'Add RIZE to your applications menu with its icon and description.';
         launcherRowSub.textContent = 'Creates a launcher that starts the AppImage';
       }
 
       if (!info) return;
-      if (info.installed) setLauncherUnavailable('Votify is already in your launcher');
+      if (info.installed) setLauncherUnavailable('RIZE is already in your launcher');
       else if (!info.canInstall) setLauncherUnavailable(info.reason || 'Not available here');
     }
 

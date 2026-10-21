@@ -1034,7 +1034,7 @@ private const val TRENDING_TTL_MS = 30 * 60 * 1000L
     private fun httpGetString(url: String): String? {
         val request = OkHttpRequest.Builder()
             .url(url)
-            .header("User-Agent", "Votify Android (https://github.com/exieeez/Votify)")
+            .header("User-Agent", "RIZE Android (https://github.com/exieeez/RIZE)")
             .build()
         http.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) return null

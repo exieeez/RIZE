@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# Votify — установка одной командой (Linux).
+# RIZE — установка одной командой (Linux).
 #
-#   curl -fsSL https://github.com/exieeez/Votify/releases/latest/download/install.sh | bash
+#   curl -fsSL https://github.com/exieeez/RIZE/releases/latest/download/install.sh | bash
 #
 # Что делает:
-#   • находит последний релиз Votify на GitHub;
-#   • скачивает AppImage под вашу архитектуру и кладёт в ~/.local/bin/Votify.AppImage;
-#   • добавляет ярлык «Votify» в меню приложений (иконка тоже скачивается);
+#   • находит последний релиз RIZE на GitHub;
+#   • скачивает AppImage под вашу архитектуру и кладёт в ~/.local/bin/RIZE.AppImage;
+#   • добавляет ярлык «RIZE» в меню приложений (иконка тоже скачивается);
 #   • root не нужен, файлы проекта не трогаются.
 #
 # Ключи (можно дописать в конец команды после «bash -s --»):
@@ -15,7 +15,7 @@
 #   --version v1.0.0  конкретная версия вместо последней
 #   --dir ПУТЬ        куда положить AppImage (по умолчанию ~/.local/bin)
 #   --no-shortcut     не создавать ярлык в меню приложений
-#   --uninstall       удалить установленный Votify (AppImage, ярлык, иконку)
+#   --uninstall       удалить установленный RIZE (AppImage, ярлык, иконку)
 #
 # Примеры:
 #   curl -fsSL .../install.sh | bash
@@ -24,7 +24,7 @@
 #
 set -euo pipefail
 
-REPO="exieeez/Votify"
+REPO="exieeez/RIZE"
 MODE="appimage"
 VERSION=""
 BIN_DIR="${HOME}/.local/bin"
@@ -51,16 +51,16 @@ say() { printf '\033[1m%s\033[0m\n' "$*"; }
 warn() { printf '\033[33m%s\033[0m\n' "$*"; }
 die() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 
-APPIMAGE_PATH="${BIN_DIR}/Votify.AppImage"
-LAUNCHER="${BIN_DIR}/votify"
-DESKTOP_FILE="${HOME}/.local/share/applications/votify.desktop"
-ICON_PATH="${HOME}/.local/share/icons/hicolor/512x512/apps/votify.png"
+APPIMAGE_PATH="${BIN_DIR}/RIZE.AppImage"
+LAUNCHER="${BIN_DIR}/rize"
+DESKTOP_FILE="${HOME}/.local/share/applications/rize.desktop"
+ICON_PATH="${HOME}/.local/share/icons/hicolor/512x512/apps/rize.png"
 
 # ---------------------------------------------------------------- удаление
 if [ "$MODE" = "uninstall" ]; then
-  rm -f "$APPIMAGE_PATH" "$LAUNCHER" "$DESKTOP_FILE" "$ICON_PATH"
-  say "Votify удалён: AppImage, запускалка и ярлык."
-  echo "Настройки и кэш остались в ~/.config/Votify — удалите папку вручную, если не нужны."
+  rm -f "$APPIMAGE_PATH" "${BIN_DIR}/Votify.AppImage" "$LAUNCHER" "${BIN_DIR}/votify" "$DESKTOP_FILE" "${HOME}/.local/share/applications/votify.desktop" "$ICON_PATH"
+  say "RIZE удалён: AppImage, запускалка и ярлык."
+  echo "Настройки и кэш остались в ~/.config/RIZE — удалите папку вручную, если не нужны."
   exit 0
 fi
 
@@ -80,7 +80,7 @@ if [ -n "$VERSION" ]; then
   API="https://api.github.com/repos/${REPO}/releases/tags/${VERSION}"
 fi
 
-say "→ Ищу релиз Votify на GitHub…"
+say "→ Ищу релиз RIZE на GitHub…"
 JSON="$(curl -fsSL "$API")" ||
   die "Не получилось получить релиз ($API). Проверьте интернет и что релиз уже опубликован."
 
@@ -108,14 +108,14 @@ if [ "$MODE" = "deb" ]; then
   TMP="$(mktemp -d)"
   trap 'rm -rf "$TMP"' EXIT
   say "→ Скачиваю $(basename "$DEB_URL")…"
-  curl -fL --progress-bar "$DEB_URL" -o "$TMP/votify.deb"
+  curl -fL --progress-bar "$DEB_URL" -o "$TMP/rize.deb"
   say "→ Ставлю пакет (нужен sudo)…"
   if command -v apt-get >/dev/null 2>&1; then
-    sudo dpkg -i "$TMP/votify.deb" || sudo apt-get -f install -y
+    sudo dpkg -i "$TMP/rize.deb" || sudo apt-get -f install -y
   else
-    sudo dpkg -i "$TMP/votify.deb"
+    sudo dpkg -i "$TMP/rize.deb"
   fi
-  say "Готово: Votify ${TAG:-} установлен как пакет. Запуск — «Votify» в меню приложений."
+  say "Готово: RIZE ${TAG:-} установлен как пакет. Запуск — «RIZE» в меню приложений."
   exit 0
 fi
 
@@ -128,14 +128,15 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 say "→ Скачиваю $(basename "$APPIMAGE_URL")…"
-curl -fL --progress-bar "$APPIMAGE_URL" -o "$TMP/Votify.AppImage"
-chmod +x "$TMP/Votify.AppImage"
-install -m 755 "$TMP/Votify.AppImage" "$APPIMAGE_PATH"
+curl -fL --progress-bar "$APPIMAGE_URL" -o "$TMP/RIZE.AppImage"
+chmod +x "$TMP/RIZE.AppImage"
+install -m 755 "$TMP/RIZE.AppImage" "$APPIMAGE_PATH"
 ln -sf "$APPIMAGE_PATH" "$LAUNCHER"
+ln -sf "$APPIMAGE_PATH" "${BIN_DIR}/votify"
 
 if [ "$SHORTCUT" = "1" ]; then
-  ICON_LINE="Icon=votify"
-  ICON_URL="$(printf '%s\n' "$URLS" | grep -E 'votify-icon\.png$' | head -1 || true)"
+  ICON_LINE="Icon=rize"
+  ICON_URL="$(printf '%s\n' "$URLS" | grep -E '(rize-icon|votify-icon)\.png$' | head -1 || true)"
   if [ -n "$ICON_URL" ]; then
     mkdir -p "$(dirname "$ICON_PATH")"
     if curl -fsSL "$ICON_URL" -o "$ICON_PATH"; then
@@ -148,22 +149,22 @@ if [ "$SHORTCUT" = "1" ]; then
   cat >"$DESKTOP_FILE" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Votify
-Comment=Музыкальный плеер Votify
+Name=RIZE
+Comment=Музыкальный плеер RIZE
 Exec=${APPIMAGE_PATH} %U
 ${ICON_LINE}
 Terminal=false
 Categories=AudioVideo;Audio;Player;
-StartupWMClass=Votify
+StartupWMClass=RIZE
 DESKTOP
   update-desktop-database "${HOME}/.local/share/applications" >/dev/null 2>&1 || true
 fi
 
-say "Готово: Votify ${TAG:-} установлен."
-echo "  Запуск:  votify   (файл: ${APPIMAGE_PATH})"
-echo "  Или из меню приложений — «Votify»."
+say "Готово: RIZE ${TAG:-} установлен."
+echo "  Запуск:  rize   (файл: ${APPIMAGE_PATH})"
+echo "  Или из меню приложений — «RIZE»."
 case ":${PATH}:" in
   *":${BIN_DIR}:"*) ;;
-  *) warn "Папки ${BIN_DIR} нет в PATH — добавьте её, чтобы команда «votify» работала:"
+  *) warn "Папки ${BIN_DIR} нет в PATH — добавьте её, чтобы команда «rize» работала:"
      echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc" ;;
 esac

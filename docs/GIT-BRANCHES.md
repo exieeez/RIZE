@@ -32,7 +32,7 @@
 В клоне репозитория (Git Bash на Windows, терминал macOS/Linux):
 
 ```bash
-cd путь/к/Votify
+cd путь/к/RIZE
 git pull                                       # подтянуть свежий код
 # если ветки arena/01a0ae5a-votify ещё нет локально:
 git fetch origin && git checkout arena/01a0ae5a-votify
@@ -57,8 +57,8 @@ bash scripts/git-split-branches.sh                # сделать (скрипт
 ### Вариант A. Скриптом (Windows, PowerShell)
 
 ```powershell
-cd C:\путь\к\Votify
-powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\путь\к\Votify
+cd C:\путь\к\RIZE
+powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\путь\к\RIZE
 ```
 
 По умолчанию папка уезжает в **новую** ветку `pc-upload` — ничего не ломается, потом можно
@@ -67,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\пу
 Залить прямо в ветку ПК:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\путь\к\Votify -Branch pc
+powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\путь\к\RIZE -Branch pc
 ```
 
 Скрипт сам: проверит git, инициализирует репозиторий (если папка ещё не под git),
@@ -78,9 +78,9 @@ powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\пу
 ### Вариант B. Вручную (любая система)
 
 ```bash
-cd путь/к/Votify
+cd путь/к/RIZE
 git init -b pc                      # если папка ещё не под git (иначе: git checkout -B pc)
-git remote add origin https://github.com/exieeez/Votify.git   # или: git remote set-url origin …
+git remote add origin https://github.com/exieeez/RIZE.git   # или: git remote set-url origin …
 git fetch origin --prune
 git reset --soft origin/pc           # «приклеиться» к ветке, файлы на диске не меняются
 git add -A

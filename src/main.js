@@ -2171,7 +2171,7 @@ function notifyTrackChange(track) {
   if (!appSettings.trackNotifications || !track) return;
   try {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-    const n = new Notification(track.title || 'Votify', {
+    const n = new Notification(track.title || 'RIZE', {
       body: track.artist || '',
       icon: track.cover || 'icon.png',
       silent: true,
@@ -13264,7 +13264,7 @@ window.addEventListener('message', (e) => {
     });
   }
 
-  window.checkForVotifyUpdates = function(force = false) {
+  window.checkForRizeUpdates = window.checkForVotifyUpdates = function(force = false) {
     if (updateDismissed && !force) return;
     if (force) {
       showBanner('Проверка обновлений...', '...');
@@ -13275,7 +13275,7 @@ window.addEventListener('message', (e) => {
       window.electronAPI.checkForUpdates();
     }
 
-    fetch('https://api.github.com/repos/exieeez/Votify/releases/latest?t=' + Date.now())
+    fetch('https://api.github.com/repos/exieeez/RIZE/releases/latest?t=' + Date.now())
       .then(r => r.json())
       .then(release => {
         const latest = (release.tag_name || release.name || '').replace(/^v/, '');
@@ -13286,16 +13286,16 @@ window.addEventListener('message', (e) => {
             changelog: release.body || 'Студийный эквалайзер, перевод текстов и оффлайн-треки'
           };
           showBanner(`Доступно обновление ${latest}`, 'Обновить');
-          showToast(`🔔 Найдено обновление Votify ${latest}! Нажмите «Обновить» в шапке`);
+          showToast(`🔔 Найдено обновление RIZE ${latest}! Нажмите «Обновить» в шапке`);
         } else if (force) {
           hideBanner();
-          showToast(`Вы используете актуальную версию Votify ${currentAppVersion}`);
+          showToast(`Вы используете актуальную версию RIZE ${currentAppVersion}`);
         }
       })
       .catch(() => {
         if (force) {
           hideBanner();
-          showToast(`Вы используете актуальную версию Votify ${currentAppVersion}`);
+          showToast(`Вы используете актуальную версию RIZE ${currentAppVersion}`);
         }
       });
   };
@@ -13310,7 +13310,7 @@ window.addEventListener('message', (e) => {
       availableInfo = info;
       downloaded = false;
       showBanner(`Доступно обновление ${info.version || currentAppVersion}`.trim(), 'Обновить');
-      showToast('🔔 Доступно обновление Votify! Нажмите «Обновить» в шапке');
+      showToast('🔔 Доступно обновление RIZE! Нажмите «Обновить» в шапке');
       if (progressWrap) progressWrap.style.display = 'none';
     });
     window.electronAPI.onUpdateNotAvailable?.(() => {

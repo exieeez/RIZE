@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Votify</string>
+    <string name="app_name">RIZE</string>
 
-    <string name="widget_player_3x2_name">Votify Плеер (3×2)</string>
+    <string name="widget_player_3x2_name">RIZE Плеер (3×2)</string>
     <string name="widget_player_3x2_desc">Большой виджет плеера с обложкой, управлением и лайком</string>
-    <string name="widget_playlist_2x2_name">Votify Очередь (2×2)</string>
+    <string name="widget_playlist_2x2_name">RIZE Очередь (2×2)</string>
     <string name="widget_playlist_2x2_desc">Скроллируемый список очереди воспроизведения с быстрым запуском</string>
-    <string name="widget_compact_4x1_name">Votify Мини-бар (4×1)</string>
+    <string name="widget_compact_4x1_name">RIZE Мини-бар (4×1)</string>
     <string name="widget_compact_4x1_desc">Компактная строка управления музыкой</string>
-    <string name="widget_remix_2x1_name">Votify Ремикс-пульт (2×1)</string>
+    <string name="widget_remix_2x1_name">RIZE Ремикс-пульт (2×1)</string>
     <string name="widget_remix_2x1_desc">Быстрое переключение пресетов Slowed, 1.0× и Nightcore</string>
 
     <string name="nav_home">Главная</string>
@@ -47,7 +47,7 @@
     <string name="search_retry">Повторить</string>
     <string name="search_clear">Очистить</string>
     <string name="search_offline_title">Сервер недоступен</string>
-    <string name="search_offline_sub">Телефон не может подключиться к серверу Votify. Проверьте адрес сервера в настройках — телефон и компьютер должны быть в одной Wi‑Fi сети.</string>
+    <string name="search_offline_sub">Телефон не может подключиться к серверу RIZE. Проверьте адрес сервера в настройках — телефон и компьютер должны быть в одной Wi‑Fi сети.</string>
     <string name="search_open_settings">Открыть настройки</string>
     <string name="search_no_internet_title">Нет подключения</string>
     <string name="search_no_internet_sub">Проверьте интернет-соединение (Wi‑Fi или мобильная сеть) и повторите попытку</string>
@@ -149,7 +149,7 @@
     <string name="settings_section_account">Аккаунт</string>
     <string name="settings_section_account_tag">Профиль</string>
     <string name="settings_account_login">Войти в аккаунт</string>
-    <string name="settings_account_login_sub">Вход и регистрация на вашем сервере Votify</string>
+    <string name="settings_account_login_sub">Вход и регистрация на вашем сервере RIZE</string>
     <string name="settings_account_logout">Выйти</string>
     <string name="settings_section_server">Режим работы</string>
     <string name="settings_section_server_tag">Подключение</string>
@@ -158,14 +158,14 @@
     <string name="settings_mode_embedded_hint">Приложение работает полностью самостоятельно: поиск, воспроизведение, тексты песен и импорт плейлистов выполняются прямо на телефоне. Ничего настраивать не нужно — нужен только интернет.</string>
     <string name="settings_mode_server">Свой сервер</string>
     <string name="settings_server_setup">Подключить свой сервер</string>
-    <string name="settings_server_url">Адрес сервера Votify</string>
+    <string name="settings_server_url">Адрес сервера RIZE</string>
     <string name="settings_server_example">http://192.168.0.10:17217</string>
     <string name="settings_server_save">Подключить</string>
     <string name="settings_server_hint">Запустите бекенд на компьютере (npm start) и введите его IP в той же Wi‑Fi сети, например http://192.168.0.10:17217. Адрес 10.0.2.2 работает только в эмуляторе. Оставьте поле пустым, чтобы сбросить на значение по умолчанию.</string>
     <string name="settings_section_audio">Аудио и воспроизведение</string>
     <string name="settings_section_audio_tag">Сервер</string>
     <string name="settings_quality">Качество стриминга</string>
-    <string name="settings_quality_hint">Применяется на сервере Votify для всех новых треков</string>
+    <string name="settings_quality_hint">Применяется на сервере RIZE для всех новых треков</string>
     <string name="settings_quality_hint_embedded">Влияет на битрейт аудиопотока, который телефон выбирает при воспроизведении</string>
     <string name="settings_quality_low">Стандарт</string>
     <string name="settings_quality_low_sub">≤96 kbps</string>
@@ -211,8 +211,8 @@
     <string name="settings_data_stats">Любимых: %1$d · в истории: %2$d</string>
     <string name="settings_clear_history">Очистить историю прослушиваний</string>
     <string name="settings_section_about">О приложении</string>
-    <string name="settings_section_about_tag">Votify</string>
-    <string name="settings_about_name">Votify Mobile</string>
+    <string name="settings_section_about_tag">RIZE</string>
+    <string name="settings_about_name">RIZE Mobile</string>
     <string name="settings_about_standalone">Режим: без сервера (поиск и стриминг на устройстве)</string>
     <string name="settings_about_server">Сервер: %1$s</string>
     <string name="settings_about_server_ok">Онлайн · %1$s</string>
@@ -511,7 +511,7 @@
     <string name="toast_accent_invalid">Некорректный цвет (пример: #A78BFA)</string>
 
     <string name="account_no_backend_title">Нет сервера аккаунтов</string>
-    <string name="account_no_backend_sub">Аккаунты работают через Firebase — подключите его в Мастерской тем (Настройки → Внешний вид → Мастерская тем) или запустите свой сервер Votify.</string>
+    <string name="account_no_backend_sub">Аккаунты работают через Firebase — подключите его в Мастерской тем (Настройки → Внешний вид → Мастерская тем) или запустите свой сервер RIZE.</string>
     <string name="account_forgot_hint_fb">Введите email — на него придёт ссылка для сброса пароля.</string>
     <string name="account_reset_sent">Письмо отправлено</string>
     <string name="account_reset_sent_sub">Откройте ссылку из письма, чтобы задать новый пароль, затем вернитесь и войдите.</string>
@@ -535,7 +535,7 @@
     <string name="account_new_password">Новый пароль</string>
     <string name="account_reset_btn">Сменить пароль</string>
     <string name="account_back_to_login">Вернуться ко входу</string>
-    <string name="account_hint">Аккаунт создаётся на вашем сервере Votify и хранится только у вас</string>
+    <string name="account_hint">Аккаунт создаётся на вашем сервере RIZE и хранится только у вас</string>
 
     <string name="import_title">Импорт плейлиста</string>
     <string name="import_url_hint">Ссылка на плейлист</string>
@@ -547,7 +547,7 @@
     <string name="import_more">и ещё %1$d…</string>
     <string name="import_add">Добавить в медиатеку</string>
     <!-- Первый запуск -->
-    <string name="welcome_title">Добро пожаловать в Votify</string>
+    <string name="welcome_title">Добро пожаловать в RIZE</string>
     <string name="welcome_text">Поиск и стриминг музыки, «Моя волна», плейлисты и мастерская тем. Войдите в аккаунт, чтобы синхронизировать избранное и настройки между устройствами, — или продолжите как гость, всё работает и без аккаунта.</string>
     <string name="welcome_sign_in">Войти в аккаунт</string>
     <string name="welcome_guest">Продолжить как гость</string>
@@ -589,7 +589,7 @@
     <string name="workshop_unlinked">Тема отвязана</string>
     <!-- Иконка приложения (Настройки → Иконка приложения, самый верхний раздел) -->
     <string name="icon_section">Иконка приложения</string>
-    <string name="icon_section_sub">Вариант иконки на рабочем столе. Ч/Б — та же иконка без серой полосы, «в духе iOS 27» и «старая» — прежний логотип Votify.</string>
+    <string name="icon_section_sub">Вариант иконки на рабочем столе. Ч/Б — та же иконка без серой полосы, «в духе iOS 27» и «старая» — прежний логотип RIZE.</string>
     <string name="icon_current">Как сейчас</string>
     <string name="icon_bw">Ч/Б</string>
     <string name="icon_glass">В духе iOS 27</string>

@@ -37,6 +37,7 @@ function getInstalledExecutable(electronDir) {
 function linkSystemElectron(electronDir) {
   if (process.platform !== 'linux') return null;
   const candidates = [
+    process.env.RIZE_SYSTEM_ELECTRON,
     process.env.VOTIFY_SYSTEM_ELECTRON,
     '/usr/bin/electron',
     '/usr/bin/electron43',
@@ -134,7 +135,7 @@ main()
     console.error(`[electron] Repair failed: ${error?.stack || error}`);
     if (process.platform === 'linux') {
       console.error(
-        '[electron] If direct download is unavailable, install a compatible system Electron and set VOTIFY_SYSTEM_ELECTRON to its executable path.'
+        '[electron] If direct download is unavailable, install a compatible system Electron and set RIZE_SYSTEM_ELECTRON (or VOTIFY_SYSTEM_ELECTRON) to its executable path.'
       );
     }
     process.exit(1);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Votify</title>
+  <title>RIZE</title>
   <link rel="icon" type="image/png" href="assets/logo.png">
   <script src="tauri-bridge.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,8 +47,8 @@
   <header class="titlebar" id="titlebar" data-tauri-drag-region>
     <div class="titlebar-drag" data-tauri-drag-region>
       <div class="app-logo" data-tauri-drag-region>
-        <img src="assets/logo.png" style="width:20px;height:20px;margin-right:8px;border-radius:4px;object-fit:contain;" alt="Votify">
-        <span class="logo-text">Votify</span>
+        <img src="assets/logo.png" style="width:20px;height:20px;margin-right:8px;border-radius:4px;object-fit:contain;" alt="RIZE">
+        <span class="logo-text">RIZE</span>
       </div>
     </div>
     <div class="titlebar-controls">
@@ -711,8 +711,8 @@
                   <div style="display: flex; flex-direction: column; gap: 4px;">
                     <div class="settings-section-title">Custom themes</div>
                     <div style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-on-surface-variant); font-weight: normal; line-height: 1.4;">
-                      Add a .css file to restyle Votify.<br>
-                      Tip: Votify sets its color variables from JavaScript, so a theme must use !important to override them (for example --md-sys-color-primary: #ff4081 !important).<br>
+                      Add a .css file to restyle RIZE.<br>
+                      Tip: RIZE sets its color variables from JavaScript, so a theme must use !important to override them (for example --md-sys-color-primary: #ff4081 !important).<br>
                       Ctrl+Shift+R turns every custom theme and CSS off if something breaks.
                     </div>
                   </div>
@@ -722,7 +722,7 @@
               </div>
 
               <div class="settings-section" data-cat="plugins">
-                <div class="ct-head"><div><div class="settings-section-title">Plugins</div><div class="setting-hint"><span class="plugins-warn">Plugins are JavaScript files with full access to Votify.</span> Only add plugins you trust. They live in the plugins folder: delete a file and the plugin is gone. Ctrl+Shift+R turns every plugin off.</div></div><div class="ct-actions"><button class="btn-outline-pill" id="btn-plugins-folder">Open folder</button><button class="btn-outline-pill" id="btn-plugins-reload">Reload list</button><button class="btn-pill-primary" id="btn-add-plugin">Add</button></div></div>
+                <div class="ct-head"><div><div class="settings-section-title">Plugins</div><div class="setting-hint"><span class="plugins-warn">Plugins are JavaScript files with full access to RIZE.</span> Only add plugins you trust. They live in the plugins folder: delete a file and the plugin is gone. Ctrl+Shift+R turns every plugin off.</div></div><div class="ct-actions"><button class="btn-outline-pill" id="btn-plugins-folder">Open folder</button><button class="btn-outline-pill" id="btn-plugins-reload">Reload list</button><button class="btn-pill-primary" id="btn-add-plugin">Add</button></div></div>
                 <div class="ct-list m3-group" id="plugins-list"></div>
               </div>
 
@@ -1347,7 +1347,7 @@
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="setting-name">Allow multiple instances</span>
-                        <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">For testing: lets you start a second Votify window. Applies after restart. The second window uses its own clean profile.</span>
+                        <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">For testing: lets you start a second RIZE window. Applies after restart. The second window uses its own clean profile.</span>
                       </div>
                       <button class="effect-switch-btn" id="btn-multi-instance"><span class="thumb"></span></button>
                     </div>
@@ -1505,11 +1505,11 @@
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                   <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                    <img src="assets/logo.png" alt="Votify" style="width: 32px; height: 32px; object-fit: cover;">
+                    <img src="assets/logo.png" alt="RIZE" style="width: 32px; height: 32px; object-fit: cover;">
                   </div>
                   <div style="display: flex; flex-direction: column;">
-                    <span class="setting-name">Votify</span>
-                    <span id="about-version" style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Version 1.0.0</span>
+                    <span class="setting-name">RIZE</span>
+                    <span id="about-version" style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Version 1.2.0</span>
                   </div>
                 </div>
                 <button class="btn-pill-primary" id="btn-check-updates" style="padding: 6px 14px; font-size: calc(12px * var(--font-scale, 1));">Check for updates</button>
@@ -1544,9 +1544,9 @@
               <svg class="settings-credits-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .4z"/>
               </svg>
-              Votify Music Player
+              RIZE Music Player
             </span>
-            <span class="settings-version-tag">v1.0.0</span>
+            <span class="settings-version-tag">v1.2.0</span>
           </div>
             </div>
           </div>
@@ -2193,7 +2193,7 @@
             <line x1="12" y1="9" x2="12" y2="13"></line>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          <span>We don't steal anything, and Votify is open-source. Want to import everything? Use the export files (or log in, if you set that up). Want zero risk? Import a single playlist by link instead.</span>
+          <span>We don't steal anything, and RIZE is open-source. Want to import everything? Use the export files (or log in, if you set that up). Want zero risk? Import a single playlist by link instead.</span>
         </div>
       </div>
       <div class="sp-pane hidden" data-mode="login">
@@ -2219,7 +2219,7 @@
             <line x1="12" y1="9" x2="12" y2="13"></line>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          <span>We don't steal anything, and Votify is open-source. Want to import everything? Use the export files (or log in, if you set that up). Want zero risk? Import a single playlist by link instead.</span>
+          <span>We don't steal anything, and RIZE is open-source. Want to import everything? Use the export files (or log in, if you set that up). Want zero risk? Import a single playlist by link instead.</span>
         </div>
       </div>
       <div id="spotify-import-progress-wrap" class="hidden" style="margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
@@ -2310,7 +2310,7 @@
             <line x1="12" y1="9" x2="12" y2="13"></line>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          <span>We don't steal anything, and Votify is open-source. Want to import everything? Use the export files. Want zero risk? Import a single playlist by link instead.</span>
+          <span>We don't steal anything, and RIZE is open-source. Want to import everything? Use the export files. Want zero risk? Import a single playlist by link instead.</span>
         </div>
       </div>
       <div id="apple-import-progress-wrap" class="hidden" style="margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
@@ -2824,7 +2824,7 @@
 
           <!-- 1. STEP 1: ENTER EMAIL (SPOTIFY TWO-STEP AUTH) -->
           <div class="auth-form" id="auth-email-step">
-            <h2 class="auth-form-title" style="margin-bottom: 24px; font-size: 24px;">Вход в Votify</h2>
+            <h2 class="auth-form-title" style="margin-bottom: 24px; font-size: 24px;">Вход в RIZE</h2>
             <div class="auth-quick-input-wrap">
               <svg class="auth-quick-lock-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>

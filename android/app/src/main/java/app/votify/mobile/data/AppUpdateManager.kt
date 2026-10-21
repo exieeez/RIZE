@@ -195,11 +195,14 @@ class AppUpdateManager(
 
     private suspend fun fetchUpdateInfo(): UpdateInfo? = withContext(Dispatchers.IO) {
         val urls = listOf(
+            "https://raw.githubusercontent.com/exieeez/RIZE/apk/version.json?t=${System.currentTimeMillis()}",
+            "https://github.com/exieeez/RIZE/releases/download/android-debug/version.json?t=${System.currentTimeMillis()}",
+            "https://cdn.jsdelivr.net/gh/exieeez/RIZE@apk/version.json?t=${System.currentTimeMillis()}",
             "https://raw.githubusercontent.com/exieeez/Votify/apk/version.json?t=${System.currentTimeMillis()}",
             "https://github.com/exieeez/Votify/releases/download/android-debug/version.json?t=${System.currentTimeMillis()}",
             "https://cdn.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
-            "https://fastly.jsdelivr.net/gh/exieeez/Votify@apk/version.json?t=${System.currentTimeMillis()}",
-            "https://raw.githack.com/exieeez/Votify/apk/version.json"
+            "https://fastly.jsdelivr.net/gh/exieeez/RIZE@apk/version.json?t=${System.currentTimeMillis()}",
+            "https://raw.githack.com/exieeez/RIZE/apk/version.json"
         )
         val deferreds = urls.map { url ->
             async {
@@ -399,7 +402,7 @@ class AppUpdateManager(
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", apkFile)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                clipData = android.content.ClipData.newRawUri("Votify Update", uri)
+                clipData = android.content.ClipData.newRawUri("RIZE Update", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }

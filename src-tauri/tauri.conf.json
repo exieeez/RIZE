@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Votify",
+  "productName": "RIZE",
   "version": "1.2.0",
-  "identifier": "app.votify.desktop",
+  "identifier": "app.rize.desktop",
   "build": {
     "frontendDist": "../src",
     "devUrl": "http://localhost:17217"
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Votify",
+        "title": "RIZE",
         "url": "http://localhost:17217",
         "width": 1240,
         "height": 820,

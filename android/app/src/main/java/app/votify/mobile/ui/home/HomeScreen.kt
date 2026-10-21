@@ -347,7 +347,7 @@ private fun HomeHeader(
                 )
                 Spacer(Modifier.width(7.dp))
                 Text(
-                    text = "Votify",
+                    text = "RIZE",
                     style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp),
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,

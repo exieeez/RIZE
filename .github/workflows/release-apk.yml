@@ -43,7 +43,8 @@ jobs:
       - name: Build release APK (OriginOS island package)
         run: |
           ./gradlew --no-daemon --console=plain assembleRelease -PvotifyIslandPackage=com.hiby.music -PvotifyRunNumber=${{ github.run_number }}
-          cp app/build/outputs/apk/release/app-release.apk Votify-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk RIZE-debug.apk
+          cp RIZE-debug.apk Votify-debug.apk
 
       # Постоянное зеркало: APK кладётся в отдельную ветку «apk». Оттуда он качается
       # с других хостов (raw.githubusercontent, jsDelivr) — release-канал GitHub у части
@@ -54,7 +55,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          APK="android/Votify-debug.apk"
+          APK="android/RIZE-debug.apk"
           ls -la "$APK"
 
           # Upload to 72h external mirrors
@@ -70,13 +71,15 @@ jobs:
           git init -q -b apk
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp "$GITHUB_WORKSPACE/$APK" RIZE-debug.apk
           cp "$GITHUB_WORKSPACE/$APK" Votify-debug.apk
           {
-            echo "Зеркало APK Votify (обновляется каждой сборкой)."
+            echo "Зеркало APK RIZE (обновляется каждой сборкой)."
             echo
             echo "Ссылки для скачивания:"
+            echo "- https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/apk/RIZE-debug.apk"
+            echo "- https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/RIZE-debug.apk"
             echo "- https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/apk/Votify-debug.apk"
-            echo "- https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/Votify-debug.apk"
             echo
             echo "Сборка: ${GITHUB_SHA}"
           } > README.md
@@ -90,9 +93,9 @@ jobs:
             "sha": "${GITHUB_SHA}",
             "shortSha": "${GITHUB_SHA:0:7}",
             "mirrorUrl": "${LB_DEBUG}",
-            "downloadUrl": "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/apk/Votify-debug.apk",
-            "cdnUrl": "https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/Votify-debug.apk",
-            "releaseUrl": "https://github.com/${GITHUB_REPOSITORY}/releases/download/android-debug/Votify-debug.apk"
+            "downloadUrl": "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/apk/RIZE-debug.apk",
+            "cdnUrl": "https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/RIZE-debug.apk",
+            "releaseUrl": "https://github.com/${GITHUB_REPOSITORY}/releases/download/android-debug/RIZE-debug.apk"
           }
           EOF
           git add -A
@@ -102,6 +105,7 @@ jobs:
           echo "зеркало обновлено: ветка apk"
 
           # Purge jsDelivr cache so CDN never serves an old APK or stale version.json
+          curl -sf "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/RIZE-debug.apk" || true
           curl -sf "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/Votify-debug.apk" || true
           curl -sf "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@apk/version.json" || true
 
@@ -117,8 +121,9 @@ jobs:
             echo "Сервер (опционально): Настройки → Интеграции → Прокси → адрес http://<IP-вашего-ПК>:17217"
             echo
             echo "Если скачивание с GitHub виснет — берите тот же APK с зеркал:"
-            echo "• постоянное: https://raw.githubusercontent.com/$GITHUB_REPOSITORY/apk/Votify-debug.apk"
-            echo "• постоянное (CDN, обычно быстрее всего): https://cdn.jsdelivr.net/gh/$GITHUB_REPOSITORY@apk/Votify-debug.apk"
+            echo "• постоянное: https://raw.githubusercontent.com/$GITHUB_REPOSITORY/apk/RIZE-debug.apk"
+            echo "• постоянное (CDN, обычно быстрее всего): https://cdn.jsdelivr.net/gh/$GITHUB_REPOSITORY@apk/RIZE-debug.apk"
+            echo "• зеркало Votify: https://raw.githubusercontent.com/$GITHUB_REPOSITORY/apk/Votify-debug.apk"
             if [ -n "$LB_DEBUG" ] || [ -n "$GF_DEBUG" ]; then
               echo "• на 72 часа (обновляется каждой сборкой):"
               [ -n "$LB_DEBUG" ] && echo "   - $LB_DEBUG"
@@ -129,8 +134,8 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
             && gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag \
             || true
-          gh release create "$TAG" "Votify-debug.apk" "version.json" \
+          gh release create "$TAG" "RIZE-debug.apk" "Votify-debug.apk" "version.json" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Votify Android — свежая debug-сборка (1.1.7)" \
+            --title "RIZE Android — свежая debug-сборка (1.2.0)" \
             --notes-file notes.md \
             --prerelease

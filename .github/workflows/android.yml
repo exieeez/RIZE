@@ -14,7 +14,8 @@ jobs:
     # Firebase Web Config injected into BuildConfig at build time (from a secret,
     # never committed; masked out of logs automatically).
     env:
-      VOTIFY_FIREBASE_CONFIG: ${{ secrets.VOTIFY_FIREBASE_CONFIG }}
+      VOTIFY_FIREBASE_CONFIG: ${{ secrets.RIZE_FIREBASE_CONFIG || secrets.VOTIFY_FIREBASE_CONFIG }}
+      RIZE_FIREBASE_CONFIG: ${{ secrets.RIZE_FIREBASE_CONFIG || secrets.VOTIFY_FIREBASE_CONFIG }}
     defaults:
       run:
         working-directory: android
@@ -68,5 +69,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: votify-debug-apk
+          name: rize-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk

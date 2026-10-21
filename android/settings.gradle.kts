@@ -14,5 +14,5 @@ dependencyResolutionManagement {
         maven(url = "https://jitpack.io")
     }
 }
-rootProject.name = "Votify"
+rootProject.name = "RIZE"
 include(":app")

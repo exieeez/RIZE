@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Заливает актуальную папку Votify с компьютера на GitHub в отдельную ветку.
+    Заливает актуальную папку RIZE с компьютера на GitHub в отдельную ветку.
 
 .DESCRIPTION
     Скрипт рассчитан на папку, которую вы просто держите на ПК (возможно, без git).
@@ -10,15 +10,15 @@
 
 .EXAMPLE
     # залить в новую ветку pc-upload (безопасно, потом можно сделать Pull Request)
-    powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\Votify
+    powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\RIZE
 
 .EXAMPLE
     # залить прямо в ветку для ПК
-    powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\Votify -Branch pc
+    powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\RIZE -Branch pc
 
 .EXAMPLE
     # если GitHub отказывает («non-fast-forward») и папка точно новее — перезаписать ветку
-    powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\Votify -Branch pc -Force
+    powershell -ExecutionPolicy Bypass -File scripts\push-folder.ps1 -Folder C:\RIZE -Branch pc -Force
 
 .NOTES
     Пароль/токен вводится в окне входа Git (Git Credential Manager). Никому не пересылайте
@@ -28,7 +28,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Folder,
     [string]$Branch = 'pc-upload',
-    [string]$RemoteUrl = 'https://github.com/exieeez/Votify.git',
+    [string]$RemoteUrl = 'https://github.com/exieeez/RIZE.git',
     [string]$Message = '',
     [switch]$Force
 )
@@ -137,8 +137,8 @@ else        { Invoke-Git push origin "HEAD:$Branch" }
 
 $webBranch = $Branch -replace '/', '%2F'
 Say ""
-Say "Готово! Ветка: https://github.com/exieeez/Votify/tree/$webBranch"
-Say "Открыть Pull Request: https://github.com/exieeez/Votify/compare/$webBranch?expand=1"
+Say "Готово! Ветка: https://github.com/exieeez/RIZE/tree/$webBranch"
+Say "Открыть Pull Request: https://github.com/exieeez/RIZE/compare/$webBranch?expand=1"
 Say ""
 Write-Host "Если GitHub отказал («! [rejected] ... non-fast-forward»), значит на GitHub лежит" -ForegroundColor Yellow
 Write-Host "то, чего нет в вашей папке. Посмотрите diff в Pull Request — и либо влейте его," -ForegroundColor Yellow

@@ -1,4 +1,4 @@
-# Votify Android
+# RIZE Android
 
 Kotlin + Jetpack Compose (Material 3), Media3/ExoPlayer, Room, DataStore, OkHttp, Coil. Design: `../design/`.
 
@@ -14,11 +14,11 @@ Kotlin + Jetpack Compose (Material 3), Media3/ExoPlayer, Room, DataStore, OkHttp
 недоступности автоматически перейдёт в автономный режим.
 
 Тот же бекенд можно открыть с телефона без APK — ярлыком в браузере: Настройки → Основные
-→ «Votify на телефоне» (см. корневой README, раздел «Votify на телефоне»).
+→ «RIZE на телефоне» (см. корневой README, раздел «RIZE на телефоне»).
 
 CI: `.github/workflows/android.yml` собирает debug APK на каждый push в ветку — артефакт
-`votify-debug-apk` во вкладке Actions; `release-apk.yml` публикует APK в
-[Releases](https://github.com/exieeez/Votify/releases/tag/android-debug) (постоянная ссылка).
+`rize-debug-apk` во вкладке Actions; `release-apk.yml` публикует APK в
+[Releases](https://github.com/exieeez/RIZE/releases/tag/android-debug) (постоянная ссылка).
 
 ## Иконка приложения (Настройки → Иконка приложения)
 
@@ -28,7 +28,7 @@ CI: `.github/workflows/android.yml` собирает debug APK на каждый
 
 | Вариант | Алиас | Что это |
 |---|---|---|
-| Как сейчас | `.VotifyLauncher.Current` | текущая иконка Votify |
+| Как сейчас | `.VotifyLauncher.Current` | текущая иконка RIZE |
 | Ч/Б | `.VotifyLauncher.Bw` | та же иконка без серой полосы |
 | В духе iOS 27 | `.VotifyLauncher.Glass` | старый логотип: стеклянная плитка, блик, светлая кромка |
 | Старая | `.VotifyLauncher.Classic` | старый логотип как есть: тёмная плитка, светлый диск |

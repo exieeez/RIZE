@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Votify</string>
+    <string name="app_name">RIZE</string>
 
-    <string name="widget_player_3x2_name">Votify Player (3×2)</string>
+    <string name="widget_player_3x2_name">RIZE Player (3×2)</string>
     <string name="widget_player_3x2_desc">Large player widget with artwork, controls and a like button</string>
-    <string name="widget_playlist_2x2_name">Votify Queue (2×2)</string>
+    <string name="widget_playlist_2x2_name">RIZE Queue (2×2)</string>
     <string name="widget_playlist_2x2_desc">Scrollable playback queue with quick start</string>
-    <string name="widget_compact_4x1_name">Votify Mini Bar (4×1)</string>
+    <string name="widget_compact_4x1_name">RIZE Mini Bar (4×1)</string>
     <string name="widget_compact_4x1_desc">Compact music control bar</string>
-    <string name="widget_remix_2x1_name">Votify Remix Deck (2×1)</string>
+    <string name="widget_remix_2x1_name">RIZE Remix Deck (2×1)</string>
     <string name="widget_remix_2x1_desc">Quick switching between Slowed, 1.0× and Nightcore presets</string>
 
     <string name="nav_home">Home</string>
@@ -45,7 +45,7 @@
     <string name="search_retry">Retry</string>
     <string name="search_clear">Clear</string>
     <string name="search_offline_title">Server unavailable</string>
-    <string name="search_offline_sub">The phone cannot reach the Votify server. Check the server address in settings — the phone and the computer must be on the same Wi‑Fi network.</string>
+    <string name="search_offline_sub">The phone cannot reach the RIZE server. Check the server address in settings — the phone and the computer must be on the same Wi‑Fi network.</string>
     <string name="search_open_settings">Open settings</string>
     <string name="search_no_internet_title">No connection</string>
     <string name="search_no_internet_sub">Check your internet connection (Wi‑Fi or mobile data) and try again</string>
@@ -147,7 +147,7 @@
     <string name="settings_section_account">Account</string>
     <string name="settings_section_account_tag">Profile</string>
     <string name="settings_account_login">Sign in</string>
-    <string name="settings_account_login_sub">Sign in and register on your Votify server</string>
+    <string name="settings_account_login_sub">Sign in and register on your RIZE server</string>
     <string name="settings_account_logout">Sign out</string>
     <string name="settings_section_server">Mode</string>
     <string name="settings_section_server_tag">Connection</string>
@@ -156,14 +156,14 @@
     <string name="settings_mode_embedded_hint">The app works fully standalone: search, playback, lyrics and playlist imports run right on the phone. Nothing to configure — you only need internet.</string>
     <string name="settings_mode_server">Own server</string>
     <string name="settings_server_setup">Connect your own server</string>
-    <string name="settings_server_url">Votify server address</string>
+    <string name="settings_server_url">RIZE server address</string>
     <string name="settings_server_example">http://192.168.0.10:17217</string>
     <string name="settings_server_save">Connect</string>
     <string name="settings_server_hint">Start the backend on your computer (npm start) and enter its IP on the same Wi‑Fi network, e.g. http://192.168.0.10:17217. The 10.0.2.2 address only works in the emulator. Leave the field empty to reset to the default.</string>
     <string name="settings_section_audio">Audio &amp; playback</string>
     <string name="settings_section_audio_tag">Server</string>
     <string name="settings_quality">Streaming quality</string>
-    <string name="settings_quality_hint">Applied on the Votify server for all new tracks</string>
+    <string name="settings_quality_hint">Applied on the RIZE server for all new tracks</string>
     <string name="settings_quality_hint_embedded">Affects the bitrate of the audio stream the phone picks when playing</string>
     <string name="settings_quality_low">Standard</string>
     <string name="settings_quality_low_sub">≤96 kbps</string>
@@ -209,8 +209,8 @@
     <string name="settings_data_stats">Favorites: %1$d · history: %2$d</string>
     <string name="settings_clear_history">Clear listening history</string>
     <string name="settings_section_about">About</string>
-    <string name="settings_section_about_tag">Votify</string>
-    <string name="settings_about_name">Votify Mobile</string>
+    <string name="settings_section_about_tag">RIZE</string>
+    <string name="settings_about_name">RIZE Mobile</string>
     <string name="settings_about_standalone">Mode: no server (search and streaming on device)</string>
     <string name="settings_about_server">Server: %1$s</string>
     <string name="settings_about_server_ok">Online · %1$s</string>
@@ -509,7 +509,7 @@
     <string name="toast_accent_invalid">Invalid color (example: #A78BFA)</string>
 
     <string name="account_no_backend_title">No accounts server</string>
-    <string name="account_no_backend_sub">Accounts run on Firebase — connect it in the Theme Workshop (Settings → Appearance → Theme Workshop) or run your own Votify server.</string>
+    <string name="account_no_backend_sub">Accounts run on Firebase — connect it in the Theme Workshop (Settings → Appearance → Theme Workshop) or run your own RIZE server.</string>
     <string name="account_forgot_hint_fb">Enter your email — a password reset link will be sent to it.</string>
     <string name="account_reset_sent">Email sent</string>
     <string name="account_reset_sent_sub">Open the link from the email to set a new password, then come back and sign in.</string>
@@ -533,7 +533,7 @@
     <string name="account_new_password">New password</string>
     <string name="account_reset_btn">Change password</string>
     <string name="account_back_to_login">Back to sign in</string>
-    <string name="account_hint">The account is created on your Votify server and stored only with you</string>
+    <string name="account_hint">The account is created on your RIZE server and stored only with you</string>
 
     <string name="import_title">Playlist import</string>
     <string name="import_url_hint">Playlist link</string>
@@ -545,7 +545,7 @@
     <string name="import_more">and %1$d more…</string>
     <string name="import_add">Add to library</string>
     <!-- First launch -->
-    <string name="welcome_title">Welcome to Votify</string>
+    <string name="welcome_title">Welcome to RIZE</string>
     <string name="welcome_text">Music search and streaming, My Wave, playlists and a theme workshop. Sign in to sync favorites and settings between devices — or continue as a guest, everything works without an account too.</string>
     <string name="welcome_sign_in">Sign in</string>
     <string name="welcome_guest">Continue as guest</string>
@@ -587,7 +587,7 @@
     <string name="workshop_unlinked">Theme unlinked</string>
     <!-- App icon (Settings → App icon, the topmost section) -->
     <string name="icon_section">App icon</string>
-    <string name="icon_section_sub">The home screen icon variant. B/W — the same icon without the grey band, “iOS 27 style” and “classic” — the old Votify logo.</string>
+    <string name="icon_section_sub">The home screen icon variant. B/W — the same icon without the grey band, “iOS 27 style” and “classic” — the old RIZE logo.</string>
     <string name="icon_current">Current</string>
     <string name="icon_bw">B/W</string>
     <string name="icon_glass">iOS 27 style</string>

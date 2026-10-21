@@ -46,7 +46,7 @@
                 android:paddingTop="2dp"
                 android:paddingEnd="8dp"
                 android:paddingBottom="2dp"
-                android:text="Votify"
+                android:text="RIZE"
                 android:textColor="#B3FFFFFF"
                 android:textSize="10sp" />
 

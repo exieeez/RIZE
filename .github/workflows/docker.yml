@@ -1,8 +1,8 @@
 name: Docker image
 
 # Готовый образ для любого хостинга (VPS, NAS, Raspberry Pi, Render, Fly):
-#   docker run -p 17217:17217 -v votify-data:/root/.config/Votify \
-#     -e VOTIFY_BASIC_AUTH=логин:пароль ghcr.io/exieeez/votify:latest
+#   docker run -p 17217:17217 -v rize-data:/root/.config/RIZE \
+#     -e RIZE_BASIC_AUTH=логин:пароль ghcr.io/exieeez/rize:latest
 on:
   push:
     branches: ['pc', 'mobile', 'main', 'android', 'arena/**']
@@ -17,7 +17,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      # GHCR принимает только имя в нижнем регистре, а репозиторий — exieeez/Votify.
+      # GHCR принимает только имя в нижнем регистре, а репозиторий — exieeez/RIZE.
       - name: Image name
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v3

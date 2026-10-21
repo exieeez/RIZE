@@ -2,10 +2,11 @@ const fs = require('fs');
 const path = require('path');
 
 const output = path.join(__dirname, '..', 'firebase-config.json');
-if (process.env.VOTIFY_FIREBASE_CONFIG) {
-  const config = JSON.parse(process.env.VOTIFY_FIREBASE_CONFIG);
+const rawFirebaseConfig = process.env.RIZE_FIREBASE_CONFIG || process.env.VOTIFY_FIREBASE_CONFIG;
+if (rawFirebaseConfig) {
+  const config = JSON.parse(rawFirebaseConfig);
   if (config.private_key || config.type === 'service_account') {
-    throw new Error('VOTIFY_FIREBASE_CONFIG must contain Web Config, not a Service Account');
+    throw new Error('RIZE_FIREBASE_CONFIG / VOTIFY_FIREBASE_CONFIG must contain Web Config, not a Service Account');
   }
   fs.writeFileSync(output, JSON.stringify(config, null, 2));
   console.log('[firebase] Web Config prepared for packaging');

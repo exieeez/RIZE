@@ -20,9 +20,9 @@ const { DiscordPresence } = require('./discord-presence.js');
 let discordPresence = null;
 try {
   discordPresence = new DiscordPresence({
-    clientId: process.env.VOTIFY_DISCORD_CLIENT_ID || '1536826368615256146',
-    applicationName: 'Votify',
-    fallbackImageKey: process.env.VOTIFY_DISCORD_LARGE_IMAGE_KEY,
+    clientId: process.env.RIZE_DISCORD_CLIENT_ID || process.env.VOTIFY_DISCORD_CLIENT_ID || '1536826368615256146',
+    applicationName: 'RIZE',
+    fallbackImageKey: process.env.RIZE_DISCORD_LARGE_IMAGE_KEY || process.env.VOTIFY_DISCORD_LARGE_IMAGE_KEY,
   });
 } catch (e) {
   /* discord optional */
@@ -145,7 +145,7 @@ const server = http.createServer(async (req, res) => {
   // Health-проверка: её дергают docker/Render и Android-приложение («Свой сервер»),
   // поэтому она доступна без пароля и отвечает быстро. Никаких данных не отдаёт.
   if (u.pathname === '/api/health') {
-    sendJson(res, 200, { ok: true, name: 'Votify', version: PKG_VERSION });
+    sendJson(res, 200, { ok: true, name: 'RIZE', version: PKG_VERSION });
     return;
   }
 
@@ -153,10 +153,10 @@ const server = http.createServer(async (req, res) => {
   // Браузер запоминает его сам, ярлык на экране «Домой» продолжает работать.
   if (BASIC_AUTH && !basicAuthOk(req)) {
     res.writeHead(401, {
-      'WWW-Authenticate': 'Basic realm="Votify", charset="UTF-8"',
+      'WWW-Authenticate': 'Basic realm="RIZE", charset="UTF-8"',
       'Content-Type': 'text/plain; charset=utf-8',
     });
-    res.end('Votify: нужен логин и пароль');
+    res.end('RIZE: нужен логин и пароль');
     return;
   }
 
@@ -318,9 +318,9 @@ server.on('error', err => {
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Votify server running at http://0.0.0.0:${port}`);
+  console.log(`RIZE server running at http://0.0.0.0:${port}`);
   // Ярлык на телефоне: этот же адрес, но по IP в локальной сети.
-  getLanAddresses().forEach(ip => console.log(`Votify на телефоне: http://${ip}:${port}`));
+  getLanAddresses().forEach(ip => console.log(`RIZE на телефоне: http://${ip}:${port}`));
   if (!process.env.VOTIFY_PORT) {
     try {
       const { exec } = require('child_process');

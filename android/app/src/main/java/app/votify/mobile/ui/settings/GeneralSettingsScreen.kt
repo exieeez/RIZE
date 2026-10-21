@@ -179,7 +179,7 @@ fun GeneralSettingsScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Votify", style = MaterialTheme.typography.titleSmall, color = VotifyColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        Text("RIZE", style = MaterialTheme.typography.titleSmall, color = VotifyColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                         Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodySmall, color = VotifyColors.TextMuted)
                     }
                 }

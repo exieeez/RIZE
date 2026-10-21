@@ -1,8 +1,8 @@
 const { app, BrowserWindow, shell, ipcMain, Tray, Menu, screen, globalShortcut } = require('electron');
 
-app.setName('Votify');
+app.setName('RIZE');
 if (process.platform === 'win32') {
-  app.setAppUserModelId('app.votify.desktop');
+  app.setAppUserModelId('app.rize.desktop');
 }
 
 let autoUpdater = null;
@@ -27,11 +27,11 @@ let closeToTrayEnabled = true;
 let isQuitting = false;
 let googleAuthPromise = null;
 
-const VOTIFY_DISCORD_CLIENT_ID = '1536826368615256146';
+const RIZE_DISCORD_CLIENT_ID = '1536826368615256146';
 const discordPresence = new DiscordPresence({
-  clientId: process.env.VOTIFY_DISCORD_CLIENT_ID || VOTIFY_DISCORD_CLIENT_ID,
-  applicationName: 'Votify',
-  fallbackImageKey: process.env.VOTIFY_DISCORD_LARGE_IMAGE_KEY,
+  clientId: process.env.RIZE_DISCORD_CLIENT_ID || process.env.VOTIFY_DISCORD_CLIENT_ID || RIZE_DISCORD_CLIENT_ID,
+  applicationName: 'RIZE',
+  fallbackImageKey: process.env.RIZE_DISCORD_LARGE_IMAGE_KEY || process.env.VOTIFY_DISCORD_LARGE_IMAGE_KEY,
 });
 
 // Support fresh PC mode or isolated user data directory
@@ -237,7 +237,7 @@ function createTray() {
   if (tray) return;
   try {
     tray = new Tray(path.join(__dirname, 'src/icon.png'));
-    tray.setToolTip('Votify');
+    tray.setToolTip('RIZE');
 
     const showWindow = () => {
       if (!mainWindow) return;
@@ -248,7 +248,7 @@ function createTray() {
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Открыть Votify',
+        label: 'Открыть RIZE',
         click: showWindow,
       },
       {
@@ -370,9 +370,9 @@ async function checkGitHubForUpdates() {
     const currentVersion = app.getVersion();
     const options = {
       hostname: 'api.github.com',
-      path: '/repos/exieeez/Votify/releases/latest',
+      path: '/repos/exieeez/RIZE/releases/latest',
       method: 'GET',
-      headers: { 'User-Agent': 'Votify-Updater', 'Accept': 'application/vnd.github.v3+json' }
+      headers: { 'User-Agent': 'RIZE-Updater', 'Accept': 'application/vnd.github.v3+json' }
     };
     const req = https.request(options, res => {
       let data = '';
@@ -389,7 +389,7 @@ async function checkGitHubForUpdates() {
               mainWindow?.webContents.send('update:available', {
                 version: displayVer,
                 releaseNotes: release.body || 'Студийный эквалайзер, перевод текстов и оффлайн-треки',
-                releaseName: release.name || 'Votify Update'
+                releaseName: release.name || 'RIZE Update'
               });
             }
           }
@@ -571,7 +571,7 @@ ipcMain.handle('install-soundpad-driver', async () => {
       const { exec } = require('child_process');
       return new Promise(resolve => {
         exec('powershell -Command "Get-AudioDevice -List | Enable-AudioDevice"', () => {
-          resolve({ success: true, message: 'Виртуальный драйвер Votify Audio подключен!' });
+          resolve({ success: true, message: 'Виртуальный драйвер RIZE Audio подключен!' });
         });
       });
     }

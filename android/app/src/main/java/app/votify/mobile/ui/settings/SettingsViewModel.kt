@@ -477,7 +477,7 @@ class SettingsViewModel(
             _events.tryEmit(SettingsEvent.Message(appContext.getString(app.votify.mobile.R.string.update_checking)))
             val latest = withContext(Dispatchers.IO) {
                 runCatching {
-                    val url = java.net.URL("https://api.github.com/repos/exieeez/Votify/releases/tags/android-debug")
+                    val url = java.net.URL("https://api.github.com/repos/exieeez/RIZE/releases/tags/android-debug")
                     val conn = url.openConnection() as java.net.HttpURLConnection
                     conn.connectTimeout = 8000
                     conn.readTimeout = 8000

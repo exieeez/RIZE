@@ -1,8 +1,8 @@
 {
-  "name": "votify",
+  "name": "rize",
   "version": "1.2.0",
-  "description": "Votify - Material You Music Player",
-  "author": "Votify Team",
+  "description": "RIZE - Material You Music Player",
+  "author": "RIZE Team",
   "main": "main.js",
   "scripts": {
     "start": "tauri dev",
@@ -30,8 +30,8 @@
     "typecheck": "tsc --noEmit"
   },
   "build": {
-    "appId": "com.votify.music",
-    "productName": "Votify",
+    "appId": "com.rize.music",
+    "productName": "RIZE",
     "directories": {
       "output": "dist"
     },
@@ -54,7 +54,7 @@
     "linux": {
       "category": "AudioVideo",
       "icon": "src/icon.png",
-      "maintainer": "Votify Team"
+      "maintainer": "RIZE Team"
     },
     "win": {
       "target": "nsis",
@@ -64,7 +64,7 @@
     "publish": {
       "provider": "github",
       "owner": "exieeez",
-      "repo": "Votify",
+      "repo": "RIZE",
       "private": false
     },
     "generateUpdatesFilesForAllChannels": true
