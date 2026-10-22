@@ -41,6 +41,7 @@ import app.votify.mobile.ui.theme.VotifyColors
  */
 @Composable
 fun SettingsScreen(
+    viewModel: SettingsViewModel,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onOpenGeneral: () -> Unit,
@@ -71,6 +72,9 @@ fun SettingsScreen(
                 fontWeight = FontWeight.SemiBold,
             )
         }
+
+        // Раздел выбора иконки приложения
+        AppIconSection(viewModel)
 
         SettingsSectionLabel(stringResource(R.string.settings_cat_main))
         SettingsCard {
