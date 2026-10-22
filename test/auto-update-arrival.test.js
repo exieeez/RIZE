@@ -57,4 +57,37 @@ test('Auto-Update Arrival on Mobile & PC', async (t) => {
       'Settings update item must call checkForVotifyUpdates'
     );
   });
+
+  await t.test('4. PC src/app.js registers auto-update arrival and banner handling', () => {
+    const appJs = path.resolve('src/app.js');
+    const content = fs.readFileSync(appJs, 'utf8');
+
+    assert.ok(
+      content.includes('window.checkForRizeUpdates = window.checkForVotifyUpdates = function'),
+      'src/app.js must define window.checkForVotifyUpdates'
+    );
+    assert.ok(
+      content.includes('simulateDownload(availableInfo'),
+      'src/app.js must support smooth download progress simulation'
+    );
+    assert.ok(
+      content.includes('update-banner'),
+      'src/app.js must manage update-banner element'
+    );
+    assert.ok(
+      content.includes('Перезапустить'),
+      'src/app.js must switch action button to Перезапустить upon completion'
+    );
+  });
+
+  await t.test('5. PC src/index.html includes update-banner structure', () => {
+    const htmlPath = path.resolve('src/index.html');
+    const content = fs.readFileSync(htmlPath, 'utf8');
+
+    assert.ok(content.includes('id="update-banner"'), 'index.html must include #update-banner');
+    assert.ok(content.includes('id="update-banner-text"'), 'index.html must include #update-banner-text');
+    assert.ok(content.includes('id="update-banner-action"'), 'index.html must include #update-banner-action');
+    assert.ok(content.includes('id="update-banner-close"'), 'index.html must include #update-banner-close');
+    assert.ok(content.includes('id="update-banner-progress"'), 'index.html must include #update-banner-progress');
+  });
 });

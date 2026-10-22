@@ -52,6 +52,11 @@ import app.votify.mobile.ui.theme.VotifyColors
 private fun iconLabel(icon: AppIcon): String = stringResource(
     when (icon) {
         AppIcon.Current -> R.string.icon_current
+        AppIcon.Crimson -> R.string.icon_crimson
+        AppIcon.Mono -> R.string.icon_mono_fluid
+        AppIcon.Mint -> R.string.icon_mint
+        AppIcon.Lime -> R.string.icon_lime
+        AppIcon.Violet -> R.string.icon_violet
         AppIcon.BlackWhite -> R.string.icon_bw
         AppIcon.Glass -> R.string.icon_glass
         AppIcon.Classic -> R.string.icon_classic
@@ -175,8 +180,8 @@ fun AppIconSection(viewModel: SettingsViewModel) {
     SettingsSectionLabel(stringResource(R.string.icon_section))
     SettingsCard {
         Column(Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-            // Встроенные варианты — по две плитки в ряд.
-            AppIcon.builtIn.chunked(2).forEach { row ->
+            // Встроенные варианты — по три плитки в ряд.
+            AppIcon.builtIn.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { icon ->
                         BuiltInIconTile(
@@ -187,11 +192,13 @@ fun AppIconSection(viewModel: SettingsViewModel) {
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                    repeat(3 - row.size) {
+                        Spacer(Modifier.weight(1f))
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
             }
-            // Своя иконка: картинка пользователя или приглашение её выбрать.
+            // Своя иконка: картинка пользователя или приглашение её выбрать (в той же 3-колоночной сетке).
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 IconOptionTile(
                     bitmap = customBitmap,
@@ -202,6 +209,7 @@ fun AppIconSection(viewModel: SettingsViewModel) {
                     },
                     modifier = Modifier.weight(1f),
                 )
+                Spacer(Modifier.weight(1f))
                 Spacer(Modifier.weight(1f))
             }
 

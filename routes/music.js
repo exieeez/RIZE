@@ -1404,14 +1404,28 @@ async function getDeezerArtistData(name) {
   // --- DOWNLOAD AUDIO TRACK (MP3 / FLAC) ---
   if (u.pathname === '/api/download') {
     const id = u.searchParams.get('id')?.trim() || '';
-    const trackUrl = u.searchParams.get('url')?.trim() || (id ? `https://www.youtube.com/watch?v=${id}` : '');
+    let trackUrl = u.searchParams.get('url')?.trim() || '';
+    if (!trackUrl || trackUrl.startsWith('/') || trackUrl.includes('127.0.0.1') || trackUrl.includes('localhost')) {
+      const cleanId = id.replace(/^yt-/, '');
+      if (cleanId && !cleanId.startsWith('dz-') && !cleanId.startsWith('local-')) {
+        trackUrl = cleanId.startsWith('http') ? cleanId : `https://www.youtube.com/watch?v=${cleanId}`;
+      } else {
+        trackUrl = '';
+      }
+    }
     const title = u.searchParams.get('title')?.trim() || 'Track';
     const artist = u.searchParams.get('artist')?.trim() || 'Unknown';
     const format = (u.searchParams.get('format') || 'mp3').toLowerCase() === 'flac' ? 'flac' : 'mp3';
 
-    if (!trackUrl && !id) {
-      sendJson(res, 400, { error: 'Track ID or URL required' });
-      return true;
+    if (!trackUrl) {
+      if (title || artist) {
+        trackUrl = `ytsearch1:${artist} - ${title}`;
+      } else if (id) {
+        trackUrl = `https://www.youtube.com/watch?v=${id}`;
+      } else {
+        sendJson(res, 400, { error: 'Track ID, URL, or Title required' });
+        return true;
+      }
     }
 
     const safeTitle = `${artist} - ${title}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
@@ -1446,6 +1460,16 @@ async function getDeezerArtistData(name) {
           else reject(new Error(errOut || `yt-dlp exited with code ${code}`));
         });
       });
+
+      if (u.searchParams.get('save') === '1' || u.searchParams.get('direct') === '1') {
+        const downloadsDir = path.join(os.homedir(), 'Downloads');
+        if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
+        const targetPath = path.join(downloadsDir, filename);
+        fs.copyFileSync(tmpOut, targetPath);
+        try { fs.unlinkSync(tmpOut); } catch (e) {}
+        sendJson(res, 200, { success: true, saved: true, path: targetPath, filename });
+        return true;
+      }
 
       const stat = fs.statSync(tmpOut);
       res.writeHead(200, {

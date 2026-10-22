@@ -13203,7 +13203,7 @@ window.addEventListener('message', (e) => {
   let availableInfo = null;
   let isDownloading = false;
 
-  const currentAppVersion = '1.2.0';
+  const currentAppVersion = '1.2.1';
   let updateDismissed = false;
 
   function showBanner(msg, actionLabel = 'Обновить') {

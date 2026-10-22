@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   signInWithGoogle: () => ipcRenderer.invoke('google-auth:start'),
   openExternal: url => ipcRenderer.invoke('open-external', url),
   throwCursor: (dx, dy) => ipcRenderer.invoke('throw-cursor', { dx, dy }),
+  setAppIcon: iconName => ipcRenderer.invoke('set-app-icon', iconName),
   // Auto-updater like Discord
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installUpdate: () => ipcRenderer.invoke('install-update'),

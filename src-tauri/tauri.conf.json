@@ -4,6 +4,7 @@
   "version": "1.2.1",
   "identifier": "app.rize.desktop",
   "build": {
+    "beforeDevCommand": "node server.js",
     "frontendDist": "../src",
     "devUrl": "http://localhost:17217"
   },

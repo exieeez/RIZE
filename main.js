@@ -3,6 +3,10 @@ const { app, BrowserWindow, shell, ipcMain, Tray, Menu, screen, globalShortcut }
 app.setName('RIZE');
 if (process.platform === 'win32') {
   app.setAppUserModelId('app.rize.desktop');
+} else if (process.platform === 'linux') {
+  if (typeof app.setDesktopName === 'function') {
+    app.setDesktopName('rize.desktop');
+  }
 }
 
 let autoUpdater = null;
@@ -200,6 +204,14 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  mainWindow.webContents.session.on('will-download', (event, item) => {
+    try {
+      const downloadsPath = app.getPath('downloads');
+      const filename = item.getFilename();
+      item.setSavePath(path.join(downloadsPath, filename));
+    } catch (_) {}
   });
 
   // Load via HTTP to avoid file:// CORS issues
@@ -457,7 +469,19 @@ ipcMain.handle('check-for-updates', async () => {
 
 ipcMain.handle('install-update', () => {
   if (autoUpdater) {
-    autoUpdater.quitAndInstall();
+    autoUpdater.quitAndInstall(true, true);
+  }
+});
+
+ipcMain.handle('set-app-icon', (event, iconName) => {
+  const iconFile = path.join(__dirname, 'src/assets/icons', `icon-${iconName}.png`);
+  if (fs.existsSync(iconFile)) {
+    try {
+      mainWindow?.setIcon(iconFile);
+      tray?.setImage(iconFile);
+    } catch (e) {
+      console.warn('Could not set app icon:', e.message);
+    }
   }
 });
 

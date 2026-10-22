@@ -41,6 +41,21 @@ enum class AppIcon(val key: String, val componentSuffix: String) {
     /** Обычная иконка Votify (была всегда). */
     Current("current", "Current"),
 
+    /** Красная жидкая иконка (Crimson). */
+    Crimson("crimson", "Crimson"),
+
+    /** Ч/Б монохромный флюид (Monochrome). */
+    Mono("mono", "Mono"),
+
+    /** Мятная неоновая иконка (Mint). */
+    Mint("mint", "Mint"),
+
+    /** Кислотно-лаймовая иконка (Lime). */
+    Lime("lime", "Lime"),
+
+    /** Неоново-фиолетовая иконка (Violet). */
+    Violet("violet", "Violet"),
+
     /** Та же иконка, но третья полоса белая — «Ч/Б». */
     BlackWhite("bw", "Bw"),
 
@@ -57,7 +72,7 @@ enum class AppIcon(val key: String, val componentSuffix: String) {
         fun fromKey(k: String?): AppIcon = entries.firstOrNull { it.key == k } ?: Current
 
         /** Варианты в порядке показа в настройках (Своя — отдельной плиткой). */
-        val builtIn: List<AppIcon> = listOf(Current, BlackWhite, Glass, Classic)
+        val builtIn: List<AppIcon> = listOf(Current, Crimson, Mono, Mint, Lime, Violet, BlackWhite, Glass, Classic)
 
         /** Идентификатор ярлыка со своей картинкой (один на приложение — без дублей). */
         const val CUSTOM_SHORTCUT_ID = "votify_custom_icon"

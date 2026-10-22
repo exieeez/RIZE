@@ -338,12 +338,14 @@ function extractVideoId(raw) {
 }
 
 function makeTrack(id, title, artist, cover) {
+  const c = cover || (id ? 'https://img.youtube.com/vi/' + id + '/hqdefault.jpg' : '');
   return {
     id,
     title: String(title || 'Unknown'),
     artist: String(artist || 'Unknown'),
     url: '/api/audio?id=' + encodeURIComponent(id),
-    cover: cover || 'https://img.youtube.com/vi/' + id + '/hqdefault.jpg',
+    cover: c,
+    thumbnail: c,
   };
 }
 

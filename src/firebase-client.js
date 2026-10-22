@@ -305,6 +305,7 @@
       let usersUnsub = null;
       let libraryUnsub = null;
       let historyUnsub = null;
+      let initialAuthStateHandled = false;
 
       state.auth.onAuthStateChanged(async user => {
         if (profileUnsub) { profileUnsub(); profileUnsub = null; }
@@ -380,7 +381,8 @@
 
         if (!initialAuthStateHandled) {
           initialAuthStateHandled = true;
-          if (!user) window.setTimeout(() => openAuth('auth-login'), 0);
+          const isPreviewHost = /(^|\.)e2b\.app$/.test(location.hostname);
+          if (!user && isPreviewHost) window.setTimeout(() => openAuth('auth-login'), 0);
         }
       });
     } catch (error) {
@@ -1062,38 +1064,64 @@
       syncRef(user.uid, 'history').get().catch(() => null),
       profileRef(user.uid).get().catch(() => null),
     ]);
-    let playlists = libraryDoc?.exists ? libraryDoc.data()?.playlists || null : null;
-    // Fallback to Android SyncBlob in users/{uid}.sync if libraryDoc is absent/empty
-    if ((!playlists || Object.keys(playlists).length === 0) && userDoc?.exists) {
+    let playlists = (libraryDoc?.exists && libraryDoc.data()?.playlists) ? { ...libraryDoc.data().playlists } : {};
+    // Merge Android SyncBlob from users/{uid}.sync so phone playlists and favorites are seamlessly imported
+    if (userDoc?.exists) {
       const syncStr = userDoc.data()?.sync;
       if (syncStr) {
         try {
           const blob = JSON.parse(syncStr);
-          const restored = { 'Избранное': [] };
-          if (Array.isArray(blob.favorites)) {
-            restored['Избранное'] = blob.favorites.map(f => ({
-              id: f.track?.id,
-              title: f.track?.t,
-              artist: f.track?.a,
-              cover: f.track?.c,
-              duration: f.track?.d,
-            }));
+          let favList = [];
+          if (Array.isArray(playlists['Избранное'])) {
+            favList = playlists['Избранное'];
+          } else if (playlists['Избранное'] && Array.isArray(playlists['Избранное'].tracks)) {
+            favList = playlists['Избранное'].tracks;
+          } else {
+            playlists['Избранное'] = favList;
           }
-          if (Array.isArray(blob.playlists)) {
-            blob.playlists.forEach(p => {
-              if (p && p.name) {
-                restored[p.name] = (p.tracks || []).map(t => ({
-                  id: t.id,
-                  title: t.t,
-                  artist: t.a,
-                  cover: t.c,
-                  duration: t.d,
-                }));
+          if (Array.isArray(blob.favorites) && blob.favorites.length > 0) {
+            const existingFavIds = new Set(favList.map(t => String(t.id || t.title)));
+            blob.favorites.forEach(f => {
+              const tr = f.track || f;
+              if (tr && !existingFavIds.has(String(tr.id || tr.t || tr.title))) {
+                favList.push({
+                  id: String(tr.id || ''),
+                  title: String(tr.t || tr.title || 'Untitled'),
+                  artist: String(tr.a || tr.artist || 'Unknown'),
+                  cover: String(tr.c || tr.cover || tr.thumbnail || ''),
+                  thumbnail: String(tr.c || tr.cover || tr.thumbnail || ''),
+                  duration: Number(tr.d || tr.duration || 0),
+                  addedAt: f.addedAt || Date.now()
+                });
+                existingFavIds.add(String(tr.id || tr.t || tr.title));
               }
             });
           }
-          playlists = restored;
-        } catch (e) {}
+          if (Array.isArray(blob.playlists) && blob.playlists.length > 0) {
+            blob.playlists.forEach(p => {
+              if (!p || !p.name) return;
+              const pTracks = Array.isArray(p.tracks) ? p.tracks : [];
+              const existing = playlists[p.name];
+              const existingTracks = Array.isArray(existing) ? existing : (existing?.tracks || []);
+              if (!existing || existingTracks.length === 0) {
+                playlists[p.name] = {
+                  name: p.name,
+                  cover: p.cover || (pTracks[0] && (pTracks[0].c || pTracks[0].cover)) || '',
+                  tracks: pTracks.map(t => ({
+                    id: String(t.id || ''),
+                    title: String(t.t || t.title || 'Untitled'),
+                    artist: String(t.a || t.artist || 'Unknown'),
+                    cover: String(t.c || t.cover || t.thumbnail || ''),
+                    thumbnail: String(t.c || t.cover || t.thumbnail || ''),
+                    duration: Number(t.d || t.duration || 0),
+                  }))
+                };
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('[CloudSync] Error parsing Android sync blob:', e);
+        }
       }
     }
     let history = historyDoc?.exists ? historyDoc.data()?.history || null : null;
@@ -1123,21 +1151,67 @@
     };
   }
 
-  async function pushState({ settings, playlists, history }) {
+  function getLocalPlaylistsDictionary() {
+    const dict = {};
+    try {
+      const favs = JSON.parse(localStorage.getItem('devsize_favorites') || '[]');
+      if (Array.isArray(favs)) {
+        dict['Избранное'] = favs.map(t => ({
+          id: String(t.id || ''),
+          title: String(t.title || t.t || 'Untitled'),
+          artist: String(t.artist || t.a || 'Unknown'),
+          thumbnail: String(t.thumbnail || t.cover || t.c || ''),
+          cover: String(t.cover || t.thumbnail || t.c || ''),
+          duration: Number(t.duration || t.d || 0),
+          platform: t.platform || 'youtube',
+          addedAt: t.addedAt || Date.now()
+        }));
+      }
+    } catch (_) {}
+    try {
+      const pls = JSON.parse(localStorage.getItem('devsize_playlists') || '[]');
+      if (Array.isArray(pls)) {
+        pls.forEach(p => {
+          if (p && p.name) {
+            dict[p.name] = (p.tracks || []).map(t => ({
+              id: String(t.id || ''),
+              title: String(t.title || t.t || 'Untitled'),
+              artist: String(t.artist || t.a || 'Unknown'),
+              thumbnail: String(t.thumbnail || t.cover || t.c || ''),
+              cover: String(t.cover || t.thumbnail || t.c || ''),
+              duration: Number(t.duration || t.d || 0),
+              platform: t.platform || 'youtube',
+              addedAt: t.addedAt || Date.now()
+            }));
+          }
+        });
+      }
+    } catch (_) {}
+    return dict;
+  }
+
+  async function pushState({ settings, playlists, history } = {}) {
     const user = await requireUser();
+    const effectivePlaylists = playlists || getLocalPlaylistsDictionary();
+    const effectiveHistory = history || (function() {
+      try {
+        const hist = JSON.parse(localStorage.getItem('devsize_history') || '[]');
+        return Array.isArray(hist) ? hist.slice(0, 100) : [];
+      } catch (_) { return []; }
+    })();
     const updatedAt = window.firebase.firestore.FieldValue.serverTimestamp();
     const batch = state.db.batch();
     batch.set(syncRef(user.uid, 'settings'), { value: settings || {}, updatedAt }, { merge: true });
     batch.set(
       syncRef(user.uid, 'library'),
-      { playlists: playlists || { Избранное: [] }, updatedAt }
+      { playlists: effectivePlaylists, updatedAt }
     );
-    batch.set(syncRef(user.uid, 'history'), { history: history || [], updatedAt }, { merge: true });
+    batch.set(syncRef(user.uid, 'history'), { history: effectiveHistory, updatedAt }, { merge: true });
 
     // Also mirror public playlist summaries into profile documents
-    const playlistSummaries = Object.keys(playlists || {}).map(name => {
-      const tracks = Array.isArray(playlists[name]) ? playlists[name] : (playlists[name]?.tracks || []);
-      const cover = playlists[name]?.cover || (tracks[0] && tracks[0].cover) || '';
+    const playlistSummaries = Object.keys(effectivePlaylists || {}).map(name => {
+      const tracks = Array.isArray(effectivePlaylists[name]) ? effectivePlaylists[name] : (effectivePlaylists[name]?.tracks || []);
+      const cover = effectivePlaylists[name]?.cover || (tracks[0] && (tracks[0].cover || tracks[0].c || tracks[0].thumbnail)) || '';
       return {
         name,
         count: tracks.length,
@@ -1148,11 +1222,11 @@
 
     // Also serialize Android-compatible syncBlob string so Android syncs seamlessly
     try {
-      const favList = Array.isArray(playlists?.['Избранное'])
-        ? playlists['Избранное']
-        : (playlists?.['Избранное']?.tracks || []);
+      const favList = Array.isArray(effectivePlaylists?.['Избранное'])
+        ? effectivePlaylists['Избранное']
+        : (effectivePlaylists?.['Избранное']?.tracks || []);
       const androidFavorites = favList.map(t => ({
-        addedAt: Date.now(),
+        addedAt: t.addedAt || Date.now(),
         track: {
           id: String(t.id || ''),
           t: String(t.title || t.name || t.t || 'Трек'),
@@ -1161,10 +1235,10 @@
           d: Number(t.duration || t.d || 180),
         },
       }));
-      const androidPlaylists = Object.keys(playlists || {})
+      const androidPlaylists = Object.keys(effectivePlaylists || {})
         .filter(k => k !== 'Избранное' && k !== 'Любимые треки')
         .map(name => {
-          const list = Array.isArray(playlists[name]) ? playlists[name] : (playlists[name]?.tracks || []);
+          const list = Array.isArray(effectivePlaylists[name]) ? effectivePlaylists[name] : (effectivePlaylists[name]?.tracks || []);
           return {
             name,
             createdAt: Date.now(),
@@ -1177,7 +1251,7 @@
             })),
           };
         });
-      const androidHistory = (history || []).map((t, idx) => ({
+      const androidHistory = (effectiveHistory || []).map((t, idx) => ({
         playedAt: t.playedAt || (Date.now() - idx * 1000),
         track: {
           id: String(t.id || ''),
@@ -2260,32 +2334,34 @@
     document.getElementById('profile-logout-btn')?.addEventListener('click', async () => {
       await signOut().catch(() => {});
       closeProfile();
-      openAuth('auth-login');
       if (typeof window.showToast === 'function') window.showToast('Вы вышли из аккаунта');
     });
 
-    // Publish Playlists buttons
+    document.getElementById('profile-modal-close-icon-btn')?.addEventListener('click', closeProfile);
+
+    // Publish & Sync Playlists buttons
     const handlePublishPlaylists = async () => {
       ['pc-playlists-sync-sub', 'page-playlists-sync-sub'].forEach(id => {
         const sub = document.getElementById(id);
         if (sub) sub.textContent = 'Синхронизация...';
       });
       try {
+        const localPls = getLocalPlaylistsDictionary();
         if (state.user && !state.user.isAnonymous) {
-          await pushState().catch(() => {});
+          await pushState({ playlists: localPls });
         }
-        await publishPlaylistsToPublic().catch(() => {});
+        await publishPlaylistsToPublic(localPls);
         ['pc-playlists-sync-sub', 'page-playlists-sync-sub'].forEach(id => {
           const sub = document.getElementById(id);
-          if (sub) sub.textContent = 'Все изменения опубликованы';
+          if (sub) sub.textContent = 'Все изменения сохранены';
         });
-        if (typeof window.showToast === 'function') window.showToast('Плейлисты успешно опубликованы!');
+        if (typeof window.showToast === 'function') window.showToast('Плейлисты успешно синхронизированы!');
       } catch (err) {
         ['pc-playlists-sync-sub', 'page-playlists-sync-sub'].forEach(id => {
           const sub = document.getElementById(id);
           if (sub) sub.textContent = 'Ошибка синхронизации';
         });
-        if (typeof window.showToast === 'function') window.showToast('Ошибка публикации: ' + friendlyError(err));
+        if (typeof window.showToast === 'function') window.showToast('Ошибка синхронизации: ' + friendlyError(err));
       }
     };
     document.getElementById('pc-publish-btn')?.addEventListener('click', handlePublishPlaylists);
@@ -2879,8 +2955,8 @@
   }
 
   async function publishPlaylistsToPublic(playlistsObj, authorName) {
-    const pls = playlistsObj || window.playlists || {};
-    const author = authorName || state.user?.displayName || 'Пользователь Votify';
+    const pls = playlistsObj || getLocalPlaylistsDictionary();
+    const author = authorName || state.user?.displayName || 'Пользователь RIZE';
     const playlistArray = Object.keys(pls)
       .filter(k => k !== '__OFFLINE__' && k !== 'Избранное' && k !== 'Любимые треки')
       .map(name => {
@@ -2889,13 +2965,13 @@
           title: name,
           name,
           author,
-          cover: pls[name]?.cover || (tracks[0] && tracks[0].cover) || '',
+          cover: pls[name]?.cover || (tracks[0] && (tracks[0].cover || tracks[0].c || tracks[0].thumbnail)) || '',
           tracks: tracks.map(t => ({
             id: t.id || '',
-            title: t.title || t.name || 'Без названия',
-            artist: t.artist || t.artistName || 'Неизвестный исполнитель',
-            cover: t.cover || '',
-            duration: t.duration || 180,
+            title: t.title || t.name || t.t || 'Без названия',
+            artist: t.artist || t.artistName || t.a || 'Неизвестный исполнитель',
+            cover: t.cover || t.thumbnail || t.c || '',
+            duration: t.duration || t.d || 180,
             album: t.album || ''
           }))
         };

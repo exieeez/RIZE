@@ -278,6 +278,16 @@
       pin.addEventListener('click', function () {
         if (!name) return;
         var targetName = (name === 'Избранное' || name === 'Любимые треки') ? 'Избранное' : name;
+        if (targetName === 'Избранное' || targetName === 'Любимые треки') {
+          if (typeof switchView === 'function') {
+            switchView('favorites');
+          } else if (typeof window.switchView === 'function') {
+            window.switchView('favorites');
+          }
+          var favTab = document.querySelector('[data-lib-tab="favorites"]');
+          if (favTab) favTab.click();
+          return;
+        }
         if (typeof window.openPlaylist === 'function') {
           window.openPlaylist(targetName);
         }

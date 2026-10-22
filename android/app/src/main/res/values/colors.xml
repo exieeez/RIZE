@@ -5,4 +5,9 @@
     <color name="ic_launcher_background">#000000</color>
     <color name="ic_launcher_purple">#BA82DB</color>
     <color name="ic_launcher_bw_background">#2e2e33</color>
+    <color name="ic_launcher_crimson_background">#FE1743</color>
+    <color name="ic_launcher_mono_background">#FFFFFF</color>
+    <color name="ic_launcher_mint_background">#64FEDA</color>
+    <color name="ic_launcher_lime_background">#C6FF00</color>
+    <color name="ic_launcher_violet_background">#AA00FF</color>
 </resources>

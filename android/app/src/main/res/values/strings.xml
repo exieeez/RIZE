@@ -591,6 +591,11 @@
     <string name="icon_section">Иконка приложения</string>
     <string name="icon_section_sub">Вариант иконки на рабочем столе. Ч/Б — та же иконка без серой полосы, «в духе iOS 27» и «старая» — прежний логотип RIZE.</string>
     <string name="icon_current">Как сейчас</string>
+    <string name="icon_crimson">Красная</string>
+    <string name="icon_mono_fluid">Ч/Б флюид</string>
+    <string name="icon_mint">Мята</string>
+    <string name="icon_lime">Лайм</string>
+    <string name="icon_violet">Неон</string>
     <string name="icon_bw">Ч/Б</string>
     <string name="icon_glass">В духе iOS 27</string>
     <string name="icon_classic">Старая</string>

@@ -295,6 +295,11 @@ class SettingsViewModel(
     private fun iconLabel(icon: AppIcon): String = appContext.getString(
         when (icon) {
             AppIcon.Current -> app.votify.mobile.R.string.icon_current
+            AppIcon.Crimson -> app.votify.mobile.R.string.icon_crimson
+            AppIcon.Mono -> app.votify.mobile.R.string.icon_mono_fluid
+            AppIcon.Mint -> app.votify.mobile.R.string.icon_mint
+            AppIcon.Lime -> app.votify.mobile.R.string.icon_lime
+            AppIcon.Violet -> app.votify.mobile.R.string.icon_violet
             AppIcon.BlackWhite -> app.votify.mobile.R.string.icon_bw
             AppIcon.Glass -> app.votify.mobile.R.string.icon_glass
             AppIcon.Classic -> app.votify.mobile.R.string.icon_classic

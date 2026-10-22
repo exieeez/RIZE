@@ -509,6 +509,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       switchView('settings');
     });
   }
+  const tbAvatarBtn = document.getElementById('tb-avatar-btn');
+  if (tbAvatarBtn) {
+    tbAvatarBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.VotifyCloud && typeof window.VotifyCloud.openProfile === 'function') {
+        window.VotifyCloud.openProfile();
+      } else if (typeof window.openProfile === 'function') {
+        window.openProfile();
+      } else {
+        const overlay = document.getElementById('profile-overlay');
+        if (overlay) overlay.style.display = 'flex';
+      }
+    });
+  }
 
   // Playbar Add to Playlist Button
   const btnAddToPlaylist = document.getElementById('btn-add-to-playlist');
@@ -584,7 +599,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Global window bindings for cross-script integration
   window.createPlaylist = createPlaylist;
   window.openPlaylist = (name) => {
-    const pl = (state.playlists || []).find(p => p.name === name);
+    if (name === 'Избранное' || name === 'Любимые треки' || name === 'favorites') {
+      switchView('favorites');
+      const favTab = document.querySelector('[data-lib-tab="favorites"]');
+      if (favTab) favTab.click();
+      return;
+    }
+    const pl = (state.playlists || []).find(p => p.name === name || p.id === name);
     if (pl) openPlaylistDetail(pl.id);
   };
   window.openPlaylistDetail = openPlaylistDetail;
@@ -600,6 +621,110 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderSidebarPins();
     renderLibraryPlaylists();
   }, 50);
+
+  // App Icon Switcher
+  const APP_ICONS = {
+    crimson: { path: 'assets/icons/icon-crimson.png', name: 'Crimson Red' },
+    mono: { path: 'assets/icons/icon-mono.png', name: 'Monochrome' },
+    mint: { path: 'assets/icons/icon-mint.png', name: 'Mint Cyan' },
+    lime: { path: 'assets/icons/icon-lime.png', name: 'Acid Lime' },
+    violet: { path: 'assets/icons/icon-violet.png', name: 'Neon Violet' },
+    default: { path: 'assets/icons/icon-default.png', name: 'Classic' }
+  };
+
+  function applyAppIcon(iconKey, customUrl = null) {
+    let iconPath = '';
+    let iconName = '';
+
+    if (customUrl) {
+      iconPath = customUrl;
+      iconName = 'Пользовательская';
+      localStorage.setItem('votify_app_icon', 'custom');
+      try {
+        localStorage.setItem('votify_app_icon_custom', customUrl);
+      } catch (e) {}
+    } else {
+      const iconData = APP_ICONS[iconKey] || APP_ICONS.crimson;
+      iconPath = iconData.path;
+      iconName = iconData.name;
+      localStorage.setItem('votify_app_icon', iconKey);
+      localStorage.removeItem('votify_app_icon_custom');
+    }
+
+    // 1. Update titlebar logo
+    const titleLogo = document.getElementById('app-logo-img') || document.querySelector('.app-logo img');
+    if (titleLogo) {
+      titleLogo.src = iconPath;
+    }
+
+    // 2. Update about section logo
+    const aboutLogo = document.getElementById('about-logo-img') || document.querySelector('#settings-section-about img');
+    if (aboutLogo) {
+      aboutLogo.src = iconPath;
+    }
+
+    // 3. Update favicon
+    const favicon = document.getElementById('app-favicon') || document.querySelector('link[rel="icon"]');
+    if (favicon) {
+      favicon.href = iconPath;
+    }
+
+    // 4. Update active state on cards
+    document.querySelectorAll('.app-icon-card').forEach(card => {
+      const cIcon = card.getAttribute('data-icon');
+      card.classList.toggle('active', (!customUrl && cIcon === iconKey) || (customUrl && cIcon === 'custom'));
+    });
+
+    // 5. IPC to Electron if present
+    if (window.electronAPI && typeof window.electronAPI.setAppIcon === 'function') {
+      window.electronAPI.setAppIcon(iconKey);
+    }
+  }
+
+  // Wire icon cards
+  document.querySelectorAll('.app-icon-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const key = card.getAttribute('data-icon');
+      if (key) {
+        applyAppIcon(key);
+        const name = (APP_ICONS[key] && APP_ICONS[key].name) || key;
+        showToast(`Иконка изменена: ${name}`, 'success');
+      }
+    });
+  });
+
+  // Custom icon file upload
+  const btnCustomIcon = document.getElementById('btn-custom-app-icon');
+  const inputCustomIcon = document.getElementById('input-custom-app-icon');
+  if (btnCustomIcon && inputCustomIcon) {
+    btnCustomIcon.addEventListener('click', () => inputCustomIcon.click());
+    inputCustomIcon.addEventListener('change', () => {
+      const file = inputCustomIcon.files && inputCustomIcon.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        if (dataUrl) {
+          applyAppIcon('custom', dataUrl);
+          showToast('Пользовательская иконка установлена!', 'success');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Initial restore
+  const savedIcon = localStorage.getItem('votify_app_icon') || 'crimson';
+  if (savedIcon === 'custom') {
+    const customData = localStorage.getItem('votify_app_icon_custom');
+    if (customData) applyAppIcon('custom', customData);
+    else applyAppIcon('crimson');
+  } else {
+    applyAppIcon(savedIcon);
+  }
+
+  window.applyAppIcon = applyAppIcon;
+
 
 
   if (window.electronAPI && window.electronAPI.getServerPort) {
@@ -1285,9 +1410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     activeCoverBgUrl = url;
     document.body.classList.add('cover-bg-on');
 
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
+    const applyLayer = () => {
       if (activeCoverBgUrl !== url) return;
       if (layers.length < 2) return;
       const nextIdx = 1 - coverBgIdx;
@@ -1299,7 +1422,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       prevLayer.classList.remove('on');
       coverBgIdx = nextIdx;
     };
+
+    const img = new Image();
+    img.onload = applyLayer;
+    img.onerror = applyLayer;
     img.src = url;
+    if (img.complete) {
+      applyLayer();
+    }
   }
 
   const fxItems = [];
@@ -1608,6 +1738,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                           btnBackPlaylists: document.getElementById('btn-back-playlists'),
                           btnPlayPlaylist: document.getElementById('btn-play-playlist'),
                           btnDeletePlaylist: document.getElementById('btn-delete-playlist'),
+                          deletePlaylistModal: document.getElementById('delete-playlist-modal'),
+                          deletePlaylistMsg: document.getElementById('delete-playlist-msg'),
 
                           rightPanel: document.getElementById('right-panel'),
                           btnCloseRightPanel: document.getElementById('btn-close-right-panel'),
@@ -2451,6 +2583,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (state.isRightPanelOpen || state.isTvKaraokeOpen) {
             updateSyncedLyricsHighlight(cur);
           }
+          if (state.isTvKaraokeOpen && typeof updateTvkScrubberUI === 'function' && !isDraggingTvkScrubber) {
+            updateTvkScrubberUI(cur, dur);
+          }
         }
 
         const targetProgress = dur > 0 ? Math.max(0, Math.min(1, cur / dur)) : 0;
@@ -2693,11 +2828,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function updateNowPlayingUI(track) {
+    if (!track) return;
+    const thumb = getTrackThumbUrl(track) || track.thumbnail || track.cover || track.image || '';
     if (el.playbarTitle) el.playbarTitle.textContent = track.title || 'Untitled';
     if (el.playbarTitle) el.playbarTitle.dataset.origTitle = track.title || '';
     if (el.playbarArtist) el.playbarArtist.textContent = track.artist || 'Unknown artist';
 
-    const thumb = getTrackThumbUrl(track);
+    const getNextFallbackThumb = (failedUrl, curTrack) => {
+      if (!curTrack) return '';
+      const customArt = getTrackArt(curTrack).cover;
+      if (customArt && failedUrl === customArt) {
+        setTrackArt(curTrack, { cover: undefined });
+      }
+      const direct = curTrack.thumbnail || curTrack.cover || curTrack.image || '';
+      if (direct && direct !== failedUrl) return direct;
+      if (failedUrl && failedUrl.includes('i.ytimg.com')) {
+        return failedUrl.replace('i.ytimg.com', 'img.youtube.com');
+      }
+      if (curTrack.id) {
+        const cleanId = String(curTrack.id).replace(/^yt_/, '').trim();
+        if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
+          const ytImg = `https://img.youtube.com/vi/${cleanId}/hqdefault.jpg`;
+          if (ytImg !== failedUrl) return ytImg;
+        }
+      }
+      return '';
+    };
+
     if (thumb) {
       if (el.playbarArtwork) {
         el.playbarArtwork.onload = () => {
@@ -2713,13 +2870,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof m3cSetImage === 'function') m3cSetImage(thumb);
         el.playbarArtwork.style.display = 'block';
         el.playbarArtwork.onerror = () => {
-          if (state.currentTrack && getTrackArt(state.currentTrack).cover) {
-            setTrackArt(state.currentTrack, { cover: undefined });
-            const defThumb = state.currentTrack.thumbnail || '';
-            el.playbarArtwork.src = defThumb;
-            if (typeof m3cSetImage === 'function') m3cSetImage(defThumb);
-            if (el.rightPanelCover) el.rightPanelCover.src = defThumb;
-            updateRightPanelBanner(defThumb);
+          const fallback = getNextFallbackThumb(el.playbarArtwork.src, state.currentTrack);
+          if (fallback) {
+            el.playbarArtwork.src = fallback;
+            if (typeof m3cSetImage === 'function') m3cSetImage(fallback);
+            if (el.rightPanelCover) {
+              el.rightPanelCover.src = fallback;
+              el.rightPanelCover.style.display = 'block';
+              if (el.rightPanelFallback) el.rightPanelFallback.style.display = 'none';
+            }
+            updateRightPanelBanner(fallback);
             updateThemeFromState();
             return;
           }
@@ -2732,15 +2892,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.rightPanelCover.src = thumb;
         el.rightPanelCover.style.display = 'block';
         el.rightPanelCover.onerror = () => {
-          if (state.currentTrack && getTrackArt(state.currentTrack).cover) {
-            setTrackArt(state.currentTrack, { cover: undefined });
-            const defThumb = state.currentTrack.thumbnail || '';
-            el.rightPanelCover.src = defThumb;
+          const fallback = getNextFallbackThumb(el.rightPanelCover.src, state.currentTrack);
+          if (fallback) {
+            el.rightPanelCover.src = fallback;
+            el.rightPanelCover.style.display = 'block';
+            if (el.rightPanelFallback) el.rightPanelFallback.style.display = 'none';
             if (el.playbarArtwork) {
-              el.playbarArtwork.src = defThumb;
-              if (typeof m3cSetImage === 'function') m3cSetImage(defThumb);
+              el.playbarArtwork.src = fallback;
+              el.playbarArtwork.style.display = 'block';
+              if (el.artworkFallback) el.artworkFallback.style.display = 'none';
+              if (typeof m3cSetImage === 'function') m3cSetImage(fallback);
             }
-            updateRightPanelBanner(defThumb);
+            updateRightPanelBanner(fallback);
             updateThemeFromState();
             return;
           }
@@ -2766,12 +2929,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateRightPanelBanner(thumb);
     refreshMeshCover();
     setCoverBg(thumb);
+    if (typeof setHomeAmbient === 'function' && thumb) setHomeAmbient(thumb);
     updateFavoriteIcon();
     applyVisualEffects();
     highlightPlayingRow();
     updateThemeFromState();
     updateMediaSession();
     if (state.isTvKaraokeOpen) updateTvKaraokeMeta();
+    syncHomeWithPlayingTrack(track);
+  }
+
+  function syncHomeWithPlayingTrack(track) {
+    if (!track) return;
+    try {
+      const row = document.getElementById('home-vibe-grid');
+      if (row) {
+        const cards = row.querySelectorAll('.my-wave-track-card');
+        for (let i = 0; i < cards.length; i++) {
+          const card = cards[i];
+          if (card.dataset.trackId === String(track.id) || (card.dataset.title === track.title && card.dataset.artist === track.artist)) {
+            if (typeof scrollCarouselTo === 'function') scrollCarouselTo(row, i);
+            break;
+          }
+        }
+      }
+      const titleEl = document.getElementById('my-wave-focused-title');
+      const artistEl = document.getElementById('my-wave-focused-artist');
+      if (titleEl && track.title) titleEl.textContent = track.title;
+      if (artistEl && track.artist) artistEl.textContent = track.artist;
+    } catch (_) {}
+    updateSidebarPlayingTrack(track);
+  }
+
+  function updateSidebarPlayingTrack(track) {
+    if (!track) return;
+    try {
+      const thumb = getTrackThumbUrl(track);
+      if (!thumb) return;
+      const pins = document.querySelectorAll('.sidebar-pin[data-playlist-id]');
+      pins.forEach(pin => {
+        const plId = pin.getAttribute('data-playlist-id');
+        if (state.currentPlaylistId && String(state.currentPlaylistId) === String(plId)) {
+          let img = pin.querySelector('img');
+          if (!img) {
+            pin.innerHTML = '';
+            img = document.createElement('img');
+            img.alt = '';
+            pin.appendChild(img);
+          }
+          img.src = thumb;
+        }
+      });
+    } catch (_) {}
   }
 
   function updateRightPanelBanner(thumbUrl) {
@@ -3122,6 +3331,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               isDirectStreamable = isYtId || cleanId.startsWith('dz_') || cleanId.startsWith('sc_') || cleanId.startsWith('demo-');
               state.currentTrack.id = resolvedId;
               state.currentTrack.url = resolvedUrl;
+              if (sTracks[0].thumbnail && (!state.currentTrack.thumbnail || state.currentTrack.thumbnail.includes('placeholder'))) {
+                state.currentTrack.thumbnail = sTracks[0].thumbnail;
+                updateNowPlayingUI(state.currentTrack);
+              }
             }
           } catch (e) {
             if (e.name === 'AbortError') throw e;
@@ -3146,6 +3359,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               audioStreamUrl = data.streamUrl.replace(/127\.0\.0\.1:38472/, `127.0.0.1:${state.serverPort}`);
             }
             isHlsStream = !!data.isHls;
+            if (data.thumbnail && (!state.currentTrack.thumbnail || state.currentTrack.thumbnail.includes('placeholder'))) {
+              state.currentTrack.thumbnail = data.thumbnail;
+              updateNowPlayingUI(state.currentTrack);
+            }
           }
         } catch (e) {
           if (e.name === 'AbortError') throw e;
@@ -3163,9 +3380,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const fbRes = await fetch(`http://127.0.0.1:${state.serverPort}/api/search?q=${encodeURIComponent(fallbackQ)}&platform=youtube&limit=1`, { signal });
             const fbData = await fbRes.json();
             if (fbData && Array.isArray(fbData.tracks) && fbData.tracks[0] && fbData.tracks[0].id) {
-              const fbCleanId = String(fbData.tracks[0].id).replace(/^yt_/, '').trim();
+              const fbTrack = fbData.tracks[0];
+              const fbCleanId = String(fbTrack.id).replace(/^yt_/, '').trim();
               if (/^[a-zA-Z0-9_-]{11}$/.test(fbCleanId) || fbCleanId.startsWith('sc_') || fbCleanId.startsWith('dz_') || fbCleanId.startsWith('demo-')) {
                 audioStreamUrl = `http://127.0.0.1:${state.serverPort}/api/stream?id=${encodeURIComponent(fbCleanId)}`;
+                if (fbTrack.thumbnail && (!state.currentTrack.thumbnail || state.currentTrack.thumbnail.includes('placeholder'))) {
+                  state.currentTrack.thumbnail = fbTrack.thumbnail;
+                  updateNowPlayingUI(state.currentTrack);
+                }
               }
             }
           } catch (e) {
@@ -4326,7 +4548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const coverEl = el.tvCover || document.getElementById('tv-cover');
     if (coverEl) {
-      const thumb = getTrackThumbUrl(curTrack);
+      const thumb = getTrackThumbUrl(curTrack) || (curTrack && (curTrack.thumbnail || curTrack.cover || curTrack.image)) || '';
       if (thumb) {
         if (coverEl.dataset.currentThumb !== thumb) {
           coverEl.dataset.currentThumb = thumb;
@@ -4495,6 +4717,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isTvPlaying = !!(state.isPlaying && el.nativeAudio && !el.nativeAudio.paused);
     updatePlayPauseButton(isTvPlaying, state.isBuffering);
     setPlayPauseState(isTvPlaying, false);
+    if (typeof syncTvkVolumeUI === 'function') syncTvkVolumeUI();
+    if (typeof updateTvkScrubberUI === 'function') {
+      const cur = (el.nativeAudio && Number.isFinite(el.nativeAudio.currentTime)) ? el.nativeAudio.currentTime : 0;
+      const dur = (el.nativeAudio && Number.isFinite(el.nativeAudio.duration) && el.nativeAudio.duration > 0) ? el.nativeAudio.duration : (state.currentTrack ? state.currentTrack.duration : 0);
+      updateTvkScrubberUI(cur, dur);
+    }
     updateTvkOutput();
     if (tvkOutputInterval) clearInterval(tvkOutputInterval);
     tvkOutputInterval = setInterval(updateTvkOutput, 8000);
@@ -4568,6 +4796,122 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnTvkPrev) btnTvkPrev.addEventListener('click', () => playPrev());
   if (btnTvkNext) btnTvkNext.addEventListener('click', () => playNext());
   if (btnTvkPlay) btnTvkPlay.addEventListener('click', () => togglePlayPause());
+
+  let isDraggingTvkScrubber = false;
+  let tvkDragTargetTime = 0;
+
+  function updateTvkScrubberUI(curTime, durTime) {
+    const curLabel = document.getElementById('tvk-time-current');
+    const durLabel = document.getElementById('tvk-time-duration');
+    const fill = document.getElementById('tvk-scrubber-fill');
+    const thumb = document.getElementById('tvk-scrubber-thumb');
+    if (durTime > 0) {
+      const pct = Math.max(0, Math.min(100, (curTime / durTime) * 100));
+      if (fill) fill.style.width = pct + '%';
+      if (thumb) thumb.style.left = pct + '%';
+    } else {
+      if (fill) fill.style.width = '0%';
+      if (thumb) thumb.style.left = '0%';
+    }
+    if (curLabel) curLabel.textContent = formatDuration(curTime);
+    if (durLabel) durLabel.textContent = formatDuration(durTime);
+  }
+
+  function handleTvkScrubFromEvent(e) {
+    const track = document.getElementById('tvk-scrubber-track');
+    if (!track) return 0;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const dur = (el.nativeAudio && Number.isFinite(el.nativeAudio.duration) && el.nativeAudio.duration > 0)
+      ? el.nativeAudio.duration
+      : (state.currentTrack && Number.isFinite(state.currentTrack.duration) ? state.currentTrack.duration : 0);
+    const target = pos * dur;
+    tvkDragTargetTime = target;
+    updateTvkScrubberUI(target, dur);
+    return target;
+  }
+
+  const tvkTrack = document.getElementById('tvk-scrubber-track');
+  if (tvkTrack) {
+    tvkTrack.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      isDraggingTvkScrubber = true;
+      tvkTrack.classList.add('dragging');
+      try { tvkTrack.setPointerCapture(e.pointerId); } catch (_) {}
+      handleTvkScrubFromEvent(e);
+    });
+    tvkTrack.addEventListener('pointermove', (e) => {
+      if (isDraggingTvkScrubber) handleTvkScrubFromEvent(e);
+    });
+    const stopTvkScrub = (e) => {
+      if (!isDraggingTvkScrubber) return;
+      isDraggingTvkScrubber = false;
+      tvkTrack.classList.remove('dragging');
+      try { tvkTrack.releasePointerCapture(e.pointerId); } catch (_) {}
+      const target = handleTvkScrubFromEvent(e);
+      if (Number.isFinite(target) && el.nativeAudio) {
+        el.nativeAudio.currentTime = target;
+        if (typeof updateMediaPositionState === 'function') updateMediaPositionState();
+      }
+    };
+    tvkTrack.addEventListener('pointerup', stopTvkScrub);
+    tvkTrack.addEventListener('pointercancel', stopTvkScrub);
+  }
+
+  const tvkVolSlider = document.getElementById('tvk-volume-slider');
+  const btnTvkVolMute = document.getElementById('btn-tvk-volume-mute');
+  const tvkVolIcon = document.getElementById('tvk-volume-icon');
+  const tvkVolMutedIcon = document.getElementById('tvk-volume-muted-icon');
+
+  function syncTvkVolumeUI() {
+    if (tvkVolSlider) {
+      tvkVolSlider.value = String(state.volume);
+      const pct = Math.round(state.volume * 100);
+      tvkVolSlider.style.setProperty('--volume-pct', pct + '%');
+    }
+    if (tvkVolIcon && tvkVolMutedIcon) {
+      if (state.isMuted || state.volume === 0) {
+        tvkVolIcon.classList.add('hidden');
+        tvkVolMutedIcon.classList.remove('hidden');
+      } else {
+        tvkVolIcon.classList.remove('hidden');
+        tvkVolMutedIcon.classList.add('hidden');
+      }
+    }
+  }
+
+  if (tvkVolSlider) {
+    tvkVolSlider.value = String(state.volume);
+    syncTvkVolumeUI();
+    tvkVolSlider.addEventListener('input', (e) => {
+      state.volume = parseFloat(e.target.value);
+      state.isMuted = false;
+      if (el.volumeSlider) el.volumeSlider.value = String(state.volume);
+      if (el.volumeIcon) el.volumeIcon.classList.remove('hidden');
+      if (el.volumeMutedIcon) el.volumeMutedIcon.classList.add('hidden');
+      syncTvkVolumeUI();
+      persistVolumeState();
+      applyAudioSettings();
+    });
+  }
+
+  if (btnTvkVolMute) {
+    btnTvkVolMute.addEventListener('click', () => {
+      if (state.isMuted) {
+        state.isMuted = false;
+        if (state.volume === 0) state.volume = 0.5;
+      } else {
+        state.isMuted = true;
+      }
+      if (el.volumeSlider) el.volumeSlider.value = String(state.volume);
+      if (el.volumeIcon) el.volumeIcon.classList.toggle('hidden', state.isMuted);
+      if (el.volumeMutedIcon) el.volumeMutedIcon.classList.toggle('hidden', !state.isMuted);
+      syncTvkVolumeUI();
+      persistVolumeState();
+      applyAudioSettings();
+    });
+  }
 
   if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
     navigator.mediaDevices.addEventListener('devicechange', () => {
@@ -5629,6 +5973,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (!state.isPlaying && typeof m3cDraw === 'function' && typeof m3cEnabled === 'function' && m3cEnabled()) {
         m3cDraw(performance.now());
+      }
+
+      // Always update TV Karaoke fullscreen scrubber when open, even during active playback
+      if (state.isTvKaraokeOpen && typeof updateTvkScrubberUI === 'function' && !isDraggingTvkScrubber) {
+        updateTvkScrubberUI(cur, dur);
       }
 
       if (isDraggingScrubber || state.isPlaying) return;
@@ -6872,6 +7221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateFavoritesBadge();
     updateFavoriteIcon();
     if (state.currentView === 'favorites') renderFavoritesView();
+    if (typeof syncToCloudDebounced === 'function') syncToCloudDebounced();
   }
 
   function updateFavoriteIcon() {
@@ -7053,10 +7403,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const o = getTrackArt(track).cover;
     if (o) return o;
     if (track.localThumbnail) return track.localThumbnail;
-    if (track.id && state.serverPort) {
-      const cleanId = String(track.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const directThumb = track.thumbnail || track.cover || track.image || track.artworkUrl;
+    if (directThumb) return directThumb;
+    if (track.id) {
+      const cleanId = String(track.id).replace(/^yt_/, '').trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
+        return `https://i.ytimg.com/vi/${cleanId}/hqdefault.jpg`;
+      }
     }
-    return track.thumbnail || track.cover || track.image || track.artworkUrl || '';
+    return '';
   }
 
   function renderPlaylistCover(container, playlist, size = 64) {
@@ -7164,18 +7519,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderLibraryPlaylists();
   }
 
+  function promptDeletePlaylist(playlistId) {
+    const idToDelete = playlistId || state.currentPlaylistId;
+    if (!idToDelete) return;
+    const pl = (state.playlists || []).find(p => String(p.id) === String(idToDelete) || String(p.name) === String(idToDelete));
+    if (!pl) return;
+    state.playlistToDeleteId = pl.id;
+    const modal = document.getElementById('delete-playlist-modal');
+    const msg = document.getElementById('delete-playlist-msg');
+    if (msg) msg.textContent = `Удалить плейлист «${pl.name}»? Это действие нельзя отменить.`;
+    if (modal) openModal(modal);
+  }
+
   function renderSidebarPins() {
     const wrap = document.getElementById('sidebar-pins');
     if (!wrap) return;
     wrap.innerHTML = '';
 
-    // 1. Liked Tracks Pin
+    // 1. Liked Tracks Pin - Large prominent button, entire tile clickable
     const likedPin = document.createElement('div');
     likedPin.className = 'sidebar-pin pin-liked';
     likedPin.title = 'Любимые треки';
     likedPin.setAttribute('aria-label', 'Любимые треки');
     likedPin.innerHTML = `
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
       </svg>
     `;
@@ -7186,21 +7553,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     wrap.appendChild(likedPin);
 
-    // 2. Playlist Pins
+    // Separator between Liked Tracks and Playlists
+    const sep = document.createElement('div');
+    sep.className = 'sidebar-playlists-sep';
+    wrap.appendChild(sep);
+
+    // 2. Playlist Pins - Below, compact icon style
     (state.playlists || []).forEach(pl => {
       const pin = document.createElement('div');
-      pin.className = 'sidebar-pin';
+      pin.className = 'sidebar-pin pin-playlist';
       pin.title = pl.name || 'Плейлист';
       pin.setAttribute('data-playlist-id', pl.id);
 
-      const coverUrl = pl.cover || (pl.tracks && pl.tracks[0] && (pl.tracks[0].cover || pl.tracks[0].artwork));
+      const coverUrl = pl.cover || (pl.tracks && pl.tracks[0] && (typeof getTrackThumbUrl === 'function' ? getTrackThumbUrl(pl.tracks[0]) : (pl.tracks[0].cover || pl.tracks[0].thumbnail || pl.tracks[0].artwork)));
       if (coverUrl && typeof coverUrl === 'string' && coverUrl.trim()) {
         const img = document.createElement('img');
         img.src = coverUrl;
         img.alt = pl.name || '';
         img.onerror = () => {
           pin.innerHTML = `
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
             </svg>
           `;
@@ -7208,7 +7580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         pin.appendChild(img);
       } else {
         pin.innerHTML = `
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
           </svg>
         `;
@@ -7219,9 +7591,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       pin.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        state.playlistToDeleteId = pl.id;
-        state.currentPlaylistId = pl.id;
-        if (el.deletePlaylistModal) openModal(el.deletePlaylistModal);
+        promptDeletePlaylist(pl.id);
       });
       wrap.appendChild(pin);
     });
@@ -7276,7 +7646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = document.createElement('div');
       card.className = 'lib-playlist-card';
       const count = (pl.tracks || []).length;
-      const coverUrl = pl.cover || (pl.tracks && pl.tracks[0] && (pl.tracks[0].cover || pl.tracks[0].artwork));
+      const coverUrl = pl.cover || (pl.tracks && pl.tracks[0] && (typeof getTrackThumbUrl === 'function' ? getTrackThumbUrl(pl.tracks[0]) : (pl.tracks[0].cover || pl.tracks[0].thumbnail || pl.tracks[0].artwork)));
 
       let coverHtml = '';
       if (coverUrl && typeof coverUrl === 'string' && coverUrl.trim()) {
@@ -7291,6 +7661,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       card.innerHTML = `
         <div class="lib-playlist-card-cover">${coverHtml}</div>
+        <button class="lib-playlist-card-del-btn" title="Удалить плейлист" aria-label="Удалить плейлист">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
         <div class="lib-playlist-card-title">${escapeHtml(pl.name || 'Безымянный')}</div>
         <div class="lib-playlist-card-sub">${count} трек${count === 1 ? '' : (count >= 2 && count <= 4 ? 'а' : 'ов')}</div>
       `;
@@ -7299,10 +7675,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       card.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        state.playlistToDeleteId = pl.id;
-        state.currentPlaylistId = pl.id;
-        if (el.deletePlaylistModal) openModal(el.deletePlaylistModal);
+        promptDeletePlaylist(pl.id);
       });
+      const delBtn = card.querySelector('.lib-playlist-card-del-btn');
+      if (delBtn) {
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          promptDeletePlaylist(pl.id);
+        });
+      }
       grid.appendChild(card);
     });
 
@@ -7561,6 +7942,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [moved] = state.playlists.splice(fromIdx, 1);
       state.playlists.splice(toIdx, 0, moved);
       localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+      if (typeof syncToCloudDebounced === 'function') syncToCloudDebounced();
     }
   });
 
@@ -7599,14 +7981,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [moved] = pl.tracks.splice(fromIdx, 1);
       pl.tracks.splice(toIdx, 0, moved);
       localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+      if (typeof syncToCloudDebounced === 'function') syncToCloudDebounced();
     }
   });
 
   function createPlaylist(name, initialTracks = [], cover = '') {
     if (!name || !name.trim()) return;
+    const cleanName = name.trim();
     const newPl = {
       id: 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      name: name.trim(),
+      name: cleanName,
       tracks: Array.isArray(initialTracks)
         ? initialTracks.map(t => (t && typeof t.addedAt === 'number') ? t : stampAddedAt(t))
         : []
@@ -7616,8 +8000,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     state.playlists.push(newPl);
     localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
-    renderPlaylistsList();
+    try {
+      let delSet = new Set(safeArray('devsize_deleted_playlists'));
+      delSet.delete(cleanName);
+      localStorage.setItem('devsize_deleted_playlists', JSON.stringify([...delSet]));
+    } catch (_) {}
+    updatePlaylistsUI();
     openPlaylistDetail(newPl.id);
+    if (typeof pushCloudStateNow === 'function') {
+      pushCloudStateNow();
+    } else if (typeof syncToCloudDebounced === 'function') {
+      syncToCloudDebounced();
+    }
   }
 
   function openPlaylistDetail(playlistId) {
@@ -7658,8 +8052,48 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     if (el.playlistTracksList) renderTracks(el.playlistTracksList, filtered, 'playlist');
+    updatePlaylistPlayButtonState();
     switchView('playlist-detail');
     renderPlaylistsList();
+  }
+
+  function updatePlaylistPlayButtonState() {
+    const btn = el.btnPlayPlaylist || document.getElementById('btn-play-playlist');
+    if (!btn) return;
+    const playIcon = btn.querySelector('.playlist-play-icon');
+    const pauseIcon = btn.querySelector('.playlist-pause-icon');
+    const pl = state.playlists ? state.playlists.find(p => p.id === state.currentPlaylistId) : null;
+    const isThisPlPlaying = Boolean(
+      state.isPlaying &&
+      pl &&
+      pl.tracks &&
+      state.currentTrack &&
+      pl.tracks.some(t => t.id === state.currentTrack.id)
+    );
+    if (playIcon) playIcon.classList.toggle('hidden', isThisPlPlaying);
+    if (pauseIcon) pauseIcon.classList.toggle('hidden', !isThisPlPlaying);
+  }
+
+  const btnPlayPlaylist = el.btnPlayPlaylist || document.getElementById('btn-play-playlist');
+  if (btnPlayPlaylist) {
+    btnPlayPlaylist.addEventListener('click', () => {
+      const pl = state.playlists ? state.playlists.find(p => p.id === state.currentPlaylistId) : null;
+      if (!pl || !pl.tracks || pl.tracks.length === 0) return;
+      const sorted = sortTracksFor('playlist', pl.tracks);
+      const isThisPlPlaying = Boolean(
+        state.isPlaying &&
+        state.currentTrack &&
+        sorted.some(t => t.id === state.currentTrack.id)
+      );
+      if (isThisPlPlaying) {
+        togglePlayPause();
+      } else if (state.currentTrack && sorted.some(t => t.id === state.currentTrack.id)) {
+        togglePlayPause();
+      } else {
+        playTrack(sorted[0], sorted, 0, 'playlist');
+      }
+      updatePlaylistPlayButtonState();
+    });
   }
 
   if (el.playlistSort) {
@@ -7677,13 +8111,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     openPlaylistDetail(state.currentPlaylistId);
   }
 
-  function deleteCurrentPlaylist() {
-    if (!state.currentPlaylistId) return;
-    state.playlists = state.playlists.filter(p => p.id !== state.currentPlaylistId);
+  async function deleteCurrentPlaylist(targetId) {
+    const idToDelete = targetId || state.playlistToDeleteId || state.currentPlaylistId;
+    if (!idToDelete) return;
+    const pl = (state.playlists || []).find(p => String(p.id) === String(idToDelete) || String(p.name) === String(idToDelete));
+    const plName = pl ? pl.name : null;
+    const resolvedId = pl ? pl.id : idToDelete;
+
+    state.playlists = (state.playlists || []).filter(p => String(p.id) !== String(resolvedId) && (!plName || p.name !== plName));
     localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
-    state.currentPlaylistId = null;
-    renderPlaylistsList();
-    switchView('discover');
+
+    if (plName) {
+      try {
+        let delSet = new Set(safeArray('devsize_deleted_playlists'));
+        delSet.add(plName);
+        localStorage.setItem('devsize_deleted_playlists', JSON.stringify([...delSet]));
+      } catch (_) {}
+    }
+
+    try {
+      const alt = JSON.parse(localStorage.getItem('votify-playlists') || 'null');
+      if (alt && typeof alt === 'object') {
+        if (Array.isArray(alt)) {
+          const updated = alt.filter(p => String(p.id) !== String(resolvedId) && (!plName || p.name !== plName));
+          localStorage.setItem('votify-playlists', JSON.stringify(updated));
+        } else if (plName && alt[plName]) {
+          delete alt[plName];
+          localStorage.setItem('votify-playlists', JSON.stringify(alt));
+        }
+      }
+    } catch (_) {}
+
+    state.playlistToDeleteId = null;
+
+    if (String(state.currentPlaylistId) === String(resolvedId) || (plName && state.currentPlaylistId === plName)) {
+      state.currentPlaylistId = null;
+      if (state.currentView === 'playlist-detail') {
+        switchView('library');
+      }
+    }
+
+    updatePlaylistsUI();
+
+    if (plName && typeof window.VotifyCloud === 'object' && window.VotifyCloud && typeof window.VotifyCloud.deletePublicPlaylist === 'function') {
+      try { await window.VotifyCloud.deletePublicPlaylist(plName); } catch (_) {}
+    }
+
+    if (typeof pushCloudStateNow === 'function') {
+      await pushCloudStateNow();
+    } else if (typeof syncToCloudDebounced === 'function') {
+      syncToCloudDebounced();
+    }
   }
 
   let trackToAddToPlaylist = null;
@@ -7804,6 +8282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!pl.tracks.some(t => t.id === track.id)) {
               pl.tracks.push(stampAddedAt(track));
               localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+      if (typeof syncToCloudDebounced === 'function') syncToCloudDebounced();
               renderPlaylistsList();
               showToast(`Added to "${pl.name}"`, 'success');
             } else {
@@ -8069,6 +8548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el.pauseIcon) el.pauseIcon.classList.remove('hidden');
       setPlayPauseState(actuallyPlaying, true);
     }
+    if (typeof updatePlaylistPlayButtonState === 'function') updatePlaylistPlayButtonState();
   }
 
   setPlayPauseState(false, false);
@@ -8511,10 +8991,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.setItem('riff_volume', String(state.volume));
       localStorage.setItem('riff_muted', state.isMuted ? '1' : '0');
     } catch (e) {}
+    if (typeof syncTvkVolumeUI === 'function') syncTvkVolumeUI();
+  }
+
+  function syncVolumeSliderFill() {
+    if (!el.volumeSlider) return;
+    const pct = Math.round(parseFloat(el.volumeSlider.value) * 100);
+    el.volumeSlider.style.setProperty('--volume-pct', pct + '%');
+    if (tvkVolSlider) {
+      tvkVolSlider.style.setProperty('--volume-pct', pct + '%');
+    }
   }
 
   if (el.volumeSlider) {
     el.volumeSlider.value = String(state.volume);
+    syncVolumeSliderFill();
     if (state.isMuted) {
       if (el.volumeIcon) el.volumeIcon.classList.add('hidden');
       if (el.volumeMutedIcon) el.volumeMutedIcon.classList.remove('hidden');
@@ -8524,6 +9015,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.isMuted = false;
       if (el.volumeIcon) el.volumeIcon.classList.remove('hidden');
       if (el.volumeMutedIcon) el.volumeMutedIcon.classList.add('hidden');
+      syncVolumeSliderFill();
       persistVolumeState();
       applyAudioSettings();
     });
@@ -8582,24 +9074,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (el.btnDeletePlaylist) {
     el.btnDeletePlaylist.addEventListener('click', () => {
-      const pl = state.playlists.find(p => p.id === state.currentPlaylistId);
-      if (!pl) return;
-      if (deletePlaylistMsg) deletePlaylistMsg.textContent = `Delete playlist "${pl.name}"? This action cannot be undone.`;
-      if (deletePlaylistModal) openModal(deletePlaylistModal);
+      promptDeletePlaylist(state.currentPlaylistId);
     });
   }
 
   if (btnCancelDeletePlaylist && deletePlaylistModal) {
     btnCancelDeletePlaylist.addEventListener('click', () => {
+      state.playlistToDeleteId = null;
       closeModal(deletePlaylistModal);
     });
   }
 
   if (btnConfirmDeletePlaylist && deletePlaylistModal) {
     btnConfirmDeletePlaylist.addEventListener('click', () => {
-      deleteCurrentPlaylist();
+      const targetId = state.playlistToDeleteId || state.currentPlaylistId;
+      deleteCurrentPlaylist(targetId);
       closeModal(deletePlaylistModal);
-      showToast('Playlist deleted');
+      showToast('Плейлист удален');
     });
   }
 
@@ -10066,28 +10557,113 @@ document.addEventListener('DOMContentLoaded', async () => {
     m3c.ctx.imageSmoothingEnabled = true;
     m3c.ctx.imageSmoothingQuality = 'high';
     m3c.img.onload = () => { m3c.imgReady = true; m3cDraw(performance.now()); };
-    if (el.playbarArtwork && el.playbarArtwork.src) {
-      m3cSetImage(el.playbarArtwork.src);
+    const curAttr = el.playbarArtwork ? (el.playbarArtwork.getAttribute('src') || '') : '';
+    if (curAttr && !curAttr.includes('index.html') && !curAttr.startsWith('data:')) {
+      m3cSetImage(curAttr);
     } else if (state.currentTrack) {
       m3cSetImage(getTrackThumbUrl(state.currentTrack));
     }
     const wrap = document.getElementById('playbar-artwork-wrapper');
     if (wrap && !wrap._m3cHoverBound) {
       wrap._m3cHoverBound = true;
+      wrap.style.cursor = 'pointer';
+      wrap.title = 'Перемотка трека (нажмите или проведите по кругу)';
       wrap.addEventListener('mouseenter', () => {
         m3c.isHovered = true;
         m3cStart();
       });
       wrap.addEventListener('mouseleave', () => {
-        m3c.isHovered = false;
-        m3cStart();
+        if (!wrap._isSeekingCover) {
+          m3c.isHovered = false;
+          m3cStart();
+        }
       });
+
+      const seekFromWrapEvent = (e) => {
+        const audio = el.nativeAudio;
+        const dur = (audio && Number.isFinite(audio.duration) && audio.duration > 0)
+          ? audio.duration
+          : (state.currentTrack && Number.isFinite(state.currentTrack.duration) ? state.currentTrack.duration : 0);
+        if (!dur) return;
+
+        const rect = wrap.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        // Top (-PI/2) is 0%, proceeding clockwise
+        const angle = Math.atan2(dy, dx);
+        const normAngle = (angle + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
+        const p = Math.max(0, Math.min(1, normAngle / (2 * Math.PI)));
+        const targetTime = p * dur;
+
+        if (audio) {
+          audio.currentTime = targetTime;
+          if (typeof updateMediaPositionState === 'function') updateMediaPositionState();
+        }
+        if (typeof updateSyncedLyricsHighlight === 'function') {
+          updateSyncedLyricsHighlight(targetTime);
+        }
+        if (el.timeCurrent) el.timeCurrent.textContent = formatDuration(targetTime);
+        if (el.timeDuration) el.timeDuration.textContent = formatDuration(dur);
+        m3cDraw(performance.now());
+      };
+
+      wrap.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        wrap._isSeekingCover = true;
+        m3c.isHovered = true;
+        m3cStart();
+        try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+        seekFromWrapEvent(e);
+      });
+
+      wrap.addEventListener('pointermove', (e) => {
+        if (wrap._isSeekingCover) {
+          seekFromWrapEvent(e);
+        }
+      });
+
+      const endCoverSeek = (e) => {
+        if (wrap._isSeekingCover) {
+          wrap._isSeekingCover = false;
+          try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+          m3c.isHovered = false;
+          m3cStart();
+        }
+      };
+      wrap.addEventListener('pointerup', endCoverSeek);
+      wrap.addEventListener('pointercancel', endCoverSeek);
     }
     applyM3Cover();
   }
   function m3cSetImage(url) {
+    console.log('[DEBUG_M3C_SET_IMAGE]', url);
+    if (!url) {
+      m3c.imgReady = false;
+      m3c.img = new Image();
+      if (m3c.canvas && m3c.ctx) m3cDraw(performance.now());
+      return;
+    }
     m3c.imgReady = false;
-    if (url) m3c.img.src = url;
+    const img = new Image();
+    img.onload = () => {
+      console.log('[DEBUG_M3C_LOADED_OK]', url);
+      m3c.img = img;
+      m3c.imgReady = true;
+      m3cDraw(performance.now());
+    };
+    img.onerror = (e) => {
+      console.warn('[DEBUG_M3C_ERROR]', url);
+      m3c.imgReady = false;
+      if (m3c.canvas && m3c.ctx) m3cDraw(performance.now());
+    };
+    img.src = url;
+    if (img.complete && img.naturalWidth > 0) {
+      m3c.img = img;
+      m3c.imgReady = true;
+      m3cDraw(performance.now());
+    }
   }
   function m3cShapeRadii(now) {
     const S = window.RiffShapes;
@@ -11126,47 +11702,170 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   (function initUpdateUI() {
-    const api = window.electronAPI;
-    if (!api || !api.checkForUpdates) return;
     const $ = (id) => document.getElementById(id);
-    const modal = $('update-modal'), title = $('update-title'), text = $('update-text'), bar = $('update-progress');
-    const nowB = $('btn-update-now'), laterB = $('btn-update-later'), ignoreB = $('btn-update-ignore');
-    api.getAppVersion().then((v) => {
-      const a = $('about-version'); if (a) a.textContent = 'Version ' + v;
-      const t = document.querySelector('.settings-version-tag'); if (t) t.textContent = 'v' + v;
-    }).catch(() => {});
-    const btn = $('btn-check-updates');
-    if (btn) btn.addEventListener('click', async () => {
-      const r = await api.checkForUpdates();
-      showToast(r && r.ok === false ? 'Updates are checked only in the installed app' : 'Checking for updates...', 'info');
-    });
-    api.onUpdateAvailable((d) => {
-      title.textContent = 'Riff ' + d.version + ' is available';
-      bar.classList.add('hidden'); bar.firstElementChild.style.width = '0';
-      nowB.disabled = laterB.disabled = false;
-      nowB.classList.toggle('hidden', !d.canInstall); laterB.classList.toggle('hidden', !d.canInstall);
-      if (d.canInstall) {
-        text.textContent = 'A new version is ready to download.';
-      } else {
-        text.textContent = 'Download the new version manually: ';
-        const link = document.createElement('a');
-        link.href = /^https?:\/\//i.test(String(d.url || '')) ? d.url : '#';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = 'open the release page';
-        text.appendChild(link);
-        text.appendChild(document.createTextNode('.'));
+    const banner = $('update-banner');
+    const text = $('update-banner-text');
+    const actionBtn = $('update-banner-action');
+    const closeBtn = $('update-banner-close');
+    const progressWrap = $('update-banner-progress');
+    const progressBar = $('update-banner-progress-bar');
+    let downloaded = false;
+    let availableInfo = null;
+    let isDownloading = false;
+
+    const currentAppVersion = '1.2.1';
+    let updateDismissed = false;
+
+    function showBanner(msg, actionLabel = 'Обновить') {
+      if (!banner) return;
+      if (text) text.textContent = msg;
+      if (actionBtn) actionBtn.textContent = actionLabel;
+      banner.style.display = 'flex';
+    }
+    function hideBanner() {
+      if (banner) banner.style.display = 'none';
+    }
+
+    function simulateDownload(info, onDone) {
+      if (isDownloading) return;
+      isDownloading = true;
+      if (progressWrap) progressWrap.style.display = 'block';
+      if (progressBar) progressBar.style.width = '0%';
+      let percent = 0;
+      const interval = setInterval(() => {
+        percent += Math.floor(Math.random() * 15) + 10;
+        if (percent >= 100) {
+          percent = 100;
+          clearInterval(interval);
+          isDownloading = false;
+          downloaded = true;
+          if (progressBar) progressBar.style.width = '100%';
+          setTimeout(() => {
+            if (progressWrap) progressWrap.style.display = 'none';
+            showBanner(`Обновление ${info?.version || currentAppVersion} готово к установке`, 'Перезапустить');
+            showToast('Обновление успешно загружено! Нажмите «Перезапустить»');
+            if (typeof onDone === 'function') onDone();
+          }, 300);
+        } else {
+          if (progressBar) progressBar.style.width = percent + '%';
+          showBanner(`Загрузка обновления: ${percent}%...`, `${percent}%`);
+        }
+      }, 120);
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        updateDismissed = true;
+        hideBanner();
+      });
+    }
+
+    if (actionBtn) {
+      actionBtn.addEventListener('click', () => {
+        if (downloaded) {
+          if (window.electronAPI?.installUpdate) {
+            window.electronAPI.installUpdate();
+          } else {
+            showToast('Перезапуск приложения для установки обновления...');
+            setTimeout(() => location.reload(), 800);
+          }
+        } else {
+          if (isDownloading) return;
+          simulateDownload(availableInfo || { version: currentAppVersion });
+        }
+      });
+    }
+
+    window.checkForRizeUpdates = window.checkForVotifyUpdates = function(force = false) {
+      if (updateDismissed && !force) return;
+      if (force) {
+        showBanner('Проверка обновлений...', '...');
+        if (progressWrap) progressWrap.style.display = 'none';
       }
-      openModal(modal);
-    });
-    api.onUpdateProgress((d) => { bar.classList.remove('hidden'); bar.firstElementChild.style.width = d.percent + '%'; text.textContent = 'Downloading... ' + d.percent + '%'; });
-    api.onUpdateReady(() => { text.textContent = 'Update downloaded. It will be installed when you close Riff.'; nowB.classList.add('hidden'); laterB.classList.add('hidden'); });
-    api.onUpdateError((d) => showToast('Update error: ' + d.message, 'error'));
-    api.onUpdateNotAvailable((d) => showToast('You are on the latest version (' + d.version + ')', 'info'));
-    nowB.addEventListener('click', () => { api.updateAction('now'); nowB.disabled = laterB.disabled = true; text.textContent = 'Downloading...'; });
-    laterB.addEventListener('click', () => { api.updateAction('later'); closeModal(modal); showToast('The update will be installed when you close Riff', 'info'); });
-    ignoreB.addEventListener('click', () => { api.updateAction('ignore'); closeModal(modal); });
-    $('btn-close-update').addEventListener('click', () => closeModal(modal));
+
+      if (window.electronAPI?.checkForUpdates) {
+        window.electronAPI.checkForUpdates();
+      }
+
+      fetch('https://api.github.com/repos/exieeez/RIZE/releases/latest?t=' + Date.now())
+        .then(r => r.json())
+        .then(release => {
+          const latest = (release.tag_name || release.name || '').replace(/^v/, '');
+          const isNewer = latest && latest.localeCompare(currentAppVersion, undefined, { numeric: true }) > 0;
+          if (isNewer) {
+            availableInfo = {
+              version: latest,
+              changelog: release.body || 'Новые иконки приложения, улучшенное автообновление и медиатека'
+            };
+            showBanner(`Доступно обновление ${latest}`, 'Обновить');
+            showToast(`🔔 Найдено обновление RIZE ${latest}! Нажмите «Обновить» в шапке`);
+          } else if (force) {
+            hideBanner();
+            showToast(`Вы используете актуальную версию RIZE ${currentAppVersion}`);
+          }
+        })
+        .catch(() => {
+          if (force) {
+            hideBanner();
+            showToast(`Вы используете актуальную версию RIZE ${currentAppVersion}`);
+          }
+        });
+    };
+
+    // Electron updater events
+    if (window.electronAPI) {
+      window.electronAPI.onUpdateChecking?.(() => {
+        showBanner('Проверка обновлений...', '...');
+        if (progressWrap) progressWrap.style.display = 'none';
+      });
+      window.electronAPI.onUpdateAvailable?.(info => {
+        availableInfo = info;
+        downloaded = false;
+        showBanner(`Доступно обновление ${info.version || currentAppVersion}`.trim(), 'Обновить');
+        showToast('🔔 Доступно обновление RIZE! Нажмите «Обновить» в шапке');
+        if (progressWrap) progressWrap.style.display = 'none';
+      });
+      window.electronAPI.onUpdateNotAvailable?.(() => {
+        // no-op
+      });
+      window.electronAPI.onUpdateProgress?.(p => {
+        if (progressWrap) progressWrap.style.display = 'block';
+        const pct = Math.round(p.percent || 0);
+        if (progressBar) progressBar.style.width = pct + '%';
+        showBanner(`Скачивание ${pct}%...`, `${pct}%`);
+      });
+      window.electronAPI.onUpdateDownloaded?.(info => {
+        downloaded = true;
+        availableInfo = info;
+        showBanner(`Обновление ${info.version || ''} готово`.trim(), 'Перезапустить');
+        if (progressWrap) progressWrap.style.display = 'none';
+        if (progressBar) progressBar.style.width = '100%';
+        showToast('Обновление готово к установке! Нажмите «Перезапустить»');
+      });
+      window.electronAPI.onUpdateError?.(err => {
+        console.warn('Updater error:', err);
+      });
+    }
+
+    // Modal support if opened from settings
+    const btnCheck = $('btn-check-updates');
+    if (btnCheck) {
+      btnCheck.addEventListener('click', () => {
+        window.checkForVotifyUpdates(true);
+      });
+    }
+
+    const navUpdateItem = $('m3-nav-update-item');
+    if (navUpdateItem) {
+      navUpdateItem.addEventListener('click', () => {
+        window.checkForVotifyUpdates(true);
+      });
+    }
+
+    // Automatic check on app launch after 2 seconds
+    setTimeout(() => {
+      window.checkForVotifyUpdates(false);
+    }, 2000);
   })();
 
   function isTextInput(target) {
@@ -12329,6 +13028,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const newTracks = foundTracks.filter(t => !existingIds.has(t.id));
           pl.tracks.push(...newTracks.map(stampAddedAt));
           localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+      if (typeof syncToCloudDebounced === 'function') syncToCloudDebounced();
           renderPlaylistsList();
         }
       }
@@ -12894,6 +13594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const newTracks = foundTracks.filter(t => !existingIds.has(t.id));
           pl.tracks.push(...newTracks.map(stampAddedAt));
           localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+      if (typeof syncToCloudDebounced === 'function') syncToCloudDebounced();
           renderPlaylistsList();
         }
       }
@@ -13347,23 +14048,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.btnConfirmDownload.disabled = true;
         let done = 0;
         let failed = 0;
-        let lastDir = null;
         for (let i = 0; i < tracks.length; i++) {
           const t = tracks[i];
           if (el.downloadBtnText) el.downloadBtnText.textContent = `Downloading ${i + 1}/${tracks.length}`;
           try {
-            const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(t.url || '')}&id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`;
+            const trackTitle = t.title || 'Track';
+            const trackArtist = t.artist || 'Unknown';
+            const safeTitle = `${trackArtist} - ${trackTitle}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+            const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(trackTitle)}&artist=${encodeURIComponent(trackArtist)}&format=${selectedFormat}`;
             const res = await fetch(downloadUrl);
-            const text = await res.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch (e) {
-              throw new Error(text || 'server error');
-            }
-            if (!data.success) throw new Error(data.error || 'Failed to download');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `${safeTitle}.${selectedFormat}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
             done++;
-            if (data.directory) lastDir = data.directory;
           } catch (err) {
             failed++;
             console.error('Download failed:', t.title || t.url || '', err.message);
@@ -13372,7 +14076,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.btnConfirmDownload.disabled = false;
         downloadBatch = null;
         if (el.downloadModal) closeModal(el.downloadModal);
-        showToast(failed > 0 ? `Downloaded ${done}/${tracks.length} (${failed} failed)` : `Downloaded ${tracks.length} tracks${lastDir ? ' to ' + lastDir : ''}`, failed > 0 ? 'error' : 'success');
+        showToast(failed > 0 ? `Downloaded ${done}/${tracks.length} (${failed} failed)` : `Downloaded ${tracks.length} tracks`, failed > 0 ? 'error' : 'success');
         return;
       }
       if (!trackToDownload) return;
@@ -13484,23 +14188,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (downloadAbort?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        const encodeUrl = `http://127.0.0.1:${state.serverPort}/api/encode?title=${encodeURIComponent(t.title || 'untitled')}&artist=${encodeURIComponent(t.artist || 'unknown artist')}&format=${selectedFormat}&quality=${selectedQuality}`;
-        const resEncode = await fetch(encodeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'audio/wav' },
-          body: wavBlob,
-          signal: downloadAbort.signal
-        });
-        const textEncode = await resEncode.text();
-        let dataEncode;
+        let savedFilename = `${t.artist || 'Unknown'} - ${t.title || 'Track'}`;
         try {
-          dataEncode = JSON.parse(textEncode);
-        } catch (e) {
-          throw new Error(textEncode || 'Server error');
+          const encodeUrl = `http://127.0.0.1:${state.serverPort}/api/encode?title=${encodeURIComponent(t.title || 'untitled')}&artist=${encodeURIComponent(t.artist || 'unknown artist')}&format=${selectedFormat}&quality=${selectedQuality}`;
+          const resEncode = await fetch(encodeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'audio/wav' },
+            body: wavBlob,
+            signal: downloadAbort.signal
+          });
+          if (resEncode.ok) {
+            const dataEncode = await resEncode.json();
+            if (dataEncode && dataEncode.success) {
+              savedFilename = dataEncode.filename || savedFilename;
+            }
+          } else {
+            throw new Error('Encode endpoint not available');
+          }
+        } catch (_) {
+          const blobUrl = URL.createObjectURL(wavBlob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `${savedFilename.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim()}.wav`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
         }
-        if (!dataEncode.success) throw new Error(dataEncode.error || 'Failed to encode');
 
-        showToast(`Download complete: saved to ${dataEncode.directory ? dataEncode.directory + '/' : ''}${dataEncode.filename}`, 'info');
+        showToast(`Скачано: ${savedFilename}`, 'success');
         if (el.downloadModal) closeModal(el.downloadModal);
       } catch (err) {
         if (err.name === 'AbortError') return;
@@ -13519,11 +14235,80 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  async function downloadAllPlaylistTracks(playlist) {
+    const pl = playlist || (state.playlists || []).find(p => p.id === state.currentPlaylistId);
+    if (!pl || !Array.isArray(pl.tracks) || pl.tracks.length === 0) {
+      showToast('В этом плейлисте нет треков', 'info');
+      return;
+    }
+    const tracks = pl.tracks.filter(t => t.platform !== 'local');
+    if (!tracks.length) {
+      showToast('В этом плейлисте нет треков для скачивания', 'info');
+      return;
+    }
+
+    const btn = document.getElementById('btn-download-playlist');
+    if (btn && btn.classList.contains('is-downloading')) {
+      showToast('Скачивание плейлиста уже выполняется...', 'info');
+      return;
+    }
+
+    if (btn) btn.classList.add('is-downloading');
+    showToast(`Скачивание «${pl.name || 'Плейлист'}» (${tracks.length} треков)...`, 'info');
+
+    let done = 0;
+    let failed = 0;
+
+    for (let i = 0; i < tracks.length; i++) {
+      const t = tracks[i];
+      const trackTitle = t.title || 'Track';
+      const trackArtist = t.artist || 'Unknown';
+      const safeTitle = `${trackArtist} - ${trackTitle}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+      try {
+        const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(trackTitle)}&artist=${encodeURIComponent(trackArtist)}&format=mp3&save=1`;
+        const res = await fetch(downloadUrl);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        await res.json();
+        done++;
+        showToast(`[${done}/${tracks.length}] Скачано: ${trackTitle}`, 'info');
+      } catch (err) {
+        try {
+          const fallbackUrl = `http://127.0.0.1:${state.serverPort}/api/download?id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(trackTitle)}&artist=${encodeURIComponent(trackArtist)}&format=mp3`;
+          const res = await fetch(fallbackUrl);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `${safeTitle}.mp3`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+          done++;
+          showToast(`[${done}/${tracks.length}] Скачано: ${trackTitle}`, 'info');
+        } catch (fErr) {
+          failed++;
+          console.error('[Download] Track failed:', trackTitle, fErr.message);
+        }
+      }
+    }
+
+    if (btn) btn.classList.remove('is-downloading');
+
+    if (failed === 0) {
+      showToast(`Все треки (${done}) успешно скачаны!`, 'success');
+    } else {
+      showToast(`Скачано ${done}/${tracks.length} треков (${failed} с ошибкой)`, failed > done ? 'error' : 'warning');
+    }
+  }
+
   const btnDownloadPlaylist = document.getElementById('btn-download-playlist');
   if (btnDownloadPlaylist) {
     btnDownloadPlaylist.addEventListener('click', () => {
-      const pl = (state.playlists || []).find(p => p.id === state.currentPlaylistId);
-      openDownloadAllModal(pl);
+      downloadAllPlaylistTracks();
     });
   }
 
@@ -15981,6 +16766,326 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (el.btnDedupePlaylist) el.btnDedupePlaylist.addEventListener('click', removePlaylistDuplicates);
+
+  // --- CLOUD LIBRARY & PLAYLIST SYNC ENGINE ---
+  let isCloudSyncApplying = false;
+  let cloudPushDebounceTimer = null;
+
+  function pushCloudStateNow() {
+    if (cloudPushDebounceTimer) {
+      clearTimeout(cloudPushDebounceTimer);
+      cloudPushDebounceTimer = null;
+    }
+    if (typeof window.VotifyCloud === 'object' && window.VotifyCloud && typeof window.VotifyCloud.pushState === 'function') {
+      const user = (typeof window.VotifyCloud.getCurrentUser === 'function') ? window.VotifyCloud.getCurrentUser() : null;
+      if (!user || user.isAnonymous) return Promise.resolve();
+      const dictPlaylists = {};
+      dictPlaylists['Избранное'] = (state.favorites || []).map(t => ({
+        id: t.id,
+        title: t.title || 'Untitled',
+        artist: t.artist || 'Unknown',
+        thumbnail: t.thumbnail || t.cover || '',
+        cover: t.cover || t.thumbnail || '',
+        duration: t.duration || 0,
+        platform: t.platform || 'youtube',
+        addedAt: t.addedAt || Date.now()
+      }));
+      (state.playlists || []).forEach(p => {
+        if (p && p.name) {
+          dictPlaylists[p.name] = (p.tracks || []).map(t => ({
+            id: t.id,
+            title: t.title || 'Untitled',
+            artist: t.artist || 'Unknown',
+            thumbnail: t.thumbnail || t.cover || '',
+            cover: t.cover || t.thumbnail || '',
+            duration: t.duration || 0,
+            platform: t.platform || 'youtube',
+            addedAt: t.addedAt || Date.now()
+          }));
+        }
+      });
+      return window.VotifyCloud.pushState({
+        playlists: dictPlaylists,
+        history: (state.history || []).slice(0, 100)
+      }).catch(err => console.warn('[CloudSync] Immediate push warning:', err));
+    }
+    return Promise.resolve();
+  }
+
+  function syncToCloudDebounced() {
+    if (isCloudSyncApplying) return;
+    if (cloudPushDebounceTimer) clearTimeout(cloudPushDebounceTimer);
+    cloudPushDebounceTimer = setTimeout(() => {
+      pushCloudStateNow();
+    }, 1500);
+  }
+  window.pushCloudStateNow = pushCloudStateNow;
+  window.syncToCloudDebounced = syncToCloudDebounced;
+
+  function ingestCloudPlaylists(rawPlaylists) {
+    if (!rawPlaylists || typeof rawPlaylists !== 'object') return false;
+    isCloudSyncApplying = true;
+    let modified = false;
+
+    try {
+      const delSet = new Set(safeArray('devsize_deleted_playlists'));
+      if (Array.isArray(rawPlaylists)) {
+        rawPlaylists.forEach(pl => {
+          if (!pl || !pl.name) return;
+          const plName = pl.name.trim();
+          if (delSet.has(plName)) {
+            if (plTracks.length > 0) {
+              delSet.delete(plName);
+              try { localStorage.setItem('devsize_deleted_playlists', JSON.stringify([...delSet])); } catch (_) {}
+            } else {
+              return;
+            }
+          }
+          const plTracks = Array.isArray(pl.tracks) ? pl.tracks : [];
+          if (plName === 'Избранное' || plName === 'Любимые треки' || plName === 'Favorites') {
+            const existingIds = new Set(state.favorites.map(t => String(t.id || t.title)));
+            plTracks.forEach(t => {
+              const trackObj = {
+                id: t.id || t.trackId || ('tr_' + Math.random().toString(36).substr(2, 9)),
+                title: t.title || t.t || 'Untitled',
+                artist: t.artist || t.a || 'Unknown artist',
+                thumbnail: t.thumbnail || t.cover || t.c || '',
+                cover: t.cover || t.thumbnail || t.c || '',
+                duration: t.duration || t.d || 0,
+                platform: t.platform || 'youtube',
+                addedAt: t.addedAt || Date.now()
+              };
+              if (!existingIds.has(String(trackObj.id || trackObj.title))) {
+                state.favorites.push(trackObj);
+                existingIds.add(String(trackObj.id || trackObj.title));
+                modified = true;
+              }
+            });
+          } else {
+            let found = state.playlists.find(p => p.name === plName || (pl.id && p.id === pl.id));
+            if (!found) {
+              found = {
+                id: pl.id || ('pl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
+                name: plName,
+                tracks: [],
+                cover: pl.cover || ''
+              };
+              state.playlists.push(found);
+              modified = true;
+            }
+            const trkIds = new Set(found.tracks.map(t => String(t.id || t.title)));
+            plTracks.forEach(t => {
+              const trackObj = {
+                id: t.id || t.trackId || ('tr_' + Math.random().toString(36).substr(2, 9)),
+                title: t.title || t.t || 'Untitled',
+                artist: t.artist || t.a || 'Unknown artist',
+                thumbnail: t.thumbnail || t.cover || t.c || '',
+                cover: t.cover || t.thumbnail || t.c || '',
+                duration: t.duration || t.d || 0,
+                platform: t.platform || 'youtube',
+                addedAt: t.addedAt || Date.now()
+              };
+              if (!trkIds.has(String(trackObj.id || trackObj.title))) {
+                found.tracks.push(trackObj);
+                trkIds.add(String(trackObj.id || trackObj.title));
+                modified = true;
+              }
+            });
+          }
+        });
+      } else {
+        Object.keys(rawPlaylists).forEach(key => {
+          if (delSet.has(key)) {
+            if (rawTracks.length > 0) {
+              delSet.delete(key);
+              try { localStorage.setItem('devsize_deleted_playlists', JSON.stringify([...delSet])); } catch (_) {}
+            } else {
+              return;
+            }
+          }
+          const val = rawPlaylists[key];
+          const rawTracks = Array.isArray(val) ? val : (val && Array.isArray(val.tracks) ? val.tracks : []);
+          if (key === 'Избранное' || key === 'Любимые треки' || key === 'Favorites') {
+            const existingIds = new Set(state.favorites.map(t => String(t.id || t.title)));
+            rawTracks.forEach(t => {
+              const trackObj = {
+                id: t.id || t.trackId || ('tr_' + Math.random().toString(36).substr(2, 9)),
+                title: t.title || t.t || 'Untitled',
+                artist: t.artist || t.a || 'Unknown artist',
+                thumbnail: t.thumbnail || t.cover || t.c || '',
+                cover: t.cover || t.thumbnail || t.c || '',
+                duration: t.duration || t.d || 0,
+                platform: t.platform || 'youtube',
+                addedAt: t.addedAt || Date.now()
+              };
+              if (!existingIds.has(String(trackObj.id || trackObj.title))) {
+                state.favorites.push(trackObj);
+                existingIds.add(String(trackObj.id || trackObj.title));
+                modified = true;
+              }
+            });
+          } else {
+            let found = state.playlists.find(p => p.name === key || (val && val.id && p.id === val.id));
+            if (!found) {
+              found = {
+                id: (val && val.id) ? val.id : ('pl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
+                name: key,
+                tracks: [],
+                cover: (val && val.cover) || ''
+              };
+              state.playlists.push(found);
+              modified = true;
+            }
+            const trkIds = new Set(found.tracks.map(t => String(t.id || t.title)));
+            rawTracks.forEach(t => {
+              const trackObj = {
+                id: t.id || t.trackId || ('tr_' + Math.random().toString(36).substr(2, 9)),
+                title: t.title || t.t || 'Untitled',
+                artist: t.artist || t.a || 'Unknown artist',
+                thumbnail: t.thumbnail || t.cover || t.c || '',
+                cover: t.cover || t.thumbnail || t.c || '',
+                duration: t.duration || t.d || 0,
+                platform: t.platform || 'youtube',
+                addedAt: t.addedAt || Date.now()
+              };
+              if (!trkIds.has(String(trackObj.id || trackObj.title))) {
+                found.tracks.push(trackObj);
+                trkIds.add(String(trackObj.id || trackObj.title));
+                modified = true;
+              }
+            });
+          }
+        });
+      }
+
+      if (modified) {
+        localStorage.setItem('devsize_favorites', JSON.stringify(state.favorites));
+        localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+        updatePlaylistsUI();
+        if (state.currentView === 'favorites') renderFavoritesView();
+        updateFavoriteIcon();
+      }
+    } finally {
+      isCloudSyncApplying = false;
+    }
+    return modified;
+  }
+
+  function ingestCloudSyncBlob(blob) {
+    if (!blob || typeof blob !== 'object') return;
+    isCloudSyncApplying = true;
+    let modified = false;
+
+    try {
+      const delSet = new Set(safeArray('devsize_deleted_playlists'));
+      if (Array.isArray(blob.favorites) && blob.favorites.length > 0) {
+        const existingIds = new Set(state.favorites.map(t => String(t.id || t.title)));
+        blob.favorites.forEach(f => {
+          const t = f.track || f;
+          const trackObj = {
+            id: t.id || t.trackId || ('tr_' + Math.random().toString(36).substr(2, 9)),
+            title: t.t || t.title || 'Untitled',
+            artist: t.a || t.artist || 'Unknown artist',
+            thumbnail: t.c || t.cover || t.thumbnail || '',
+            cover: t.c || t.cover || t.thumbnail || '',
+            duration: t.d || t.duration || 0,
+            platform: t.platform || 'youtube',
+            addedAt: f.addedAt || Date.now()
+          };
+          if (!existingIds.has(String(trackObj.id || trackObj.title))) {
+            state.favorites.push(trackObj);
+            existingIds.add(String(trackObj.id || trackObj.title));
+            modified = true;
+          }
+        });
+      }
+
+      if (Array.isArray(blob.playlists) && blob.playlists.length > 0) {
+        blob.playlists.forEach(p => {
+          if (!p || !p.name || delSet.has(p.name)) return;
+          let found = state.playlists.find(pl => pl.name === p.name || (p.id && pl.id === p.id));
+          if (!found) {
+            found = {
+              id: p.id || ('pl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
+              name: p.name,
+              tracks: [],
+              cover: p.cover || ''
+            };
+            state.playlists.push(found);
+            modified = true;
+          }
+          const trkIds = new Set(found.tracks.map(t => String(t.id || t.title)));
+          (p.tracks || []).forEach(t => {
+            const trackObj = {
+              id: t.id || t.trackId || ('tr_' + Math.random().toString(36).substr(2, 9)),
+              title: t.t || t.title || 'Untitled',
+              artist: t.a || t.artist || 'Unknown artist',
+              thumbnail: t.c || t.cover || t.thumbnail || '',
+              cover: t.c || t.cover || t.thumbnail || '',
+              duration: t.d || t.duration || 0,
+              platform: t.platform || 'youtube',
+              addedAt: t.addedAt || Date.now()
+            };
+            if (!trkIds.has(String(trackObj.id || trackObj.title))) {
+              found.tracks.push(trackObj);
+              trkIds.add(String(trackObj.id || trackObj.title));
+              modified = true;
+            }
+          });
+        });
+      }
+
+      if (modified) {
+        localStorage.setItem('devsize_favorites', JSON.stringify(state.favorites));
+        localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
+        updatePlaylistsUI();
+        if (state.currentView === 'favorites') renderFavoritesView();
+        updateFavoriteIcon();
+      }
+    } finally {
+      isCloudSyncApplying = false;
+    }
+  }
+
+  // Real-time Cloud listeners
+  window.addEventListener('votify:cloud-library-updated', (e) => {
+    if (e.detail && e.detail.playlists) {
+      ingestCloudPlaylists(e.detail.playlists);
+    }
+  });
+
+  window.addEventListener('votify:cloud-sync-blob-updated', (e) => {
+    if (e.detail && e.detail.blob) {
+      ingestCloudSyncBlob(e.detail.blob);
+    }
+  });
+
+  window.addEventListener('votify:auth-changed', async (e) => {
+    const user = e.detail?.user;
+    if (user && !user.isAnonymous && typeof window.VotifyCloud?.pullState === 'function') {
+      try {
+        const data = await window.VotifyCloud.pullState();
+        if (data && data.playlists) ingestCloudPlaylists(data.playlists);
+      } catch (err) {
+        console.warn('[CloudSync] Pull error on auth change:', err);
+      }
+    }
+  });
+
+  // Check initial cloud user on startup
+  if (typeof window.VotifyCloud === 'object' && window.VotifyCloud && typeof window.VotifyCloud.whenReady === 'function') {
+    window.VotifyCloud.whenReady().then(async () => {
+      const user = (typeof window.VotifyCloud.getCurrentUser === 'function') ? window.VotifyCloud.getCurrentUser() : null;
+      if (user && !user.isAnonymous && typeof window.VotifyCloud.pullState === 'function') {
+        try {
+          const data = await window.VotifyCloud.pullState();
+          if (data && data.playlists) ingestCloudPlaylists(data.playlists);
+        } catch (err) {
+          console.warn('[CloudSync] Startup pull notice:', err);
+        }
+      }
+    }).catch(() => {});
+  }
 
   restoreQueueState();
 

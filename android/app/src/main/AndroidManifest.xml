@@ -59,6 +59,81 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Crimson: красная жидкая иконка -->
+        <activity-alias
+            android:name=".VotifyLauncher.Crimson"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_crimson"
+            android:roundIcon="@mipmap/ic_launcher_crimson"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Mono: монохромная флюид иконка -->
+        <activity-alias
+            android:name=".VotifyLauncher.Mono"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mono_fluid"
+            android:roundIcon="@mipmap/ic_launcher_mono_fluid"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Mint: мятная неоновая иконка -->
+        <activity-alias
+            android:name=".VotifyLauncher.Mint"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mint"
+            android:roundIcon="@mipmap/ic_launcher_mint"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Lime: кислотно-лаймовая иконка -->
+        <activity-alias
+            android:name=".VotifyLauncher.Lime"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_lime"
+            android:roundIcon="@mipmap/ic_launcher_lime"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Violet: неоново-фиолетовая иконка -->
+        <activity-alias
+            android:name=".VotifyLauncher.Violet"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_violet"
+            android:roundIcon="@mipmap/ic_launcher_violet"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Ч/Б: та же иконка без серой полосы. -->
         <activity-alias
             android:name=".VotifyLauncher.Bw"

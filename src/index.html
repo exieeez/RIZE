@@ -4,11 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RIZE</title>
-  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link id="app-favicon" rel="icon" type="image/png" href="assets/logo.png">
   <script src="tauri-bridge.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="no-nav-transition">
@@ -47,7 +48,7 @@
   <header class="titlebar" id="titlebar" data-tauri-drag-region>
     <div class="titlebar-drag" data-tauri-drag-region>
       <div class="app-logo" data-tauri-drag-region>
-        <img src="assets/logo.png" style="width:20px;height:20px;margin-right:8px;border-radius:4px;object-fit:contain;" alt="RIZE">
+        <img id="app-logo-img" src="assets/logo.png" style="width:20px;height:20px;margin-right:8px;border-radius:4px;object-fit:contain;" alt="RIZE">
         <span class="logo-text">RIZE</span>
       </div>
     </div>
@@ -66,6 +67,30 @@
       </button>
     </div>
   </header>
+
+  <!-- Auto-updater banner like Discord -->
+  <div class="update-banner" id="update-banner" style="display:none">
+    <div class="update-banner-content">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span id="update-banner-text">Доступно обновление</span>
+      <div class="update-banner-progress" id="update-banner-progress" style="display:none">
+        <div class="update-banner-progress-bar" id="update-banner-progress-bar"></div>
+      </div>
+    </div>
+    <div class="update-banner-actions">
+      <button class="update-banner-btn" id="update-banner-action" type="button">Обновить</button>
+      <button class="update-banner-close" id="update-banner-close" title="Закрыть" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <div class="top-nav" data-tauri-drag-region>
     <div class="top-nav-left" data-no-drag>
@@ -93,17 +118,10 @@
     </div>
 
     <div class="top-nav-actions-group" data-no-drag>
-      <div class="top-nav-profile-container">
-        <button class="top-nav-profile-btn" id="tb-avatar-btn" title="Профиль" type="button" aria-label="Профиль">
-          <div class="top-nav-avatar-wrap">
-            <img id="tb-avatar-img" class="top-nav-avatar-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'><rect width='128' height='128' rx='64' fill='%23262626'/><path d='M64 28a20 20 0 1 0 0 40 20 20 0 0 0 0-40zm0 48c-22.1 0-40 13.4-40 30v4h80v-4c0-16.6-17.9-30-40-30z' fill='%23888888'/></svg>" alt="Аватар" />
-          </div>
-          <span class="top-nav-profile-name" id="tb-profile-name">Войти</span>
-          <svg class="top-nav-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
-      </div>
+      <button class="tb-avatar-btn" id="tb-avatar-btn" title="Профиль" type="button" aria-label="Профиль">
+        <img id="tb-avatar-img" class="top-nav-avatar-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'><rect width='128' height='128' rx='64' fill='%23262626'/><path d='M64 28a20 20 0 1 0 0 40 20 20 0 0 0 0-40zm0 48c-22.1 0-40 13.4-40 30v4h80v-4c0-16.6-17.9-30-40-30z' fill='%23888888'/></svg>" alt="Аватар" />
+        <span class="top-nav-profile-name" id="tb-profile-name" style="display:none;"></span>
+      </button>
     </div>
   </div>
 
@@ -319,27 +337,35 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span id="btn-dedupe-playlist-label">Remove duplicates</span>
               </button>
-              <select class="pill-select" id="playlist-sort" title="Sort playlist" aria-label="Sort playlist">
-                <option value="manual">Manual order</option>
-                <option value="added-desc">Date added (newest)</option>
-                <option value="added-asc">Date added (oldest)</option>
-                <option value="title-asc">Title (A-Z)</option>
-                <option value="artist-asc">Artist (A-Z)</option>
-                <option value="duration-asc">Duration (shortest)</option>
-              </select>
-              <button class="btn-outline-pill" id="btn-download-playlist" title="Download all songs" aria-label="Download all songs">
+              <button class="btn-icon-pill" id="btn-download-playlist" title="Download all songs" aria-label="Download all songs">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span id="btn-download-playlist-label">Download all</span>
               </button>
               <button class="btn-icon-pill delete-btn" id="btn-delete-playlist" title="Delete playlist" aria-label="Delete playlist">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               </button>
             </div>
           </div>
+          <button class="playlist-header-play-btn" id="btn-play-playlist" title="Play playlist" aria-label="Play playlist">
+            <svg class="playlist-play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+            <svg class="playlist-pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
+          </button>
         </div>
-        <div class="view-search-box" id="playlist-search-box">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
-          <input type="text" class="view-search-input" id="playlist-search-input" placeholder="Search in playlist..." autocomplete="off">
+        <div class="playlist-subbar">
+          <div class="view-search-box" id="playlist-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
+            <input type="text" class="view-search-input" id="playlist-search-input" placeholder="Search in playlist..." autocomplete="off">
+          </div>
+          <div class="playlist-sort-wrap" title="Sort playlist">
+            <svg class="playlist-sort-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="14" y2="12"></line><line x1="4" y1="18" x2="8" y2="18"></line></svg>
+            <select class="pill-select playlist-sort-select" id="playlist-sort" title="Sort playlist" aria-label="Sort playlist">
+              <option value="manual">Manual order</option>
+              <option value="added-desc">Date added (newest)</option>
+              <option value="added-asc">Date added (oldest)</option>
+              <option value="title-asc">Title (A-Z)</option>
+              <option value="artist-asc">Artist (A-Z)</option>
+              <option value="duration-asc">Duration (shortest)</option>
+            </select>
+          </div>
         </div>
         <div class="tracks-list" id="playlist-tracks-list"></div>
       </section>
@@ -515,6 +541,58 @@
                 <button type="button" class="theme-mode-btn" id="font-opt-system" data-font="system">System</button>
               </div>
               <div style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline); margin-top: 6px;">SF Pro is loaded from fonts.cdnfonts.com when selected</div>
+            </div>
+
+            <div class="setting-item" id="setting-app-icon-row">
+              <div class="setting-item-top" style="justify-content: space-between; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="setting-name">Иконка приложения</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Выберите стиль значка Votify или загрузите своё изображение</span>
+                </div>
+                <button type="button" class="btn-outline-pill" id="btn-custom-app-icon" style="padding: 6px 14px; font-size: calc(12px * var(--font-scale, 1)); display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Загрузить свою</span>
+                </button>
+                <input type="file" id="input-custom-app-icon" accept="image/*" style="display: none;">
+              </div>
+              <div class="app-icon-grid" id="app-icon-grid">
+                <button type="button" class="app-icon-card active" data-icon="crimson" title="Crimson Red">
+                  <div class="app-icon-preview">
+                    <img src="assets/icons/icon-crimson.png" alt="Crimson Red">
+                  </div>
+                  <span class="app-icon-label">Crimson</span>
+                </button>
+                <button type="button" class="app-icon-card" data-icon="mono" title="Monochrome">
+                  <div class="app-icon-preview">
+                    <img src="assets/icons/icon-mono.png" alt="Monochrome">
+                  </div>
+                  <span class="app-icon-label">Mono</span>
+                </button>
+                <button type="button" class="app-icon-card" data-icon="mint" title="Mint Cyan">
+                  <div class="app-icon-preview">
+                    <img src="assets/icons/icon-mint.png" alt="Mint Cyan">
+                  </div>
+                  <span class="app-icon-label">Mint</span>
+                </button>
+                <button type="button" class="app-icon-card" data-icon="lime" title="Acid Lime">
+                  <div class="app-icon-preview">
+                    <img src="assets/icons/icon-lime.png" alt="Acid Lime">
+                  </div>
+                  <span class="app-icon-label">Lime</span>
+                </button>
+                <button type="button" class="app-icon-card" data-icon="violet" title="Neon Violet">
+                  <div class="app-icon-preview">
+                    <img src="assets/icons/icon-violet.png" alt="Neon Violet">
+                  </div>
+                  <span class="app-icon-label">Violet</span>
+                </button>
+                <button type="button" class="app-icon-card" data-icon="default" title="Classic Default">
+                  <div class="app-icon-preview">
+                    <img src="assets/icons/icon-default.png" alt="Classic">
+                  </div>
+                  <span class="app-icon-label">Classic</span>
+                </button>
+              </div>
             </div>
 
             <div class="setting-item" id="setting-search-pos-row">
@@ -1505,7 +1583,7 @@
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                   <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                    <img src="assets/logo.png" alt="RIZE" style="width: 32px; height: 32px; object-fit: cover;">
+                    <img id="about-logo-img" src="assets/logo.png" alt="RIZE" style="width: 32px; height: 32px; object-fit: cover;">
                   </div>
                   <div style="display: flex; flex-direction: column;">
                     <span class="setting-name">RIZE</span>
@@ -1559,6 +1637,20 @@
       <div class="right-panel-banner" id="right-panel-banner"><div class="banner-image"></div></div>
       <div class="right-panel-header">
         <div class="right-panel-header-actions">
+          <div class="right-panel-tool-pill lyrics-header-actions" id="right-panel-tool-pill">
+            <button class="lyrics-action-btn" id="btn-add-custom-lyrics" title="Редактировать текст" aria-label="Редактировать текст">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            </button>
+            <button class="lyrics-action-btn" id="btn-sync-lyrics" title="Синхронизировать текст" aria-label="Синхронизировать текст">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </button>
+            <button class="lyrics-action-btn hidden" id="btn-translate-lyrics" title="Перевести текст" aria-label="Перевести текст">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.11 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+            </button>
+            <button class="lyrics-action-btn" id="btn-tv-karaoke" title="Караоке во весь экран" aria-label="Караоке во весь экран">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+          </div>
           <button class="lyrics-mode-btn" id="btn-lyrics-mode" title="Toggle line mode">
             <span>Word</span>
           </button>
@@ -1588,24 +1680,6 @@
       </div>
 
       <div class="lyrics-section">
-        <div class="lyrics-header">
-          <div class="lyrics-header-actions">
-            <button class="lyrics-action-btn" id="btn-add-custom-lyrics" title="Edit lyrics" aria-label="Edit lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              <span>Edit</span>
-            </button>
-            <button class="lyrics-action-btn" id="btn-sync-lyrics" title="Sync lyrics" aria-label="Sync lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-              <span>Sync</span>
-            </button>
-            <button class="lyrics-action-btn hidden" id="btn-translate-lyrics" title="Translate lyrics" aria-label="Translate lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.11 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
-            </button>
-            <button class="lyrics-action-btn" id="btn-tv-karaoke" title="Fullscreen karaoke" aria-label="Fullscreen karaoke">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-            </button>
-          </div>
-        </div>
         <div class="lyrics-container" id="lyrics-container"></div>
       </div>
     </aside>
@@ -2040,11 +2114,11 @@
 
   <div class="modal-backdrop hidden" id="delete-playlist-modal">
     <div class="dialog-card">
-      <h3>Delete playlist</h3>
-      <p id="delete-playlist-msg" style="margin: 0 0 16px; color: var(--md-sys-color-on-surface-variant); font-size: calc(14px * var(--font-scale, 1));">Delete this playlist?</p>
+      <h3>Удалить плейлист</h3>
+      <p id="delete-playlist-msg" style="margin: 0 0 16px; color: var(--md-sys-color-on-surface-variant); font-size: calc(14px * var(--font-scale, 1));">Удалить этот плейлист? Это действие нельзя отменить.</p>
       <div class="dialog-actions">
-        <button class="btn-outline-pill" id="btn-cancel-delete-playlist">Cancel</button>
-        <button class="btn-pill-primary" id="btn-confirm-delete-playlist">Delete</button>
+        <button class="btn-outline-pill" id="btn-cancel-delete-playlist">Отмена</button>
+        <button class="btn-pill-primary" id="btn-confirm-delete-playlist" style="background: #ef4444 !important; color: #ffffff !important;">Удалить</button>
       </div>
     </div>
   </div>
@@ -2788,6 +2862,25 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line></svg>
           </button>
         </div>
+        <div class="tvk-timeline-bar" id="tvk-timeline-bar">
+          <span class="tvk-time-label" id="tvk-time-current">0:00</span>
+          <div class="tvk-scrubber-track-container" id="tvk-scrubber-track" title="Seek position">
+            <div class="tvk-scrubber-rail">
+              <div class="tvk-scrubber-fill" id="tvk-scrubber-fill"></div>
+            </div>
+            <div class="tvk-scrubber-thumb" id="tvk-scrubber-thumb"></div>
+          </div>
+          <span class="tvk-time-label" id="tvk-time-duration">0:00</span>
+        </div>
+        <div class="tvk-volume-bar" id="tvk-volume-bar">
+          <button class="tvk-icon-btn" id="btn-tvk-volume-mute" title="Mute or unmute" aria-label="Mute or unmute">
+            <svg id="tvk-volume-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+            <svg id="tvk-volume-muted-icon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+          </button>
+          <div class="tvk-volume-slider-wrapper">
+            <input type="range" class="pill-range volume-range tvk-volume-range" id="tvk-volume-slider" min="0" max="1" step="0.01" value="0.85" aria-label="Fullscreen volume">
+          </div>
+        </div>
       </div>
       <div class="tv-karaoke-content" id="tv-karaoke-content"></div>
     </div>
@@ -2949,8 +3042,11 @@
             <button class="pc-appbar-action-btn" id="profile-settings-btn" title="Настройки" aria-label="Настройки">
               <i class="material-icons">settings</i>
             </button>
-            <button class="pc-appbar-action-btn pc-appbar-action-danger" id="profile-logout-btn" title="Выйти" aria-label="Выйти">
+            <button class="pc-appbar-action-btn pc-appbar-action-danger" id="profile-logout-btn" title="Выйти из аккаунта" aria-label="Выйти из аккаунта">
               <i class="material-icons">logout</i>
+            </button>
+            <button class="pc-appbar-action-btn" id="profile-modal-close-icon-btn" title="Закрыть" aria-label="Закрыть">
+              <i class="material-icons">close</i>
             </button>
           </div>
         </div>
