@@ -3806,7 +3806,10 @@ function startStreamingUrlImport(url) {
   if (currTrackEl) currTrackEl.style.display = 'none';
 
   const encoded = encodeURIComponent(url);
-  const es = new EventSource(`/api/playlist/stream?url=${encoded}`);
+  const apiBase = (typeof window !== 'undefined' && window.state && window.state.serverPort)
+    ? `http://127.0.0.1:${window.state.serverPort}`
+    : (window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:38472');
+  const es = new EventSource(`${apiBase}/api/playlist/stream?url=${encoded}`);
   currentImportEventSource = es;
 
   let playlistTitle = 'Импортированный плейлист';
@@ -3980,7 +3983,10 @@ async function startStreamingBatchImport(name, items) {
   if (currTrackEl) currTrackEl.style.display = 'none';
 
   try {
-    const res = await fetch('/api/playlist/resolve-stream', {
+    const apiBase = (typeof window !== 'undefined' && window.state && window.state.serverPort)
+      ? `http://127.0.0.1:${window.state.serverPort}`
+      : (window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:38472');
+    const res = await fetch(`${apiBase}/api/playlist/resolve-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, items }),

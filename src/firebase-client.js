@@ -716,6 +716,7 @@
     state.profile = null;
     try {
       localStorage.removeItem('votify-user-profile');
+      localStorage.removeItem('votifyLocalProfile');
     } catch (e) {}
     notifyAuth();
     updateAccountUi();
@@ -1411,18 +1412,14 @@
         const parsed = JSON.parse(local);
         if (parsed && (parsed.email || parsed.displayName || parsed.name)) {
           return {
-            displayName: parsed.displayName || parsed.name || 'exieeez',
-            email: parsed.email || 'vovan232012s@gmail.com',
+            displayName: parsed.displayName || parsed.name || '',
+            email: parsed.email || '',
             photoUrl: parsed.photoUrl || parsed.avatar || '',
           };
         }
       }
     } catch (e) {}
-    return {
-      displayName: 'exieeez',
-      email: 'vovan232012s@gmail.com',
-      photoUrl: '',
-    };
+    return null;
   }
 
   async function checkEmailExists(email) {
@@ -1453,7 +1450,10 @@
 
     // 3. Check server endpoint
     try {
-      const res = await fetch('/api/auth/check-email', {
+      const apiBase = (typeof window !== 'undefined' && window.state && window.state.serverPort)
+        ? `http://127.0.0.1:${window.state.serverPort}`
+        : (window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:38472');
+      const res = await fetch(`${apiBase}/api/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail }),
@@ -1477,10 +1477,11 @@
 
   function updateQuickLoginUi(customEmail) {
     const saved = getSavedLoginUser();
-    const emailToUse = (customEmail || saved.email || 'vovan232012s@gmail.com').trim();
-    const isSavedMatch = saved.email && saved.email.toLowerCase() === emailToUse.toLowerCase();
+    const emailToUse = (customEmail || (saved && saved.email) || '').trim();
+    if (!emailToUse) return;
+    const isSavedMatch = Boolean(saved && saved.email && saved.email.toLowerCase() === emailToUse.toLowerCase());
 
-    const displayName = isSavedMatch ? (saved.displayName || 'exieeez') : emailToUse.split('@')[0];
+    const displayName = isSavedMatch ? (saved.displayName || emailToUse.split('@')[0]) : emailToUse.split('@')[0];
     const photoUrl = isSavedMatch ? (saved.photoUrl || '') : '';
 
     const nameEl = document.getElementById('quick-login-name');
@@ -1491,7 +1492,7 @@
     if (nameEl) nameEl.textContent = displayName;
     if (emailEl) emailEl.textContent = emailToUse;
     if (initEl) {
-      const initial = displayName.trim().charAt(0).toUpperCase() || 'E';
+      const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
       initEl.textContent = initial;
     }
     if (imgEl) {
@@ -1509,7 +1510,13 @@
   function showAuthForm(formId) {
     ['auth-email-step', 'auth-quick-login', 'auth-login', 'auth-register', 'auth-forgot'].forEach(id => {
       const element = document.getElementById(id);
-      if (element) element.style.display = id === formId ? 'block' : 'none';
+      if (element) {
+        if (id === formId) {
+          element.style.setProperty('display', id === 'auth-quick-login' ? 'flex' : 'block', 'important');
+        } else {
+          element.style.setProperty('display', 'none', 'important');
+        }
+      }
     });
   }
 
@@ -2229,7 +2236,10 @@
       }
 
       try {
-        const res = await fetch(`/api/spotify/profile?user=${encodeURIComponent(input)}`);
+        const apiBase = (typeof window !== 'undefined' && window.state && window.state.serverPort)
+          ? `http://127.0.0.1:${window.state.serverPort}`
+          : (window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:38472');
+        const res = await fetch(`${apiBase}/api/spotify/profile?user=${encodeURIComponent(input)}`);
         const data = await res.json();
         if (!res.ok || !data.success || !data.user) {
           throw new Error(data.error || 'Профиль не найден');
