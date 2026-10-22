@@ -2942,21 +2942,49 @@ document.addEventListener('DOMContentLoaded', async () => {
   function syncHomeWithPlayingTrack(track) {
     if (!track) return;
     try {
-      const row = document.getElementById('home-vibe-grid');
-      if (row) {
+      const rows = [document.getElementById('home-vibe-grid'), document.getElementById('home-quick-play-row')].filter(Boolean);
+      rows.forEach(row => {
+        const curTracks = (row.id === 'home-quick-play-row' || homeMode === 'recent') ? jumpBackCurrentTracks : myWaveCurrentTracks;
+        let foundIdx = -1;
+        if (Array.isArray(curTracks)) {
+          foundIdx = curTracks.findIndex(t => isSameTrack(t, track));
+        }
         const cards = row.querySelectorAll('.my-wave-track-card');
-        for (let i = 0; i < cards.length; i++) {
-          const card = cards[i];
-          if (card.dataset.trackId === String(track.id) || (card.dataset.title === track.title && card.dataset.artist === track.artist)) {
-            if (typeof scrollCarouselTo === 'function') scrollCarouselTo(row, i);
-            break;
+        if (foundIdx === -1) {
+          for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const cardId = card.dataset.trackId;
+            const cardTitle = (card.dataset.title || '').trim().toLowerCase();
+            const cardArtist = (card.dataset.artist || '').trim().toLowerCase();
+            const tTitle = (track.title || '').trim().toLowerCase();
+            const tArtist = (track.artist || '').trim().toLowerCase();
+            if ((track.id && cardId && cardId === String(track.id)) ||
+                (tTitle && cardTitle && (tTitle === cardTitle || tTitle.includes(cardTitle) || cardTitle.includes(tTitle)) &&
+                 (!tArtist || !cardArtist || tArtist === cardArtist || tArtist.includes(cardArtist) || cardArtist.includes(tArtist)))) {
+              foundIdx = i;
+              break;
+            }
           }
         }
-      }
+        cards.forEach((c, idx) => {
+          c.classList.toggle('active-playing', idx === foundIdx);
+        });
+        if (foundIdx !== -1 && typeof scrollCarouselTo === 'function') {
+          scrollCarouselTo(row, foundIdx);
+        }
+      });
       const titleEl = document.getElementById('my-wave-focused-title');
       const artistEl = document.getElementById('my-wave-focused-artist');
-      if (titleEl && track.title) titleEl.textContent = track.title;
-      if (artistEl && track.artist) artistEl.textContent = track.artist;
+      if (titleEl && track.title) {
+        titleEl.textContent = track.title;
+        if (typeof updateTextFade === 'function') updateTextFade(titleEl);
+      }
+      if (artistEl && track.artist) {
+        artistEl.textContent = track.artist;
+        if (typeof updateTextFade === 'function') updateTextFade(artistEl);
+      }
+      const thumb = (typeof getTrackThumbUrl === 'function' ? getTrackThumbUrl(track) : '') || track.thumbnail || track.cover || track.image || '';
+      if (typeof updateAmbientLight === 'function') updateAmbientLight('my-wave-ambient-light', thumb);
     } catch (_) {}
     updateSidebarPlayingTrack(track);
   }
@@ -4807,11 +4835,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const thumb = document.getElementById('tvk-scrubber-thumb');
     if (durTime > 0) {
       const pct = Math.max(0, Math.min(100, (curTime / durTime) * 100));
-      if (fill) fill.style.width = pct + '%';
-      if (thumb) thumb.style.left = pct + '%';
+      if (fill) fill.style.setProperty('width', pct + '%', 'important');
+      if (thumb) thumb.style.setProperty('left', pct + '%', 'important');
     } else {
-      if (fill) fill.style.width = '0%';
-      if (thumb) thumb.style.left = '0%';
+      if (fill) fill.style.setProperty('width', '0%', 'important');
+      if (thumb) thumb.style.setProperty('left', '0%', 'important');
     }
     if (curLabel) curLabel.textContent = formatDuration(curTime);
     if (durLabel) durLabel.textContent = formatDuration(durTime);
@@ -10471,8 +10499,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     input.addEventListener('input', onChange);
   }
   function enhanceSliders(root) {
+    (root || document).querySelectorAll('.volume-slider-wrapper .sl, .tvk-volume-slider-wrapper .sl').forEach(slWrap => {
+      const inp = slWrap.querySelector('input');
+      if (inp) {
+        slWrap.parentNode.insertBefore(inp, slWrap);
+        slWrap.remove();
+        inp.classList.remove('sl-done');
+      }
+    });
     (root || document).querySelectorAll('input[type="range"]:not(.sl-done):not(#slider-theme-hue)').forEach((input) => {
-      if (input.closest('.eq-slider-box') || input.closest('.eq-slider-wrap') || input.closest('.hue-seg') || input.classList.contains('eq-band-range')) return;
+      if (
+        input.closest('.eq-slider-box') ||
+        input.closest('.eq-slider-wrap') ||
+        input.closest('.hue-seg') ||
+        input.classList.contains('eq-band-range') ||
+        input.closest('.volume-slider-wrapper') ||
+        input.closest('.tvk-volume-slider-wrapper') ||
+        input.classList.contains('volume-range') ||
+        input.classList.contains('tvk-volume-range') ||
+        input.id === 'volume-slider' ||
+        input.id === 'tvk-volume-slider'
+      ) return;
       input.classList.add('sl-done');
       const wrap = document.createElement('div');
       wrap.className = 'sl';
@@ -11819,10 +11866,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (progressWrap) progressWrap.style.display = 'none';
       });
       window.electronAPI.onUpdateAvailable?.(info => {
+        const v = (info && info.version) ? String(info.version).replace(/^v/, '') : '';
+        if (!v || v.localeCompare(currentAppVersion, undefined, { numeric: true }) <= 0) {
+          hideBanner();
+          return;
+        }
         availableInfo = info;
         downloaded = false;
-        showBanner(`Доступно обновление ${info.version || currentAppVersion}`.trim(), 'Обновить');
-        showToast('🔔 Доступно обновление RIZE! Нажмите «Обновить» в шапке');
+        showBanner(`Доступно обновление ${v}`.trim(), 'Обновить');
+        showToast(`🔔 Доступно обновление RIZE ${v}! Нажмите «Обновить» в шапке`);
         if (progressWrap) progressWrap.style.display = 'none';
       });
       window.electronAPI.onUpdateNotAvailable?.(() => {
@@ -14944,6 +14996,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const card = document.createElement('div');
     card.className = 'my-wave-track-card';
     if (typeof idx === 'number') card.dataset.index = String(idx);
+    card.dataset.trackId = String(track.id || '');
+    card.dataset.title = String(track.title || '');
+    card.dataset.artist = String(track.artist || '');
+    if (state.currentTrack && typeof isSameTrack === 'function' && isSameTrack(state.currentTrack, track)) {
+      card.classList.add('active-playing');
+    }
     const thumbUrl = (typeof getTrackThumbUrl === 'function' ? getTrackThumbUrl(track) : '') || track.thumbnail || track.cover || track.image || '';
     card.innerHTML = `
       <div class="my-wave-track-cover-wrap">

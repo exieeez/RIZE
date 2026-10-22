@@ -166,7 +166,7 @@ class PlayerController(
                     maybeStartFadeOut(p)
                 }
             }
-            handler.postDelayed(this, 500)
+            handler.postDelayed(this, 250)
         }
     }
 

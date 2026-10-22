@@ -1188,18 +1188,28 @@ fun Scrubber(
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(5.dp))
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(VotifyColors.SurfaceContainerHigh),
                         ) {
                             Box(
                                 Modifier
                                     .fillMaxWidth(value)
                                     .fillMaxHeight()
-                                    .clip(RoundedCornerShape(5.dp))
+                                    .clip(RoundedCornerShape(4.dp))
                                     .background(accent),
                             )
                         }
+                        val thumbSize = 14.dp
+                        val thumbOffset = ((width * value) - (thumbSize / 2)).coerceIn(0.dp, width - thumbSize)
+                        Box(
+                            Modifier
+                                .offset(x = thumbOffset)
+                                .size(thumbSize)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .shadow(2.dp, CircleShape),
+                        )
                     }
                 }
             }

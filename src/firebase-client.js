@@ -1190,7 +1190,8 @@
     return dict;
   }
 
-  async function pushState({ settings, playlists, history } = {}) {
+  async function pushState({ settings, playlists, history }) {
+    if (!settings && !playlists && !history) return;
     const user = await requireUser();
     const effectivePlaylists = playlists || getLocalPlaylistsDictionary();
     const effectiveHistory = history || (function() {
@@ -1767,7 +1768,7 @@
       if (!sec) return;
       if (track && track.title) {
         sec.style.display = 'block';
-        if (coverEl) coverEl.src = track.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop';
+        if (coverEl) coverEl.src = track.cover || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72"><rect width="72" height="72" fill="%231b2836"/><path d="M30 22v22a8 8 0 1 0 4 7V30l14-4v14a8 8 0 1 0 4 7V22L30 26z" fill="%237d8494"/></svg>';
         
         const rawArtist = (track.artist && track.artist !== 'Unknown' && track.artist !== 'Неизвестный исполнитель') ? track.artist : '';
         const hasArtistInTitle = rawArtist && track.title.toLowerCase().includes(rawArtist.toLowerCase());
@@ -1813,41 +1814,124 @@
     // Render real user playlists
     const plsGrid = document.getElementById('pc-user-playlists-grid');
     const pagePlsGrid = document.getElementById('page-user-playlists-grid');
-    const plObj = (window.playlists && typeof window.playlists === 'object' && !Array.isArray(window.playlists))
-      ? window.playlists
-      : (JSON.parse(localStorage.getItem('votify-playlists') || '{}') || {});
-    const plNames = Object.keys(plObj);
+
+    const getAppPlaylists = () => {
+      const result = [];
+      const seenNames = new Set();
+
+      // 1. Check window.state.playlists
+      if (window.state && Array.isArray(window.state.playlists)) {
+        window.state.playlists.forEach(p => {
+          if (p && p.name && !seenNames.has(p.name)) {
+            seenNames.add(p.name);
+            result.push(p);
+          }
+        });
+      }
+
+      // 2. Check localStorage devsize_playlists
+      try {
+        const stored = JSON.parse(localStorage.getItem('devsize_playlists') || '[]');
+        if (Array.isArray(stored)) {
+          stored.forEach(p => {
+            if (p && p.name && !seenNames.has(p.name)) {
+              seenNames.add(p.name);
+              result.push(p);
+            }
+          });
+        }
+      } catch (_) {}
+
+      // 3. Check devsize_favorites ("Избранное")
+      try {
+        const favs = JSON.parse(localStorage.getItem('devsize_favorites') || '[]');
+        if (Array.isArray(favs) && favs.length > 0 && !seenNames.has('Избранное')) {
+          result.unshift({
+            id: 'favorites',
+            name: 'Избранное',
+            tracks: favs,
+            cover: favs.find(t => t && (t.thumbnail || t.cover || t.c))?.thumbnail || ''
+          });
+          seenNames.add('Избранное');
+        }
+      } catch (_) {}
+
+      // 4. Fallback check votify-playlists (if any other playlists were imported)
+      try {
+        const alt = JSON.parse(localStorage.getItem('votify-playlists') || '{}');
+        if (alt && typeof alt === 'object' && !Array.isArray(alt)) {
+          Object.keys(alt).forEach(name => {
+            if (!seenNames.has(name)) {
+              seenNames.add(name);
+              const trks = Array.isArray(alt[name]) ? alt[name] : [];
+              result.push({
+                id: name,
+                name: name,
+                tracks: trks,
+                cover: (trks[0] && (trks[0].cover || trks[0].thumbnail)) || ''
+              });
+            }
+          });
+        }
+      } catch (_) {}
+
+      return result;
+    };
+
+    const realPlaylists = getAppPlaylists();
     const renderPlCards = (container) => {
       if (!container) return;
-      if (plNames.length === 0) {
+      if (realPlaylists.length === 0) {
         container.innerHTML = '<div style="font-size:12px; color:#737373; padding:12px 0;">Нет созданных плейлистов</div>';
         return;
       }
-      container.innerHTML = plNames.map(name => {
-        const tracks = Array.isArray(plObj[name]) ? plObj[name] : [];
+      const defaultCoverSvg = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="16" fill="#242730"/><path d="M52 40v36.5a14 14 0 1 0 8 12.5V54l24-6v22.5a14 14 0 1 0 8 12.5V40L52 46z" fill="#7d8494"/></svg>');
+      container.innerHTML = realPlaylists.map(pl => {
+        const name = pl.name || 'Плейлист';
+        const tracks = Array.isArray(pl.tracks) ? pl.tracks : [];
         const count = tracks.length;
         const countStr = count + ' ' + (count === 1 ? 'трек' : (count >= 2 && count <= 4) ? 'трека' : 'треков');
-        const firstCover = tracks.find(t => t && t.cover)?.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop';
+        const firstTrackWithCover = tracks.find(t => t && (t.thumbnail || t.cover || t.image || t.c));
+        const cover = pl.cover || (firstTrackWithCover ? (firstTrackWithCover.thumbnail || firstTrackWithCover.cover || firstTrackWithCover.image || firstTrackWithCover.c) : '') || defaultCoverSvg;
+        const safeName = String(name).replace(/"/g, '&quot;');
+        const safeId = String(pl.id || name).replace(/"/g, '&quot;');
         return `
-          <div class="pc-playlist-card" data-pl="${name.replace(/"/g, '&quot;')}" style="cursor:pointer;">
+          <div class="pc-playlist-card" data-pl-id="${safeId}" data-pl="${safeName}" style="cursor:pointer;">
             <div class="pc-pl-cover-wrap">
-              <img src="${firstCover}" alt="${name.replace(/"/g, '&quot;')}" />
-              <button class="pc-pl-play-btn" title="Слушать"><i class="material-icons">play_arrow</i></button>
+              <img src="${cover}" alt="${safeName}" onerror="this.src='${defaultCoverSvg}'" />
+              <button class="pc-pl-play-btn" title="Слушать" data-pl-id="${safeId}"><i class="material-icons">play_arrow</i></button>
             </div>
-            <div class="pc-pl-name">${name}</div>
+            <div class="pc-pl-name">${safeName}</div>
             <div class="pc-pl-count">${countStr}</div>
           </div>
         `;
       }).join('');
 
       container.querySelectorAll('.pc-playlist-card').forEach(card => {
+        const plId = card.getAttribute('data-pl-id');
+        const plName = card.getAttribute('data-pl');
         card.addEventListener('click', () => {
-          const plName = card.getAttribute('data-pl');
-          if (plName && typeof window.openPlaylist === 'function') {
-            closeProfile();
-            window.openPlaylist(plName);
+          closeProfile();
+          if (plId === 'favorites' && typeof window.switchView === 'function') {
+            window.switchView('favorites');
+          } else if (typeof window.openPlaylistDetail === 'function' && plId && plId !== plName) {
+            window.openPlaylistDetail(plId);
+          } else if (typeof window.openPlaylist === 'function') {
+            window.openPlaylist(plName || plId);
           }
         });
+
+        const playBtn = card.querySelector('.pc-pl-play-btn');
+        if (playBtn) {
+          playBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetPl = realPlaylists.find(p => String(p.id) === plId || p.name === plName);
+            if (targetPl && Array.isArray(targetPl.tracks) && targetPl.tracks.length > 0 && typeof window.playTrack === 'function') {
+              window.playTrack(targetPl.tracks[0], [...targetPl.tracks], 0);
+              closeProfile();
+            }
+          });
+        }
       });
     };
     renderPlCards(plsGrid);
@@ -2766,7 +2850,7 @@
       if (otherFavSec) {
         if (user.favTrack && user.favTrack.title) {
           otherFavSec.style.display = 'block';
-          if (otherFavCover) otherFavCover.src = user.favTrack.cover || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop';
+          if (otherFavCover) otherFavCover.src = user.favTrack.cover || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72"><rect width="72" height="72" fill="%231b2836"/><path d="M30 22v22a8 8 0 1 0 4 7V30l14-4v14a8 8 0 1 0 4 7V22L30 26z" fill="%237d8494"/></svg>';
           
           const rawArtist = (user.favTrack.artist && user.favTrack.artist !== 'Unknown' && user.favTrack.artist !== 'Неизвестный исполнитель') ? user.favTrack.artist : '';
           const hasArtistInTitle = rawArtist && user.favTrack.title.toLowerCase().includes(rawArtist.toLowerCase());
