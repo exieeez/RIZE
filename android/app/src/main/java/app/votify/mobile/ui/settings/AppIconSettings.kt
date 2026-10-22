@@ -184,37 +184,37 @@ fun AppIconSection(viewModel: SettingsViewModel) {
     SettingsSectionLabel(stringResource(R.string.icon_section))
     SettingsCard {
         Column(Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-            // Встроенные варианты — по три плитки в ряд.
-            AppIcon.builtIn.chunked(3).forEach { row ->
+            // Объединяем встроенные варианты и плитку «Своя иконка» в единую плотную 3-колоночную сетку
+            // 5 встроенных + 1 своя = ровно 6 плиток (2 ряда по 3 плитки без пустых пробелов!)
+            val allTiles = AppIcon.builtIn + AppIcon.Custom
+            allTiles.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { icon ->
-                        BuiltInIconTile(
-                            icon = icon,
-                            previews = previews,
-                            active = active,
-                            onSelect = viewModel::selectAppIcon,
-                            modifier = Modifier.weight(1f),
-                        )
+                        if (icon == AppIcon.Custom) {
+                            IconOptionTile(
+                                bitmap = customBitmap,
+                                label = iconLabel(AppIcon.Custom),
+                                selected = active == AppIcon.Custom,
+                                onClick = {
+                                    if (customExists) viewModel.selectAppIcon(AppIcon.Custom) else launchPicker()
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        } else {
+                            BuiltInIconTile(
+                                icon = icon,
+                                previews = previews,
+                                active = active,
+                                onSelect = viewModel::selectAppIcon,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                     repeat(3 - row.size) {
                         Spacer(Modifier.weight(1f))
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-            }
-            // Своя иконка: картинка пользователя или приглашение её выбрать (в той же 3-колоночной сетке).
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                IconOptionTile(
-                    bitmap = customBitmap,
-                    label = iconLabel(AppIcon.Custom),
-                    selected = active == AppIcon.Custom,
-                    onClick = {
-                        if (customExists) viewModel.selectAppIcon(AppIcon.Custom) else launchPicker()
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.weight(1f))
-                Spacer(Modifier.weight(1f))
             }
 
             SettingsDivider()
