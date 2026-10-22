@@ -72,7 +72,7 @@ enum class AppIcon(val key: String, val componentSuffix: String) {
         fun fromKey(k: String?): AppIcon = entries.firstOrNull { it.key == k } ?: Current
 
         /** Варианты в порядке показа в настройках (Своя — отдельной плиткой). */
-        val builtIn: List<AppIcon> = listOf(Current, Crimson, Mono, Mint, Lime, Violet, BlackWhite, Glass, Classic)
+        val builtIn: List<AppIcon> = listOf(Current, Crimson, Mint, Lime, Violet)
 
         /** Идентификатор ярлыка со своей картинкой (один на приложение — без дублей). */
         const val CUSTOM_SHORTCUT_ID = "votify_custom_icon"

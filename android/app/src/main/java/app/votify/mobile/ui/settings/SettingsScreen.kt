@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,7 +42,6 @@ import app.votify.mobile.ui.theme.VotifyColors
  */
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onOpenGeneral: () -> Unit,
@@ -50,6 +50,7 @@ fun SettingsScreen(
     onOpenInterface: () -> Unit,
     onOpenPlayer: () -> Unit,
     onOpenArtwork: () -> Unit,
+    onOpenAppIcon: () -> Unit,
     onOpenBackgrounds: () -> Unit,
     onOpenPresets: () -> Unit,
     onOpenWorkshop: () -> Unit,
@@ -73,9 +74,6 @@ fun SettingsScreen(
             )
         }
 
-        // Раздел выбора иконки приложения
-        AppIconSection(viewModel)
-
         SettingsSectionLabel(stringResource(R.string.settings_cat_main))
         SettingsCard {
             SettingsNavRow(Icons.Outlined.Settings, stringResource(R.string.settings_general), null, onOpenGeneral)
@@ -92,6 +90,8 @@ fun SettingsScreen(
             SettingsNavRow(Icons.Outlined.PlayArrow, stringResource(R.string.settings_player), null, onOpenPlayer)
             SettingsDivider()
             SettingsNavRow(Icons.Outlined.Image, stringResource(R.string.settings_artwork), null, onOpenArtwork)
+            SettingsDivider()
+            SettingsNavRow(Icons.Outlined.Palette, stringResource(R.string.icon_section), null, onOpenAppIcon)
         }
 
         SettingsSectionLabel(stringResource(R.string.settings_cat_customization))

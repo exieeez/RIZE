@@ -587,16 +587,16 @@
     <string name="workshop_unlinked">Theme unlinked</string>
     <!-- App icon (Settings → App icon, the topmost section) -->
     <string name="icon_section">App icon</string>
-    <string name="icon_section_sub">The home screen icon variant. B/W — the same icon without the grey band, “iOS 27 style” and “classic” — the old RIZE logo.</string>
-    <string name="icon_current">Current</string>
+    <string name="icon_section_sub">The home screen icon variant</string>
+    <string name="icon_current">Default</string>
     <string name="icon_crimson">Crimson</string>
-    <string name="icon_mono_fluid">Mono fluid</string>
     <string name="icon_mint">Mint</string>
     <string name="icon_lime">Lime</string>
     <string name="icon_violet">Neon</string>
     <string name="icon_bw">B/W</string>
     <string name="icon_glass">iOS 27 style</string>
     <string name="icon_classic">Classic</string>
+    <string name="icon_mono_fluid">Mono fluid</string>
     <string name="icon_custom">Custom icon</string>
     <string name="icon_pick">Pick an image</string>
     <string name="icon_change">Change image</string>

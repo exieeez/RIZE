@@ -39,15 +39,11 @@ class AppIconTest {
         val expected = listOf(
             AppIcon.Current,
             AppIcon.Crimson,
-            AppIcon.Mono,
             AppIcon.Mint,
             AppIcon.Lime,
             AppIcon.Violet,
-            AppIcon.BlackWhite,
-            AppIcon.Glass,
-            AppIcon.Classic,
         )
         assertEquals(expected, AppIcon.builtIn)
-        assertTrue(AppIcon.builtIn.size == 9)
+        assertTrue(AppIcon.builtIn.size == 5)
     }
 }

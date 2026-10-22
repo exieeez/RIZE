@@ -122,6 +122,7 @@ import app.votify.mobile.ui.workshop.WorkshopScreen
 import app.votify.mobile.ui.workshop.WorkshopViewModel
 import app.votify.mobile.ui.settings.SettingsEvent
 import app.votify.mobile.ui.settings.SettingsScreen
+import app.votify.mobile.ui.settings.AppIconSettingsScreen
 import app.votify.mobile.ui.settings.ArtworkSettingsScreen
 import app.votify.mobile.ui.settings.AudioSettingsScreen
 import app.votify.mobile.ui.settings.BackgroundsScreen
@@ -171,6 +172,7 @@ private object Routes {
     const val INTERFACE = "settings/interface"
     const val PLAYER = "settings/player"
     const val ARTWORK = "settings/artwork"
+    const val APP_ICON = "settings/app-icon"
     const val BACKGROUNDS = "settings/backgrounds"
     const val PRESETS = "settings/presets"
     const val PROXY = "settings/proxy"
@@ -625,7 +627,6 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                         }
                         composable(Routes.SETTINGS) {
                             SettingsScreen(
-                                viewModel = settingsVm,
                                 contentPadding = contentPadding,
                                 onBack = { navController.popBackStack() },
                                 onOpenGeneral = { navController.navigate(Routes.GENERAL) { launchSingleTop = true } },
@@ -634,6 +635,7 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                                 onOpenInterface = { navController.navigate(Routes.INTERFACE) { launchSingleTop = true } },
                                 onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
                                 onOpenArtwork = { navController.navigate(Routes.ARTWORK) { launchSingleTop = true } },
+                                onOpenAppIcon = { navController.navigate(Routes.APP_ICON) { launchSingleTop = true } },
                                 onOpenBackgrounds = { navController.navigate(Routes.BACKGROUNDS) { launchSingleTop = true } },
                                 onOpenPresets = { navController.navigate(Routes.PRESETS) { launchSingleTop = true } },
                                 onOpenWorkshop = { navController.navigate(Routes.WORKSHOP) { launchSingleTop = true } },
@@ -667,6 +669,9 @@ private fun VotifyScaffold(app: VotifyApp, settings: Settings) {
                         }
                         composable(Routes.ARTWORK) {
                             ArtworkSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.APP_ICON) {
+                            AppIconSettingsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })
                         }
                         composable(Routes.BACKGROUNDS) {
                             BackgroundsScreen(settingsVm, contentPadding, onBack = { navController.popBackStack() })

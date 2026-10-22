@@ -7,14 +7,18 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -91,10 +95,10 @@ private fun IconOptionTile(
     ) {
         Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
             if (bitmap != null) {
-                Image(bitmap, contentDescription = label, modifier = Modifier.size(56.dp))
+                Image(bitmap, contentDescription = label, modifier = Modifier.size(46.dp))
             } else {
                 Box(
-                    Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
+                    Modifier.size(46.dp).clip(RoundedCornerShape(12.dp))
                         .background(VotifyColors.SurfaceContainerHigh),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -219,27 +223,27 @@ fun AppIconSection(viewModel: SettingsViewModel) {
                 stringResource(if (customExists) R.string.icon_change else R.string.icon_pick),
                 stringResource(R.string.icon_custom),
             ) { launchPicker() }
-            SettingsNavRow(
-                Icons.Outlined.AddToHomeScreen,
-                stringResource(R.string.icon_shortcut_title),
-                stringResource(R.string.icon_shortcut_sub),
-            ) { viewModel.pinCustomIconShortcut() }
-            SettingsNavRow(
-                Icons.Outlined.Palette,
-                stringResource(R.string.icon_system_title),
-                stringResource(R.string.icon_system_sub),
-            ) {
-                val intent = viewModel.systemIconIntent()
-                if (intent == null) viewModel.onIconSystemUnavailable()
-                else runCatching { context.startActivity(intent) }
-            }
+        }
+    }
+}
 
-            Text(
-                stringResource(R.string.icon_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = VotifyColors.TextMuted,
-                modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
-            )
+/**
+ * Экран настроек «Иконка приложения» с собственным скаффолдом, тулбаром и кнопкой назад.
+ */
+@Composable
+fun AppIconSettingsScreen(
+    viewModel: SettingsViewModel,
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+) {
+    SettingsScaffold(stringResource(R.string.icon_section), contentPadding, onBack) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(bottom = 24.dp),
+        ) {
+            AppIconSection(viewModel)
         }
     }
 }
